@@ -465,3 +465,37 @@ Sem RLS granular por ora — mesma dívida técnica registrada em 10.8.
 
 ### 10.11 Versionamento de schema (completa 1.1)
 Usar **Supabase CLI migrations** desde a Fase 0. Cada bloco de schema (seções 1.3, 2.1, 3.1, 4.1, 5.1, mais as correções desta seção 10) vira uma migration numerada via `supabase migration new`, aplicada com `supabase db push`. Preserva histórico de schema e permite reset do banco local durante o desenvolvimento.
+
+### 10.12 Modelagem de receita (corrige 2.1) — descoberta na Fase 1
+A seção 2.3 pede um card **"Receita vs. Despesa"** e a 2.1 prevê
+`meta_tipo = 'percentual_renda'`. Ambos exigem saber a renda do mês, mas o
+schema não modelava receita: `categorias.tipo` só distingue `fixo`/`variavel`,
+que são dois tipos de **despesa**.
+
+Adicionada a coluna `natureza` em `categorias`:
+```sql
+categorias (
+  ..., natureza text not null check (natureza in ('receita','despesa'))
+)
+```
+- `tipo` (`fixo`/`variavel`) passa a ser exclusivo de despesas — receitas têm
+  `tipo = null`, garantido por check constraint.
+- A receita do mês vem da view `receita_mensal`, que soma lançamentos de
+  categorias com `natureza = 'receita'`.
+- `meta_tipo = 'percentual_renda'` é resolvido cruzando `meta_mensal` (o
+  percentual) com a receita daquele mês.
+
+**Ajuste em 10.9:** `candidato_corte` **não** virou campo-resumo por trigger.
+Depende de quais são os 2 meses anteriores, que muda na virada do mês sem
+nenhuma escrita acontecer — a mesma dependência temporal já reconhecida no
+momentum de projetos. Virou a função Postgres `candidatos_corte()`, calculada na
+leitura. O único campo-resumo do Financeiro é `categorias.total_gasto_mes`.
+
+### 10.13 Ordenação do fluxograma (consequência de 10.6) — descoberta na Fase 0
+Com FKs reais, `fluxograma_semanal` depende de `materias` e `treinos` e não pode
+ser criada na Fase 0. É criada na migration da Fase 2 (com `materia_id`) e
+estendida na Fase 3 (adicionando `treino_id` e o check constraint final).
+
+Consequência nas seções 3.4 e 4.4: a query dos checks diários deixa de filtrar
+por `pilar = 'estudos'` e passa a filtrar por `materia_id is not null` /
+`treino_id is not null`.

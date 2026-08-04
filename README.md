@@ -26,7 +26,7 @@ plano registra as resoluções de lacunas decididas antes da implementação —
 | Fase | Escopo | Status |
 | --- | --- | --- |
 | 0 | Fundação — setup, design system, schema base, shell de layout | ✅ Concluída |
-| 1 | Financeiro | ⬜ Pendente |
+| 1 | Financeiro | ✅ Concluída |
 | 2 | Estudos | ⬜ Pendente |
 | 3 | Treino | ⬜ Pendente |
 | 4 | Projetos | ⬜ Pendente |
@@ -46,6 +46,29 @@ plano registra as resoluções de lacunas decididas antes da implementação —
 - Shell de layout: sidebar colapsável com destaque do item ativo
 - Schema base transversal: `checks_diarios`, `planejamento_sono`, `registro_sono`
 
+### Fase 1 — Financeiro
+
+- Schema: `categorias`, `lancamentos`, `investimentos`,
+  `planejamento_semanal_financeiro`
+- Views de agregação: `resumo_mensal_categoria`, `receita_mensal`
+- Trigger de campo-resumo `categorias.total_gasto_mes` (mês corrente)
+- Função `candidatos_corte()`, calculada na leitura
+- Cálculos como funções puras com **26 testes** (`calculos.test.ts`)
+- Card receita vs. despesa com projeção de saldo no fim do mês
+- Card "disponível hoje": geral e planejado lado a lado, com 🟢/🔴 do dia
+- Grade de planejamento semanal dia × categoria (ritual de domingo)
+- Grid de cards de categoria com anel de progresso
+- Gráfico de tendência de 6 meses (Recharts) com seletor de categoria
+- Seção de atenção com candidatos a corte
+- Seção de investimentos: aporte e rendimento do mês
+- Checks diário e semanal
+- Formulários de categoria, lançamento e investimento (RHF + Zod)
+- Sub-página da categoria com histórico e progresso da meta
+
+**Decisão desta fase:** o plano pedia card "Receita vs. Despesa" e
+`meta_tipo = 'percentual_renda'`, mas não modelava receita. Resolvido com a
+coluna `natureza` em `categorias` — ver resolução 10.12 no plano.
+
 ## Estrutura
 
 ```
@@ -56,9 +79,11 @@ plano registra as resoluções de lacunas decididas antes da implementação —
     │   ├── components/
     │   │   ├── layout/   # AppShell, Sidebar, ThemeToggle
     │   │   └── ui/       # shadcn/ui (vendored)
+    │   ├── features/     # um módulo por pilar: api, hooks, calculos, componentes
+    │   │   └── financeiro/
     │   ├── hooks/
-    │   ├── lib/          # supabase, queryClient, pilares, constants
-    │   ├── pages/        # uma pasta por pilar
+    │   ├── lib/          # supabase, queryClient, pilares, constants, datas
+    │   ├── pages/        # uma pasta por pilar (rotas)
     │   ├── stores/       # Zustand
     │   └── types/        # database.ts (gerado)
     └── supabase/
@@ -81,6 +106,7 @@ npm run dev
 | `npm run dev` | Servidor de desenvolvimento |
 | `npm run build` | Typecheck + build de produção |
 | `npm run lint` | oxlint |
+| `npm run test` | Vitest (funções puras de cálculo) |
 | `npm run typecheck` | Apenas verificação de tipos |
 | `npm run types:gen` | Regenera `src/types/database.ts` do schema remoto |
 

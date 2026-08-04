@@ -1,6 +1,7 @@
 // Gerado automaticamente a partir do schema do Supabase.
 // Regenerar com: npm run types:gen
-// NÃO editar à mão.
+// NÃO editar à mão. Tipos de domínio narrowed (uniões de literais para colunas
+// text com CHECK) ficam em src/features/*/types.ts.
 
 export type Json =
   | string
@@ -18,6 +19,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      categorias: {
+        Row: {
+          cor: string | null
+          created_at: string
+          id: string
+          meta_mensal: number | null
+          meta_tipo: string | null
+          natureza: string
+          nome: string
+          subcategoria_pai_id: string | null
+          tipo: string | null
+          total_gasto_mes: number
+        }
+        Insert: {
+          cor?: string | null
+          created_at?: string
+          id?: string
+          meta_mensal?: number | null
+          meta_tipo?: string | null
+          natureza: string
+          nome: string
+          subcategoria_pai_id?: string | null
+          tipo?: string | null
+          total_gasto_mes?: number
+        }
+        Update: {
+          cor?: string | null
+          created_at?: string
+          id?: string
+          meta_mensal?: number | null
+          meta_tipo?: string | null
+          natureza?: string
+          nome?: string
+          subcategoria_pai_id?: string | null
+          tipo?: string | null
+          total_gasto_mes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'categorias_subcategoria_pai_id_fkey'
+            columns: ['subcategoria_pai_id']
+            isOneToOne: false
+            referencedRelation: 'categorias'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       checks_diarios: {
         Row: {
           created_at: string
@@ -41,6 +89,106 @@ export type Database = {
           planejamento_semana_feito?: boolean
         }
         Relationships: []
+      }
+      investimentos: {
+        Row: {
+          created_at: string
+          data: string
+          descricao: string | null
+          id: string
+          tipo: string
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          descricao?: string | null
+          id?: string
+          tipo: string
+          valor: number
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          descricao?: string | null
+          id?: string
+          tipo?: string
+          valor?: number
+        }
+        Relationships: []
+      }
+      lancamentos: {
+        Row: {
+          categoria_id: string
+          created_at: string
+          data: string
+          data_vencimento: string | null
+          descricao: string | null
+          forma_pagamento: string | null
+          id: string
+          valor: number
+        }
+        Insert: {
+          categoria_id: string
+          created_at?: string
+          data: string
+          data_vencimento?: string | null
+          descricao?: string | null
+          forma_pagamento?: string | null
+          id?: string
+          valor: number
+        }
+        Update: {
+          categoria_id?: string
+          created_at?: string
+          data?: string
+          data_vencimento?: string | null
+          descricao?: string | null
+          forma_pagamento?: string | null
+          id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'lancamentos_categoria_id_fkey'
+            columns: ['categoria_id']
+            isOneToOne: false
+            referencedRelation: 'categorias'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      planejamento_semanal_financeiro: {
+        Row: {
+          categoria_id: string
+          dia_semana: number
+          id: string
+          semana_inicio: string
+          valor_planejado: number
+        }
+        Insert: {
+          categoria_id: string
+          dia_semana: number
+          id?: string
+          semana_inicio: string
+          valor_planejado: number
+        }
+        Update: {
+          categoria_id?: string
+          dia_semana?: number
+          id?: string
+          semana_inicio?: string
+          valor_planejado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'planejamento_semanal_financeiro_categoria_id_fkey'
+            columns: ['categoria_id']
+            isOneToOne: false
+            referencedRelation: 'categorias'
+            referencedColumns: ['id']
+          },
+        ]
       }
       planejamento_sono: {
         Row: {
@@ -89,10 +237,45 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      receita_mensal: {
+        Row: {
+          mes: string | null
+          total: number | null
+        }
+        Relationships: []
+      }
+      resumo_mensal_categoria: {
+        Row: {
+          categoria_id: string | null
+          mes: string | null
+          qtd_lancamentos: number | null
+          total: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'lancamentos_categoria_id_fkey'
+            columns: ['categoria_id']
+            isOneToOne: false
+            referencedRelation: 'categorias'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Functions: {
-      [_ in never]: never
+      candidatos_corte: {
+        Args: never
+        Returns: {
+          categoria_id: string
+          meses_estourados: number
+          meta_efetiva: number
+          nome: string
+        }[]
+      }
+      recalcular_total_gasto_mes: {
+        Args: { p_categoria_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
