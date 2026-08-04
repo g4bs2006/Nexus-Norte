@@ -10,7 +10,10 @@ import {
   Wallet,
 } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
-import { ChecksFluxograma, type ItemCheckFluxograma } from '@/components/ChecksFluxograma'
+import {
+  ChecksFluxograma,
+  type ItemCheckFluxograma,
+} from '@/components/ChecksFluxograma'
 import { CheckDia } from '@/components/CheckDia'
 import { BarraProgresso } from '@/components/BarraProgresso'
 import {
@@ -177,7 +180,8 @@ export default function HomePage() {
     // Próxima avaliação entre TODAS as matérias (plano 7.1)
     const proxima = proximaAvaliacao(todasAvaliacoes, hoje)
     const nomeMateria = proxima
-      ? lista.find((materia) => materia.id === proxima.avaliacao.materia_id)?.nome
+      ? lista.find((materia) => materia.id === proxima.avaliacao.materia_id)
+          ?.nome
       : undefined
 
     return { total: lista.length, emRisco, proxima, nomeMateria }
@@ -339,13 +343,9 @@ export default function HomePage() {
     [fontes, proximos],
   )
 
-
   return (
     <>
-      <PageHeader
-        titulo="Home"
-        descricao={format(hoje, "EEEE, d 'de' MMMM")}
-      />
+      <PageHeader titulo="Home" descricao={format(hoje, "EEEE, d 'de' MMMM")} />
 
       <div className="space-y-6">
         {/*
@@ -384,7 +384,9 @@ export default function HomePage() {
               <BarraProgresso
                 valor={(concluidos / totalChecks) * 100}
                 classeCor={
-                  concluidos === totalChecks ? 'bg-status-ok' : 'bg-foreground/60'
+                  concluidos === totalChecks
+                    ? 'bg-status-ok'
+                    : 'bg-foreground/60'
                 }
                 rotulo="Checks concluídos hoje"
               />

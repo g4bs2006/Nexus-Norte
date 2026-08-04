@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { getDate, getDaysInMonth } from 'date-fns'
 import { Wallet } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
+import { EstadoVazio } from '@/components/EstadoVazio'
 import { SkeletonPagina } from '@/components/Skeletons'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -115,15 +116,19 @@ export default function FinanceiroPage() {
         diasNoMes: getDaysInMonth(hoje),
       }),
     }
-  }, [listaCategorias, receitaDoMes, lancamentosMes.data, planejamento.data, hoje, hojeISO])
+  }, [
+    listaCategorias,
+    receitaDoMes,
+    lancamentosMes.data,
+    planejamento.data,
+    hoje,
+    hojeISO,
+  ])
 
   if (categorias.isPending) {
     return (
       <>
-        <PageHeader titulo="Financeiro"
-        pilar="financeiro"
-        icone={Wallet}
-      />
+        <PageHeader titulo="Financeiro" pilar="financeiro" icone={Wallet} />
         <SkeletonPagina variante="financeiro" />
       </>
     )
@@ -132,10 +137,7 @@ export default function FinanceiroPage() {
   if (categorias.isError) {
     return (
       <>
-        <PageHeader titulo="Financeiro"
-        pilar="financeiro"
-        icone={Wallet}
-      />
+        <PageHeader titulo="Financeiro" pilar="financeiro" icone={Wallet} />
         <Card className="border-status-risco/40">
           <CardContent className="text-status-risco text-sm">
             Erro ao carregar: {categorias.error.message}
@@ -152,6 +154,8 @@ export default function FinanceiroPage() {
       <PageHeader
         titulo="Financeiro"
         descricao="Planejado vs. realizado, metas por categoria e investimentos."
+        pilar="financeiro"
+        icone={Wallet}
         acoes={
           <>
             <DialogCategoria />
@@ -161,15 +165,14 @@ export default function FinanceiroPage() {
       />
 
       {listaCategorias.length === 0 ? (
-        <Card className="border-dashed shadow-none">
-          <CardContent className="text-muted-foreground space-y-2 text-sm">
-            <p>Nenhuma categoria cadastrada ainda.</p>
-            <p className="text-xs">
-              Comece criando uma categoria de receita (ex: Salário) e algumas de
-              despesa — as metas e o planejamento da semana dependem delas.
-            </p>
-          </CardContent>
-        </Card>
+        <EstadoVazio
+          icone={Wallet}
+          classeCor="text-financeiro"
+          classeFundo="bg-financeiro-soft"
+          titulo="Comece pelas categorias"
+          descricao="Crie uma categoria de receita, como Salário, e algumas de despesa. As metas, o planejamento da semana e os gráficos dependem delas."
+          acao={<DialogCategoria />}
+        />
       ) : (
         <div className="space-y-6">
           {/* Primeiro elemento da página: é a ação mais frequente (Bloco D) */}

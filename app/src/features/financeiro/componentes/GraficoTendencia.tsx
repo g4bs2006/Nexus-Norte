@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import {
+  Area,
+  AreaChart,
   CartesianGrid,
-  Line,
-  LineChart,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { ESTILO_TOOLTIP, pontoFinal } from '@/components/grafico'
 import { formatarMoeda, rotuloMes } from '@/lib/datas'
 import { metaEfetiva } from '../calculos'
 import type { ResumoMensal } from '../api'
@@ -109,7 +110,14 @@ export function GraficoTendencia({
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={220}>
-          <LineChart data={dados} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
+          <AreaChart data={dados} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
+            {/* Área de preenchimento: dá massa à linha sem competir com ela */}
+            <defs>
+              <linearGradient id="areaTendencia" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--chart-1)" stopOpacity={0.22} />
+                <stop offset="100%" stopColor="var(--chart-1)" stopOpacity={0} />
+              </linearGradient>
+            </defs>
             <CartesianGrid
               strokeDasharray="3 3"
               vertical={false}
@@ -130,13 +138,7 @@ export function GraficoTendencia({
             />
             <Tooltip
               formatter={(valor) => formatarMoeda(Number(valor))}
-              contentStyle={{
-                background: 'var(--popover)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius)',
-                fontSize: 12,
-                color: 'var(--popover-foreground)',
-              }}
+              contentStyle={ESTILO_TOOLTIP}
             />
             {meta !== null && (
               <ReferenceLine
@@ -151,15 +153,18 @@ export function GraficoTendencia({
                 }}
               />
             )}
-            <Line
+            <Area
               type="monotone"
               dataKey="gasto"
               stroke="var(--chart-1)"
               strokeWidth={2}
-              dot={{ r: 3 }}
-              activeDot={{ r: 5 }}
+              fill="url(#areaTendencia)"
+              // Ênfase no ponto final: é o mês corrente, o único que ainda dá
+              // para mudar
+              dot={pontoFinal(dados.length, 'var(--chart-1)')}
+              activeDot={{ r: 5, stroke: 'var(--card)', strokeWidth: 2 }}
             />
-          </LineChart>
+          </AreaChart>
         </ResponsiveContainer>
       </CardContent>
     </Card>

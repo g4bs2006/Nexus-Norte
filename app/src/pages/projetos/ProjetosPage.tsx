@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { FolderKanban } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
+import { EstadoVazio } from '@/components/EstadoVazio'
 import { SkeletonPagina } from '@/components/Skeletons'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -16,7 +17,11 @@ import type { StatusProjeto } from '@/features/projetos/types'
 
 /** Abas do plano 5.3. "Ativos" reúne planejamento e em andamento. */
 const ABAS: { valor: string; rotulo: string; status: StatusProjeto[] }[] = [
-  { valor: 'ativos', rotulo: 'Ativos', status: ['planejamento', 'em_andamento'] },
+  {
+    valor: 'ativos',
+    rotulo: 'Ativos',
+    status: ['planejamento', 'em_andamento'],
+  },
   { valor: 'pausados', rotulo: 'Pausados', status: ['pausado'] },
   { valor: 'concluidos', rotulo: 'Concluídos', status: ['concluido'] },
 ]
@@ -56,10 +61,7 @@ export default function ProjetosPage() {
   if (projetos.isPending) {
     return (
       <>
-        <PageHeader titulo="Projetos"
-        pilar="projetos"
-        icone={FolderKanban}
-      />
+        <PageHeader titulo="Projetos" pilar="projetos" icone={FolderKanban} />
         <SkeletonPagina variante="grade" />
       </>
     )
@@ -68,10 +70,7 @@ export default function ProjetosPage() {
   if (projetos.isError) {
     return (
       <>
-        <PageHeader titulo="Projetos"
-        pilar="projetos"
-        icone={FolderKanban}
-      />
+        <PageHeader titulo="Projetos" pilar="projetos" icone={FolderKanban} />
         <Card className="border-status-risco/40">
           <CardContent className="text-status-risco text-sm">
             Erro ao carregar: {projetos.error.message}
@@ -92,15 +91,14 @@ export default function ProjetosPage() {
       />
 
       {listaProjetos.length === 0 ? (
-        <Card className="border-dashed shadow-none">
-          <CardContent className="text-muted-foreground space-y-2 text-sm">
-            <p>Nenhum projeto cadastrado ainda.</p>
-            <p className="text-xs">
-              A ação diária deste pilar é adicionar um log de progresso — os
-              cards esfriam quando ficam sem atualização.
-            </p>
-          </CardContent>
-        </Card>
+        <EstadoVazio
+          icone={FolderKanban}
+          classeCor="text-projetos"
+          classeFundo="bg-projetos-soft"
+          titulo="Crie o primeiro projeto"
+          descricao="A ação diária aqui é adicionar um log de progresso. Os cards esfriam visualmente quando ficam sem atualização."
+          acao={<DialogProjeto hoje={hoje} />}
+        />
       ) : (
         <Tabs defaultValue="ativos">
           <TabsList>

@@ -1,11 +1,17 @@
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { format } from 'date-fns'
-import { ArrowLeft, Minus, TrendingDown, TrendingUp, TriangleAlert } from 'lucide-react'
 import {
+  ArrowLeft,
+  Minus,
+  TrendingDown,
+  TrendingUp,
+  TriangleAlert,
+} from 'lucide-react'
+import {
+  Area,
+  AreaChart,
   CartesianGrid,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -22,6 +28,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { ESTILO_TOOLTIP, pontoFinal } from '@/components/grafico'
 import { deISO } from '@/lib/datas'
 import { SEMANAS_SINAL_ESTAGNACAO } from '@/lib/constants'
 import { cn } from '@/lib/utils'
@@ -89,17 +96,14 @@ export default function ExercicioDetalhePage() {
   )
 
   const prsDoExercicio = useMemo(
-    () =>
-      (prs.data ?? []).filter((pr) => pr.exercicio_id === exercicioId),
+    () => (prs.data ?? []).filter((pr) => pr.exercicio_id === exercicioId),
     [prs.data, exercicioId],
   )
 
   if (exercicios.isPending) {
     return (
       <>
-        <PageHeader titulo="Exercício"
-        pilar="treino"
-      />
+        <PageHeader titulo="Exercício" pilar="treino" />
         <SkeletonPagina variante="detalhe" />
       </>
     )
@@ -111,8 +115,8 @@ export default function ExercicioDetalhePage() {
         <PageHeader
           titulo="Exercício não encontrado"
           descricao="Este exercício não existe ou foi excluído."
-        pilar="treino"
-      />
+          pilar="treino"
+        />
         <Button asChild variant="secondary" size="sm">
           <Link to="/treino">
             <ArrowLeft className="size-4" />
@@ -126,7 +130,9 @@ export default function ExercicioDetalhePage() {
   const Icone = ICONE_PROGRESSAO[progressao]
   const melhorPr = prsDoExercicio.reduce<number | null>(
     (melhor, pr) =>
-      melhor === null || pr.um_rm_estimado > melhor ? pr.um_rm_estimado : melhor,
+      melhor === null || pr.um_rm_estimado > melhor
+        ? pr.um_rm_estimado
+        : melhor,
     null,
   )
 
@@ -142,6 +148,7 @@ export default function ExercicioDetalhePage() {
             .filter(Boolean)
             .join(' · ') || undefined
         }
+        pilar="treino"
         acoes={
           <Button asChild variant="ghost" size="sm">
             <Link to="/treino">
@@ -159,7 +166,10 @@ export default function ExercicioDetalhePage() {
               <p className="text-muted-foreground text-xs">Progressão</p>
               <Badge
                 variant="secondary"
-                className={cn('gap-1.5 font-normal', CLASSE_PROGRESSAO[progressao])}
+                className={cn(
+                  'gap-1.5 font-normal',
+                  CLASSE_PROGRESSAO[progressao],
+                )}
               >
                 <Icone className="size-3.5" />
                 {ROTULO_PROGRESSAO[progressao]}
@@ -172,7 +182,9 @@ export default function ExercicioDetalhePage() {
               </p>
             </div>
             <div>
-              <p className="text-muted-foreground text-xs">Sessões registradas</p>
+              <p className="text-muted-foreground text-xs">
+                Sessões registradas
+              </p>
               <p className="metric-lg">{sessoes.length}</p>
             </div>
           </CardContent>
@@ -184,7 +196,8 @@ export default function ExercicioDetalhePage() {
               <TriangleAlert className="text-status-atencao mt-0.5 size-4 shrink-0" />
               <p>
                 Sem novo recorde nas últimas {SEMANAS_SINAL_ESTAGNACAO} sessões.
-                Vale considerar ajuste de carga, volume ou variação do exercício.
+                Vale considerar ajuste de carga, volume ou variação do
+                exercício.
               </p>
             </CardContent>
           </Card>
@@ -200,7 +213,21 @@ export default function ExercicioDetalhePage() {
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={dadosGrafico}>
+                <AreaChart data={dadosGrafico}>
+                  <defs>
+                    <linearGradient id="areaCarga" x1="0" y1="0" x2="0" y2="1">
+                      <stop
+                        offset="0%"
+                        stopColor="var(--chart-3)"
+                        stopOpacity={0.22}
+                      />
+                      <stop
+                        offset="100%"
+                        stopColor="var(--chart-3)"
+                        stopOpacity={0}
+                      />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid
                     strokeDasharray="3 3"
                     vertical={false}
@@ -219,22 +246,20 @@ export default function ExercicioDetalhePage() {
                   />
                   <Tooltip
                     formatter={(valor) => `${valor} kg`}
-                    contentStyle={{
-                      background: 'var(--popover)',
-                      border: '1px solid var(--border)',
-                      borderRadius: 'var(--radius)',
-                      fontSize: 12,
-                      color: 'var(--popover-foreground)',
-                    }}
+                    contentStyle={ESTILO_TOOLTIP}
                   />
-                  <Line
+                  <Area
                     type="monotone"
                     dataKey="umRm"
                     stroke="var(--chart-3)"
                     strokeWidth={2}
-                    dot={{ r: 3 }}
+                    fill="url(#areaCarga)"
+                    // Só a sessão mais recente ganha marcador: é a referência
+                    // para a próxima
+                    dot={pontoFinal(dadosGrafico.length, 'var(--chart-3)')}
+                    activeDot={{ r: 5, stroke: 'var(--card)', strokeWidth: 2 }}
                   />
-                </LineChart>
+                </AreaChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
@@ -272,9 +297,10 @@ export default function ExercicioDetalhePage() {
                         </p>
                         <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
                           1RM{' '}
-                          {umRmEstimado(serie.carga_real, serie.reps_reais).toFixed(
-                            1,
-                          )}
+                          {umRmEstimado(
+                            serie.carga_real,
+                            serie.reps_reais,
+                          ).toFixed(1)}
                         </span>
                       </li>
                     ))}

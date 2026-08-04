@@ -15,6 +15,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { BarraProgresso } from '@/components/BarraProgresso'
+import { ESTILO_TOOLTIP } from '@/components/grafico'
 import { deISO, paraISO } from '@/lib/datas'
 import { useCriarSessao, useExcluirSessao } from '../hooks'
 import { frequenciaEstudoSemana } from '../calculos'
@@ -190,13 +191,7 @@ export function AbaSessoes({ materiaId, sessoes, hoje }: AbaSessoesProps) {
                 />
                 <Tooltip
                   formatter={(valor) => `${valor} min`}
-                  contentStyle={{
-                    background: 'var(--popover)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius)',
-                    fontSize: 12,
-                    color: 'var(--popover-foreground)',
-                  }}
+                  contentStyle={ESTILO_TOOLTIP}
                 />
                 <Bar dataKey="minutos" fill="var(--chart-2)" radius={[3, 3, 0, 0]} />
               </BarChart>

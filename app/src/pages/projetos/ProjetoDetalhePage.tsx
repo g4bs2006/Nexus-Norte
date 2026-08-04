@@ -90,9 +90,7 @@ export default function ProjetoDetalhePage() {
   if (projetos.isPending) {
     return (
       <>
-        <PageHeader titulo="Projeto"
-        pilar="projetos"
-      />
+        <PageHeader titulo="Projeto" pilar="projetos" />
         <SkeletonPagina variante="detalhe" />
       </>
     )
@@ -104,8 +102,8 @@ export default function ProjetoDetalhePage() {
         <PageHeader
           titulo="Projeto não encontrado"
           descricao="Este projeto não existe ou foi excluído."
-        pilar="projetos"
-      />
+          pilar="projetos"
+        />
         <Button asChild variant="secondary" size="sm">
           <Link to="/projetos">
             <ArrowLeft className="size-4" />
@@ -150,6 +148,7 @@ export default function ProjetoDetalhePage() {
       <PageHeader
         titulo={projeto.nome}
         descricao={projeto.descricao ?? undefined}
+        pilar="projetos"
         acoes={
           <Button asChild variant="ghost" size="sm">
             <Link to="/projetos">
@@ -208,10 +207,10 @@ export default function ProjetoDetalhePage() {
                 </span>
               </div>
               <BarraProgresso
-            valor={percentual ?? 0}
-            classeCor="bg-projetos"
-            rotulo="Marcos concluídos"
-          />
+                valor={percentual ?? 0}
+                classeCor="bg-projetos"
+                rotulo="Marcos concluídos"
+              />
             </div>
 
             <p
@@ -233,7 +232,9 @@ export default function ProjetoDetalhePage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Marcos</CardTitle>
-            <CardDescription>Checklist do que precisa acontecer.</CardDescription>
+            <CardDescription>
+              Checklist do que precisa acontecer.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-wrap items-end gap-2">
@@ -294,7 +295,8 @@ export default function ProjetoDetalhePage() {
                       </p>
                       {marco.data_prevista && (
                         <p className="text-muted-foreground text-xs tabular-nums">
-                          prevista {format(deISO(marco.data_prevista), 'dd/MM/yyyy')}
+                          prevista{' '}
+                          {format(deISO(marco.data_prevista), 'dd/MM/yyyy')}
                         </p>
                       )}
                     </div>

@@ -1,9 +1,13 @@
 import { useMemo } from 'react'
 import { GraduationCap } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
+import { EstadoVazio } from '@/components/EstadoVazio'
 import { SkeletonPagina } from '@/components/Skeletons'
 import { ChecksFluxograma } from '@/components/ChecksFluxograma'
-import { GradeFluxograma, type ItemFluxograma } from '@/components/GradeFluxograma'
+import {
+  GradeFluxograma,
+  type ItemFluxograma,
+} from '@/components/GradeFluxograma'
 import {
   Card,
   CardContent,
@@ -46,9 +50,15 @@ export default function EstudosPage() {
   const definirConclusao = useDefinirConclusao()
 
   const listaMaterias = useMemo(() => materias.data ?? [], [materias.data])
-  const listaAvaliacoes = useMemo(() => avaliacoes.data ?? [], [avaliacoes.data])
+  const listaAvaliacoes = useMemo(
+    () => avaliacoes.data ?? [],
+    [avaliacoes.data],
+  )
   const listaFaltas = useMemo(() => faltas.data ?? [], [faltas.data])
-  const listaFluxograma = useMemo(() => fluxograma.data ?? [], [fluxograma.data])
+  const listaFluxograma = useMemo(
+    () => fluxograma.data ?? [],
+    [fluxograma.data],
+  )
 
   const nomePorMateria = useMemo(
     () => new Map(listaMaterias.map((materia) => [materia.id, materia.nome])),
@@ -116,10 +126,7 @@ export default function EstudosPage() {
   if (materias.isPending) {
     return (
       <>
-        <PageHeader titulo="Estudos"
-        pilar="estudos"
-        icone={GraduationCap}
-      />
+        <PageHeader titulo="Estudos" pilar="estudos" icone={GraduationCap} />
         <SkeletonPagina variante="lista" />
       </>
     )
@@ -128,10 +135,7 @@ export default function EstudosPage() {
   if (materias.isError) {
     return (
       <>
-        <PageHeader titulo="Estudos"
-        pilar="estudos"
-        icone={GraduationCap}
-      />
+        <PageHeader titulo="Estudos" pilar="estudos" icone={GraduationCap} />
         <Card className="border-status-risco/40">
           <CardContent className="text-status-risco text-sm">
             Erro ao carregar: {materias.error.message}
@@ -146,6 +150,8 @@ export default function EstudosPage() {
       <PageHeader
         titulo="Estudos"
         descricao="Matérias, médias, faltas e sessões de estudo."
+        pilar="estudos"
+        icone={GraduationCap}
         acoes={
           <>
             <DialogFluxograma materias={listaMaterias} />
@@ -155,23 +161,20 @@ export default function EstudosPage() {
       />
 
       {listaMaterias.length === 0 ? (
-        <Card className="border-dashed shadow-none">
-          <CardContent className="text-muted-foreground space-y-2 text-sm">
-            <p>Nenhuma matéria cadastrada ainda.</p>
-            <p className="text-xs">
-              Cadastre uma matéria com o limite de faltas para o semáforo de
-              risco começar a funcionar.
-            </p>
-          </CardContent>
-        </Card>
+        <EstadoVazio
+          icone={GraduationCap}
+          classeCor="text-estudos"
+          classeFundo="bg-estudos-soft"
+          titulo="Cadastre a primeira matéria"
+          descricao="Informe o limite de faltas para o semáforo de risco funcionar. Depois adicione as avaliações e os horários no fluxograma."
+          acao={<DialogMateria />}
+        />
       ) : (
         <div className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Aulas de hoje</CardTitle>
-              <CardDescription>
-                Derivado do fluxograma semanal.
-              </CardDescription>
+              <CardDescription>Derivado do fluxograma semanal.</CardDescription>
             </CardHeader>
             <CardContent>
               <ChecksFluxograma

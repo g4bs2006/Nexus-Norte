@@ -170,6 +170,30 @@ semana globalmente.
 - Dark mode já estava completo desde a Fase 0 (paleta e toggle)
 - RLS **não** foi habilitado — ver seção de Segurança e resolução 10.8
 
+## Refinamento visual
+
+Depois das 8 fases do plano, um brief de design separou o que manter do que
+ajustar. A conclusão: a identidade visual estava certa — o que faltava era
+**resposta**. Executado em cinco blocos:
+
+| Bloco | Entrega |
+| --- | --- |
+| A · Percepção | Skeletons por rota, entrada escalonada, anéis e barras animando de 0, escala de métrica em mono |
+| B · Identidade | Acento por pilar no cabeçalho, verde semântico separado do verde do Financeiro, favicon na paleta |
+| C · Assinatura | Bloco "O dia" no topo da Home, com o check redesenhado como objeto físico |
+| D · Fricção | Lançamento em uma linha, paleta de comando, faixa de status compacta |
+| E · Acabamento | Gráficos com área e ênfase no ponto final, estados vazios com ação, barra mobile |
+
+Regras de movimento que ficaram valendo:
+
+- Movimento que não comunica estado não entra. Sem transição de rota, sem
+  parallax, sem hover elaborado em card, sem confete.
+- `prefers-reduced-motion` neutraliza tudo, inclusive as transições de anel e
+  barra conduzidas por CSS.
+- Cor semântica é reservada ao que pede atenção. Valor positivo usa a cor de
+  texto — verde em tudo que está bem esvazia o significado do verde.
+- Nenhuma informação transmitida só por cor: sempre cor mais forma ou texto.
+
 ## Estrutura
 
 ```

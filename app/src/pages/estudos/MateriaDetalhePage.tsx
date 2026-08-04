@@ -79,9 +79,7 @@ export default function MateriaDetalhePage() {
   if (materias.isPending) {
     return (
       <>
-        <PageHeader titulo="Matéria"
-        pilar="estudos"
-      />
+        <PageHeader titulo="Matéria" pilar="estudos" />
         <SkeletonPagina variante="detalhe" />
       </>
     )
@@ -93,8 +91,8 @@ export default function MateriaDetalhePage() {
         <PageHeader
           titulo="Matéria não encontrada"
           descricao="Esta matéria não existe ou foi excluída."
-        pilar="estudos"
-      />
+          pilar="estudos"
+        />
         <Button asChild variant="secondary" size="sm">
           <Link to="/estudos">
             <ArrowLeft className="size-4" />
@@ -108,7 +106,10 @@ export default function MateriaDetalhePage() {
   const configMedia = config.data ?? null
   const media = mediaMateria(daMateria, configMedia)
   const projetada = mediaProjetada(daMateria, configMedia)
-  const restantes = faltasRestantes(materia.limite_faltas, faltasDaMateria.length)
+  const restantes = faltasRestantes(
+    materia.limite_faltas,
+    faltasDaMateria.length,
+  )
   const status = riscoReprovacao({
     mediaProjetada: projetada,
     faltasRestantes: restantes,
@@ -124,6 +125,7 @@ export default function MateriaDetalhePage() {
           [materia.professor, materia.semestre].filter(Boolean).join(' · ') ||
           undefined
         }
+        pilar="estudos"
         acoes={
           <Button asChild variant="ghost" size="sm">
             <Link to="/estudos">

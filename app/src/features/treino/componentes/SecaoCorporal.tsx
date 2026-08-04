@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ESTILO_TOOLTIP } from '@/components/grafico'
 import { deISO, paraISO } from '@/lib/datas'
 import { enviarFotoProgresso } from '../api'
 import { useSalvarRegistroCorporal } from '../hooks'
@@ -166,13 +167,7 @@ export function SecaoCorporal({ registros, hoje }: SecaoCorporalProps) {
               />
               <Tooltip
                 formatter={(valor) => `${valor} kg`}
-                contentStyle={{
-                  background: 'var(--popover)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 'var(--radius)',
-                  fontSize: 12,
-                  color: 'var(--popover-foreground)',
-                }}
+                contentStyle={ESTILO_TOOLTIP}
               />
               <Line
                 type="monotone"

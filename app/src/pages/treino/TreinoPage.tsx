@@ -2,8 +2,12 @@ import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Dumbbell, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
+import { EstadoVazio } from '@/components/EstadoVazio'
 import { SkeletonPagina } from '@/components/Skeletons'
-import { GradeFluxograma, type ItemFluxograma } from '@/components/GradeFluxograma'
+import {
+  GradeFluxograma,
+  type ItemFluxograma,
+} from '@/components/GradeFluxograma'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -62,8 +66,14 @@ export default function TreinoPage() {
   const excluirExercicio = useExcluirExercicio()
 
   const listaTreinos = useMemo(() => treinos.data ?? [], [treinos.data])
-  const listaExercicios = useMemo(() => exercicios.data ?? [], [exercicios.data])
-  const listaFluxograma = useMemo(() => fluxograma.data ?? [], [fluxograma.data])
+  const listaExercicios = useMemo(
+    () => exercicios.data ?? [],
+    [exercicios.data],
+  )
+  const listaFluxograma = useMemo(
+    () => fluxograma.data ?? [],
+    [fluxograma.data],
+  )
 
   const nomePorTreino = useMemo(
     () => new Map(listaTreinos.map((treino) => [treino.id, treino.nome])),
@@ -84,7 +94,9 @@ export default function TreinoPage() {
       const treino = listaTreinos.find(
         (item) => item.id === ocorrencia.regra.treino_id,
       )
-      return treino ? [{ treino, horario: ocorrencia.regra.horario_inicio }] : []
+      return treino
+        ? [{ treino, horario: ocorrencia.regra.horario_inicio }]
+        : []
     })
   }, [listaFluxograma, hojeISO, listaTreinos])
 
@@ -117,10 +129,7 @@ export default function TreinoPage() {
   if (treinos.isPending) {
     return (
       <>
-        <PageHeader titulo="Treino"
-        pilar="treino"
-        icone={Dumbbell}
-      />
+        <PageHeader titulo="Treino" pilar="treino" icone={Dumbbell} />
         <SkeletonPagina variante="lista" />
       </>
     )
@@ -129,10 +138,7 @@ export default function TreinoPage() {
   if (treinos.isError) {
     return (
       <>
-        <PageHeader titulo="Treino"
-        pilar="treino"
-        icone={Dumbbell}
-      />
+        <PageHeader titulo="Treino" pilar="treino" icone={Dumbbell} />
         <Card className="border-status-risco/40">
           <CardContent className="text-status-risco text-sm">
             Erro ao carregar: {treinos.error.message}
@@ -149,6 +155,8 @@ export default function TreinoPage() {
       <PageHeader
         titulo="Treino"
         descricao="Execuções, progressão de carga e recordes pessoais."
+        pilar="treino"
+        icone={Dumbbell}
         acoes={
           <>
             <DialogFluxogramaTreino treinos={listaTreinos} />
@@ -158,16 +166,14 @@ export default function TreinoPage() {
       />
 
       {listaTreinos.length === 0 ? (
-        <Card className="border-dashed shadow-none">
-          <CardContent className="text-muted-foreground space-y-2 text-sm">
-            <p>Nenhum treino cadastrado ainda.</p>
-            <p className="text-xs">
-              Crie um treino, adicione os exercícios e agende-o no fluxograma —
-              é o fluxograma que define o "treino de hoje" e a frequência da
-              semana.
-            </p>
-          </CardContent>
-        </Card>
+        <EstadoVazio
+          icone={Dumbbell}
+          classeCor="text-treino"
+          classeFundo="bg-treino-soft"
+          titulo="Monte o primeiro treino"
+          descricao="Crie o treino, adicione os exercícios e agende-o no fluxograma — é o fluxograma que define o treino de hoje e a frequência da semana."
+          acao={<DialogTreino />}
+        />
       ) : (
         <div className="space-y-6">
           {/* Treino de hoje (plano 4.3) */}
@@ -389,7 +395,10 @@ export default function TreinoPage() {
                   Nenhum horário cadastrado. Use "Horário" para adicionar.
                 </p>
               ) : (
-                <GradeFluxograma itens={itensGrade} classeCorPadrao="bg-treino" />
+                <GradeFluxograma
+                  itens={itensGrade}
+                  classeCorPadrao="bg-treino"
+                />
               )}
             </CardContent>
           </Card>
