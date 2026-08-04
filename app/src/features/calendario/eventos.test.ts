@@ -6,6 +6,7 @@ import {
   eventosFluxograma,
   eventosMarcos,
   eventosSono,
+  eventosComPrazo,
   type FontesCalendario,
 } from './eventos'
 
@@ -32,9 +33,9 @@ describe('eventosAvaliacoes', () => {
   })
 
   it('ignora avaliação sem data marcada', () => {
-    expect(eventosAvaliacoes([{ ...base, data: null }], SEMANA, MATERIAS)).toEqual(
-      [],
-    )
+    expect(
+      eventosAvaliacoes([{ ...base, data: null }], SEMANA, MATERIAS),
+    ).toEqual([])
   })
 
   it('ignora avaliação fora do intervalo', () => {
@@ -123,6 +124,7 @@ describe('eventosContas', () => {
     descricao: 'Aluguel',
     valor: 1800,
     data: '2026-08-03',
+    categoria_id: 'cat-aluguel',
     data_vencimento: null as string | null,
     categoria_tipo: 'fixo' as string | null,
     categoria_natureza: 'despesa',
@@ -142,9 +144,9 @@ describe('eventosContas', () => {
   })
 
   it('ignora despesa variável', () => {
-    expect(eventosContas([{ ...base, categoria_tipo: 'variavel' }], SEMANA)).toEqual(
-      [],
-    )
+    expect(
+      eventosContas([{ ...base, categoria_tipo: 'variavel' }], SEMANA),
+    ).toEqual([])
   })
 
   it('ignora receita', () => {
@@ -226,6 +228,7 @@ describe('eventosMarcos', () => {
           id: 'mp1',
           nome: 'Entregar MVP',
           data_prevista: '2026-08-06',
+          projeto_id: 'proj-nexus',
           projeto_nome: 'Nexus',
         },
       ],
@@ -239,7 +242,15 @@ describe('eventosMarcos', () => {
   it('ignora marco sem data prevista', () => {
     expect(
       eventosMarcos(
-        [{ id: 'mp2', nome: 'X', data_prevista: null, projeto_nome: 'Y' }],
+        [
+          {
+            id: 'mp2',
+            nome: 'X',
+            data_prevista: null,
+            projeto_id: 'p',
+            projeto_nome: 'Y',
+          },
+        ],
         SEMANA,
       ),
     ).toEqual([])
@@ -276,6 +287,7 @@ describe('construirEventos', () => {
           valor: 1800,
           data: '2026-08-04',
           data_vencimento: null,
+          categoria_id: 'cat-aluguel',
           categoria_tipo: 'fixo',
           categoria_natureza: 'despesa',
         },
@@ -293,6 +305,7 @@ describe('construirEventos', () => {
           id: 'mp1',
           nome: 'Marco',
           data_prevista: '2026-08-06',
+          projeto_id: 'proj-nexus',
           projeto_nome: 'Nexus',
         },
       ],
@@ -303,7 +316,9 @@ describe('construirEventos', () => {
     const eventos = construirEventos(fontes, SEMANA)
     const camadas = new Set(eventos.map((e) => e.camada))
 
-    expect(camadas).toEqual(new Set(['estudos', 'financeiro', 'sono', 'projetos']))
+    expect(camadas).toEqual(
+      new Set(['estudos', 'financeiro', 'sono', 'projetos']),
+    )
     expect(new Set(eventos.map((e) => e.id)).size).toBe(eventos.length)
   })
 
@@ -320,5 +335,161 @@ describe('construirEventos', () => {
     }
 
     expect(construirEventos(vazio, SEMANA)).toEqual([])
+  })
+})
+
+// --- tipo, rota e filtro de prazos (eventos clicáveis + painel) -------------
+
+describe('tipo e rota dos eventos', () => {
+  it('prova aponta para a matéria', () => {
+    const eventos = eventosAvaliacoes(
+      [
+        {
+          id: 'a1',
+          nome: 'P1',
+          nota: null,
+          materia_id: 'm1',
+          data: '2026-08-05',
+        },
+      ],
+      SEMANA,
+      MATERIAS,
+    )
+    expect(eventos[0]?.tipo).toBe('prova')
+    expect(eventos[0]?.rota).toBe('/estudos/m1')
+  })
+
+  it('separa aula de treino pelo tipo, não só pela camada', () => {
+    const eventos = eventosFluxograma(
+      [
+        {
+          id: 'f1',
+          dia_semana: 1,
+          horario_inicio: '08:00:00',
+          horario_fim: '10:00:00',
+          materia_id: 'm1',
+          treino_id: null,
+        },
+        {
+          id: 'f2',
+          dia_semana: 1,
+          horario_inicio: '19:00:00',
+          horario_fim: '20:00:00',
+          materia_id: null,
+          treino_id: 't1',
+        },
+      ],
+      [],
+      { de: '2026-08-03', ate: '2026-08-03' },
+      MATERIAS,
+      TREINOS,
+    )
+
+    expect(eventos.map((e) => [e.tipo, e.rota])).toEqual([
+      ['aula', '/estudos/m1'],
+      // Treino não tem sub-página própria
+      ['treino', '/treino'],
+    ])
+  })
+
+  it('conta aponta para a categoria', () => {
+    const eventos = eventosContas(
+      [
+        {
+          id: 'l1',
+          descricao: 'Aluguel',
+          valor: 1800,
+          data: '2026-08-03',
+          data_vencimento: null,
+          categoria_id: 'cat-aluguel',
+          categoria_tipo: 'fixo',
+          categoria_natureza: 'despesa',
+        },
+      ],
+      SEMANA,
+    )
+    expect(eventos[0]?.tipo).toBe('conta')
+    expect(eventos[0]?.rota).toBe('/financeiro/categorias/cat-aluguel')
+  })
+
+  it('marco aponta para o projeto', () => {
+    const eventos = eventosMarcos(
+      [
+        {
+          id: 'mp1',
+          nome: 'Deploy',
+          data_prevista: '2026-08-06',
+          projeto_id: 'proj-1',
+          projeto_nome: 'Nexus',
+        },
+      ],
+      SEMANA,
+    )
+    expect(eventos[0]?.tipo).toBe('marco')
+    expect(eventos[0]?.rota).toBe('/projetos/proj-1')
+  })
+
+  it('sono não tem rota — é contexto, não destino', () => {
+    const eventos = eventosSono(
+      [
+        {
+          id: 's1',
+          dia_semana: 1,
+          hora_dormir_alvo: '23:00:00',
+          hora_acordar_alvo: '07:00:00',
+        },
+      ],
+      { de: '2026-08-03', ate: '2026-08-03' },
+    )
+    expect(eventos[0]?.tipo).toBe('sono')
+    expect(eventos[0]?.rota).toBeUndefined()
+  })
+})
+
+describe('eventosComPrazo', () => {
+  const HOJE = new Date(2026, 7, 4) // 2026-08-04
+
+  const prova = {
+    id: 'p',
+    titulo: 'P1',
+    inicio: '2026-08-06',
+    diaInteiro: true,
+    camada: 'estudos' as const,
+    tipo: 'prova' as const,
+  }
+  const aula = {
+    id: 'a',
+    titulo: 'Cálculo II',
+    inicio: '2026-08-04T08:00:00',
+    diaInteiro: false,
+    camada: 'estudos' as const,
+    tipo: 'aula' as const,
+  }
+  const conta = {
+    id: 'c',
+    titulo: 'Aluguel',
+    inicio: '2026-08-02',
+    diaInteiro: true,
+    camada: 'financeiro' as const,
+    tipo: 'conta' as const,
+  }
+
+  it('mantém só prova, conta e marco — descarta rotina', () => {
+    const prazos = eventosComPrazo([prova, aula, conta], HOJE)
+    expect(prazos.map((e) => e.tipo)).toEqual(['conta', 'prova'])
+  })
+
+  it('ordena do mais urgente para o mais distante, com atraso primeiro', () => {
+    const prazos = eventosComPrazo([prova, conta], HOJE)
+    expect(prazos.map((e) => e.dias)).toEqual([-2, 2])
+  })
+
+  it('calcula dias negativos para o que já passou', () => {
+    const prazos = eventosComPrazo([conta], HOJE)
+    expect(prazos[0]?.dias).toBe(-2)
+  })
+
+  it('devolve vazio quando só há rotina', () => {
+    expect(eventosComPrazo([aula], HOJE)).toEqual([])
   })
 })

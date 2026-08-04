@@ -29,7 +29,9 @@ export async function avaliacoesComData(): Promise<FonteAvaliacao[]> {
 export async function fluxogramaCompleto(): Promise<FonteFluxograma[]> {
   const { data, error } = await supabase
     .from('fluxograma_semanal')
-    .select('id, dia_semana, horario_inicio, horario_fim, materia_id, treino_id')
+    .select(
+      'id, dia_semana, horario_inicio, horario_fim, materia_id, treino_id',
+    )
     .order('dia_semana')
   if (error) throw new Error(error.message)
   return data ?? []
@@ -59,8 +61,9 @@ export async function excecoesNoIntervalo(
 export async function lancamentosParaContas(): Promise<FonteConta[]> {
   const { data, error } = await supabase
     .from('lancamentos')
+    // categoria_id vem junto para o evento saber para onde navegar ao ser clicado
     .select(
-      'id, descricao, valor, data, data_vencimento, categorias!inner(tipo, natureza)',
+      'id, descricao, valor, data, data_vencimento, categoria_id, categorias!inner(tipo, natureza)',
     )
   if (error) throw new Error(error.message)
 
@@ -70,6 +73,7 @@ export async function lancamentosParaContas(): Promise<FonteConta[]> {
     valor: linha.valor,
     data: linha.data,
     data_vencimento: linha.data_vencimento,
+    categoria_id: linha.categoria_id,
     categoria_tipo: linha.categorias.tipo,
     categoria_natureza: linha.categorias.natureza,
   }))
@@ -86,7 +90,7 @@ export async function planejamentoSono(): Promise<FontePlanejamentoSono[]> {
 export async function marcosComData(): Promise<FonteMarco[]> {
   const { data, error } = await supabase
     .from('marcos_projeto')
-    .select('id, nome, data_prevista, projetos!inner(nome)')
+    .select('id, nome, data_prevista, projeto_id, projetos!inner(nome)')
     .not('data_prevista', 'is', null)
   if (error) throw new Error(error.message)
 
@@ -94,6 +98,7 @@ export async function marcosComData(): Promise<FonteMarco[]> {
     id: linha.id,
     nome: linha.nome,
     data_prevista: linha.data_prevista,
+    projeto_id: linha.projeto_id,
     projeto_nome: linha.projetos.nome,
   }))
 }

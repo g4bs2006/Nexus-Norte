@@ -1,27 +1,31 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import ptBrLocale from '@fullcalendar/core/locales/pt-br'
-import type { DatesSetArg } from '@fullcalendar/core'
+import type { DatesSetArg, EventClickArg } from '@fullcalendar/core'
 import { CalendarDays } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardContent } from '@/components/ui/card'
-import { paraISO } from '@/lib/datas'
-import { endOfMonth, startOfMonth } from 'date-fns'
+import { deISO, paraISO } from '@/lib/datas'
+import { differenceInCalendarDays, endOfMonth, startOfMonth } from 'date-fns'
 import { cn } from '@/lib/utils'
 import {
   COR_CAMADA,
   ROTULO_CAMADA,
   construirEventos,
+  eventosComPrazo,
   type CamadaCalendario,
 } from '@/features/calendario/eventos'
 import { useFontesCalendario } from '@/features/calendario/hooks'
+import { PainelImportantes } from '@/features/calendario/componentes/PainelImportantes'
 
 const CAMADAS = Object.keys(ROTULO_CAMADA) as CamadaCalendario[]
 
 export default function CalendarioPage() {
   const hoje = useMemo(() => new Date(), [])
+  const navegar = useNavigate()
 
   /**
    * Intervalo visível. Começa no mês atual e é atualizado pelo `datesSet` do
@@ -47,6 +51,15 @@ export default function CalendarioPage() {
     [fontes, intervalo],
   )
 
+  /** Índice por id para o clique resolver a rota sem varrer a lista. */
+  const rotaPorId = useMemo(
+    () =>
+      new Map(
+        eventos.flatMap((e) => (e.rota ? [[e.id, e.rota] as const] : [])),
+      ),
+    [eventos],
+  )
+
   const eventosFullCalendar = useMemo(
     () =>
       eventos
@@ -62,8 +75,22 @@ export default function CalendarioPage() {
           // Sono é contexto de fundo, não compromisso — não deve competir
           // visualmente com aulas e treinos na grade semanal.
           display: evento.camada === 'sono' ? 'background' : 'auto',
+          // Cursor de mão só no que realmente navega
+          classNames: evento.rota ? ['evento-clicavel'] : [],
         })),
     [eventos, visiveis],
+  )
+
+  /** Só prazos, e só do intervalo visível — o painel acompanha a navegação. */
+  const prazos = useMemo(() => eventosComPrazo(eventos, hoje), [eventos, hoje])
+
+  const janelaDias = useMemo(
+    () =>
+      Math.max(
+        differenceInCalendarDays(deISO(intervalo.ate), deISO(intervalo.de)) + 1,
+        1,
+      ),
+    [intervalo],
   )
 
   function alternarCamada(camada: CamadaCalendario) {
@@ -82,6 +109,13 @@ export default function CalendarioPage() {
     setIntervalo((atual) =>
       atual.de === de && atual.ate === ate ? atual : { de, ate },
     )
+  }
+
+  /** Clicar num evento vai para a origem do dado: matéria, categoria, projeto. */
+  function aoClicarEvento(arg: EventClickArg) {
+    arg.jsEvent.preventDefault()
+    const rota = rotaPorId.get(arg.event.id)
+    if (rota) navegar(rota)
   }
 
   return (
@@ -135,37 +169,43 @@ export default function CalendarioPage() {
         )}
       </div>
 
-      <Card>
-        <CardContent className="calendario-nexus">
-          <FullCalendar
-            plugins={[dayGridPlugin, timeGridPlugin]}
-            initialView="dayGridMonth"
-            locale={ptBrLocale}
-            headerToolbar={{
-              left: 'prev,next today',
-              center: 'title',
-              right: 'dayGridMonth,timeGridWeek',
-            }}
-            buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana' }}
-            events={eventosFullCalendar}
-            datesSet={aoMudarDatas}
-            firstDay={1}
-            height="auto"
-            nowIndicator
-            // Semana começa às 6h para a grade não desperdiçar espaço na
-            // madrugada, mas sem cortar o bloco de sono
-            slotMinTime="05:00:00"
-            slotMaxTime="24:00:00"
-            expandRows
-            dayMaxEvents={3}
-            eventTimeFormat={{
-              hour: '2-digit',
-              minute: '2-digit',
-              hour12: false,
-            }}
-          />
-        </CardContent>
-      </Card>
+      {/* Grade larga; prazos na coluna estreita. No mobile, empilha. */}
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <Card>
+          <CardContent className="calendario-nexus">
+            <FullCalendar
+              plugins={[dayGridPlugin, timeGridPlugin]}
+              initialView="dayGridMonth"
+              locale={ptBrLocale}
+              headerToolbar={{
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek',
+              }}
+              buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana' }}
+              events={eventosFullCalendar}
+              datesSet={aoMudarDatas}
+              eventClick={aoClicarEvento}
+              firstDay={1}
+              height="auto"
+              nowIndicator
+              // Semana começa às 5h para a grade não desperdiçar espaço na
+              // madrugada, mas sem cortar o bloco de sono
+              slotMinTime="05:00:00"
+              slotMaxTime="24:00:00"
+              expandRows
+              dayMaxEvents={3}
+              eventTimeFormat={{
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+              }}
+            />
+          </CardContent>
+        </Card>
+
+        <PainelImportantes eventos={prazos} janelaDias={janelaDias} />
+      </div>
     </>
   )
 }

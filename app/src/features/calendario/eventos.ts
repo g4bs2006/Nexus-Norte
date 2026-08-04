@@ -1,4 +1,4 @@
-import { addDays } from 'date-fns'
+import { addDays, differenceInCalendarDays } from 'date-fns'
 import { deISO, paraISO } from '@/lib/datas'
 import { expandirRecorrencia, type ExcecaoRecorrencia } from '@/lib/recorrencia'
 import type { PilarId } from '@/lib/pilares'
@@ -13,6 +13,24 @@ import type { PilarId } from '@/lib/pilares'
 
 export type CamadaCalendario = PilarId | 'sono'
 
+/**
+ * Tipo do evento, mais específico que a camada.
+ *
+ * `camada` resolve a cor e o filtro por pilar, mas não distingue prova de aula —
+ * as duas são 'estudos'. O tipo é o que permite separar compromisso datado
+ * (prova, conta, marco) de rotina recorrente (aula, treino, sono).
+ */
+export type TipoEvento =
+  'prova' | 'aula' | 'treino' | 'conta' | 'marco' | 'sono'
+
+/**
+ * Tipos que representam prazo, e não rotina.
+ *
+ * São os que valem destaque: têm data marcada, acontecem uma vez e passam. Aula
+ * e treino se repetem toda semana; listá-los junto afogaria as provas.
+ */
+const TIPOS_IMPORTANTES: readonly TipoEvento[] = ['prova', 'conta', 'marco']
+
 export interface EventoCalendario {
   id: string
   titulo: string
@@ -21,11 +39,18 @@ export interface EventoCalendario {
   fim?: string
   diaInteiro: boolean
   camada: CamadaCalendario
+  tipo: TipoEvento
+  /** Destino ao clicar. Ausente quando não há página para onde ir. */
+  rota?: string
 }
 
 export interface Intervalo {
   de: string
   ate: string
+}
+
+export function ehImportante(evento: EventoCalendario): boolean {
+  return TIPOS_IMPORTANTES.includes(evento.tipo)
 }
 
 /** `08:00:00` → `08:00` */
@@ -62,6 +87,7 @@ export interface FonteConta {
   valor: number
   data: string
   data_vencimento: string | null
+  categoria_id: string
   /** `tipo` da categoria — só despesas fixas viram conta no calendário. */
   categoria_tipo: string | null
   categoria_natureza: string
@@ -78,6 +104,7 @@ export interface FonteMarco {
   id: string
   nome: string
   data_prevista: string | null
+  projeto_id: string
   projeto_nome: string
 }
 
@@ -103,18 +130,19 @@ export function eventosAvaliacoes(
 ): EventoCalendario[] {
   return avaliacoes.flatMap((avaliacao) => {
     if (avaliacao.data === null) return []
-    if (avaliacao.data < intervalo.de || avaliacao.data > intervalo.ate) return []
+    if (avaliacao.data < intervalo.de || avaliacao.data > intervalo.ate)
+      return []
 
     const materia = nomePorMateria.get(avaliacao.materia_id)
     return [
       {
         id: `avaliacao:${avaliacao.id}`,
-        titulo: materia
-          ? `${avaliacao.nome} — ${materia}`
-          : avaliacao.nome,
+        titulo: materia ? `${avaliacao.nome} — ${materia}` : avaliacao.nome,
         inicio: avaliacao.data,
         diaInteiro: true,
         camada: 'estudos' as const,
+        tipo: 'prova' as const,
+        rota: `/estudos/${avaliacao.materia_id}`,
       },
     ]
   })
@@ -147,6 +175,9 @@ export function eventosFluxograma(
         fim: comHorario(data, regra.horario_fim),
         diaInteiro: false,
         camada: ehAula ? ('estudos' as const) : ('treino' as const),
+        tipo: ehAula ? ('aula' as const) : ('treino' as const),
+        // Treino não tem sub-página própria; leva para a listagem do pilar
+        rota: ehAula ? `/estudos/${regra.materia_id as string}` : '/treino',
       }
     },
   )
@@ -174,6 +205,8 @@ export function eventosContas(
         inicio: data,
         diaInteiro: true,
         camada: 'financeiro' as const,
+        tipo: 'conta' as const,
+        rota: `/financeiro/categorias/${conta.categoria_id}`,
       },
     ]
   })
@@ -203,6 +236,8 @@ export function eventosSono(
       fim: comHorario(dataFim, regra.hora_acordar_alvo),
       diaInteiro: false,
       camada: 'sono' as const,
+      tipo: 'sono' as const,
+      // Sono é contexto de fundo; não há para onde navegar
     }
   })
 }
@@ -214,7 +249,10 @@ export function eventosMarcos(
 ): EventoCalendario[] {
   return marcos.flatMap((marco) => {
     if (marco.data_prevista === null) return []
-    if (marco.data_prevista < intervalo.de || marco.data_prevista > intervalo.ate) {
+    if (
+      marco.data_prevista < intervalo.de ||
+      marco.data_prevista > intervalo.ate
+    ) {
       return []
     }
 
@@ -225,6 +263,8 @@ export function eventosMarcos(
         inicio: marco.data_prevista,
         diaInteiro: true,
         camada: 'projetos' as const,
+        tipo: 'marco' as const,
+        rota: `/projetos/${marco.projeto_id}`,
       },
     ]
   })
@@ -250,6 +290,31 @@ export function construirEventos(
   ]
 }
 
+export interface EventoComPrazo extends EventoCalendario {
+  /** Dias até a data. Negativo indica atrasado. */
+  dias: number
+}
+
+/**
+ * Só os compromissos datados, ordenados pelo mais próximo.
+ *
+ * Alimenta o painel lateral do calendário e os próximos eventos da Home. Sem
+ * este filtro, as ~20 ocorrências de aula e treino de duas semanas ocupariam
+ * todos os lugares e a prova nunca apareceria.
+ */
+export function eventosComPrazo(
+  eventos: readonly EventoCalendario[],
+  hoje: Date,
+): EventoComPrazo[] {
+  return eventos
+    .filter(ehImportante)
+    .map((evento) => ({
+      ...evento,
+      dias: differenceInCalendarDays(deISO(evento.inicio.slice(0, 10)), hoje),
+    }))
+    .sort((a, b) => a.dias - b.dias || a.titulo.localeCompare(b.titulo))
+}
+
 /** Cor de cada camada, alinhada à paleta por pilar (plano 1.2 / 6.2). */
 export const COR_CAMADA: Record<CamadaCalendario, string> = {
   financeiro: 'var(--financeiro)',
@@ -264,5 +329,14 @@ export const ROTULO_CAMADA: Record<CamadaCalendario, string> = {
   estudos: 'Aulas e provas',
   treino: 'Treinos',
   projetos: 'Marcos',
+  sono: 'Sono',
+}
+
+export const ROTULO_TIPO: Record<TipoEvento, string> = {
+  prova: 'Prova',
+  aula: 'Aula',
+  treino: 'Treino',
+  conta: 'Conta',
+  marco: 'Marco',
   sono: 'Sono',
 }

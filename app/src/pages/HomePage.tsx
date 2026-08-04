@@ -74,7 +74,11 @@ import { useLogs, useProjetos } from '@/features/projetos/hooks'
 import { horasEntre } from '@/features/sono/calculos'
 import { usePlanejamentoSono, useRegistroSono } from '@/features/sono/hooks'
 import { DialogSono } from '@/features/sono/componentes/DialogSono'
-import { construirEventos, COR_CAMADA } from '@/features/calendario/eventos'
+import {
+  construirEventos,
+  eventosComPrazo,
+  COR_CAMADA,
+} from '@/features/calendario/eventos'
 import { useFontesCalendario } from '@/features/calendario/hooks'
 import { MiniCard } from '@/features/home/componentes/MiniCard'
 import { IndicadorSono } from '@/features/home/componentes/IndicadorSono'
@@ -333,14 +337,21 @@ export default function HomePage() {
     }
   }, [check.data, checksFluxograma, hoje])
 
+  /**
+   * Só compromissos com prazo: prova, conta e marco.
+   *
+   * Antes o filtro só excluía sono, então as ~20 ocorrências de aula e treino de
+   * duas semanas ocupavam todos os 5 lugares e a prova nunca aparecia aqui —
+   * justamente o que a Home deveria antecipar. Aula e treino já estão no bloco
+   * "O dia", que é onde eles importam.
+   */
   const proximosEventos = useMemo(
     () =>
-      construirEventos(fontes, proximos)
-        // Sono é recorrente diário e inundaria a lista de próximos eventos
-        .filter((evento) => evento.camada !== 'sono')
-        .sort((a, b) => a.inicio.localeCompare(b.inicio))
-        .slice(0, EVENTOS_NA_HOME),
-    [fontes, proximos],
+      eventosComPrazo(construirEventos(fontes, proximos), hoje).slice(
+        0,
+        EVENTOS_NA_HOME,
+      ),
+    [fontes, proximos, hoje],
   )
 
   return (

@@ -465,6 +465,15 @@
     opacity: 0.22;
 }
 
+/* Cursor de mão só no evento que leva a algum lugar. O sono não leva. */
+.calendario-nexus .fc .evento-clicavel {
+    cursor: pointer;
+}
+
+.calendario-nexus .fc .evento-clicavel:hover {
+    filter: brightness(1.08);
+}
+
 .calendario-nexus .fc .fc-timegrid-slot-label-cushion,
 .calendario-nexus .fc .fc-list-day-text {
     color: var(--muted-foreground);
