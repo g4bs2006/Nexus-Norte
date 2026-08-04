@@ -261,6 +261,43 @@ campo de texto; `Ctrl`/`⌘` + `K` funciona de qualquer lugar.
 | `npm run typecheck` | Apenas verificação de tipos |
 | `npm run types:gen` | Regenera `src/types/database.ts` do schema remoto |
 
+## Deploy (Vercel)
+
+A configuração está em [`vercel.json`](./vercel.json), na raiz. Ela existe porque
+o app vive em `app/`, não na raiz do repositório: sem isso a Vercel não encontra
+`package.json`, não detecta framework e publica os arquivos crus do repo — o que
+dá **404 em todas as rotas**, inclusive a home.
+
+O que cada parte resolve:
+
+| Chave | Por quê |
+| --- | --- |
+| `installCommand`, `buildCommand` | Entram em `app/` antes de rodar o npm |
+| `outputDirectory` | Aponta para `app/dist`, onde o Vite escreve |
+| `rewrites` | Fallback para `index.html`. O roteamento é do lado do cliente, então sem isso recarregar em `/financeiro` procuraria um arquivo com esse nome. A Vercel resolve estáticos antes dos rewrites, então `/assets/*` continua sendo servido |
+| `headers` | Cache imutável em `/assets/*` (o Vite versiona por hash) e `no-cache` no `index.html`, que aponta para os hashes novos a cada deploy |
+
+> O schema da Vercel usa `additionalProperties: false`, então **não aceita chaves
+> de comentário** como `"//"`. É por isso que a documentação está aqui e não
+> dentro do JSON.
+
+### Variáveis de ambiente
+
+`.env.local` não vai para o git, então precisam ser configuradas em
+**Settings → Environment Variables**:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+
+O Vite as lê **no build**, então alterá-las exige um novo deploy. Faltando
+qualquer uma, o app mostra a tela `ConfiguracaoAusente` dizendo o que falta — em
+vez da página em branco que acontecia antes.
+
+> **Atenção:** o RLS está desabilitado (resolução 10.8). Numa URL pública,
+> qualquer pessoa que descubra o endereço pode ler e escrever no banco. Enquanto
+> não houver autenticação, vale ativar **Deployment Protection → Vercel
+> Authentication**.
+
 ## Convenções
 
 - **Cálculos de fórmula são funções puras testáveis** (média ponderada, 1RM
