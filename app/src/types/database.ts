@@ -484,21 +484,24 @@ export type Database = {
           horario_fim: string
           horario_inicio: string
           id: string
-          materia_id: string
+          materia_id: string | null
+          treino_id: string | null
         }
         Insert: {
           dia_semana: number
           horario_fim: string
           horario_inicio: string
           id?: string
-          materia_id: string
+          materia_id?: string | null
+          treino_id?: string | null
         }
         Update: {
           dia_semana?: number
           horario_fim?: string
           horario_inicio?: string
           id?: string
-          materia_id?: string
+          materia_id?: string | null
+          treino_id?: string | null
         }
         Relationships: [
           {
@@ -508,7 +511,242 @@ export type Database = {
             referencedRelation: 'materias'
             referencedColumns: ['id']
           },
+          {
+            foreignKeyName: 'fluxograma_semanal_treino_id_fkey'
+            columns: ['treino_id']
+            isOneToOne: false
+            referencedRelation: 'treinos'
+            referencedColumns: ['id']
+          },
         ]
+      }
+      treinos: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+          tipo: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+          tipo?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+          tipo?: string | null
+        }
+        Relationships: []
+      }
+      exercicios_treino: {
+        Row: {
+          carga_alvo: number | null
+          created_at: string
+          descanso_segundos: number | null
+          grupo_muscular: string | null
+          id: string
+          nome: string
+          reps_alvo: number | null
+          series: number
+          treino_id: string
+        }
+        Insert: {
+          carga_alvo?: number | null
+          created_at?: string
+          descanso_segundos?: number | null
+          grupo_muscular?: string | null
+          id?: string
+          nome: string
+          reps_alvo?: number | null
+          series?: number
+          treino_id: string
+        }
+        Update: {
+          carga_alvo?: number | null
+          created_at?: string
+          descanso_segundos?: number | null
+          grupo_muscular?: string | null
+          id?: string
+          nome?: string
+          reps_alvo?: number | null
+          series?: number
+          treino_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'exercicios_treino_treino_id_fkey'
+            columns: ['treino_id']
+            isOneToOne: false
+            referencedRelation: 'treinos'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      execucoes_treino: {
+        Row: {
+          created_at: string
+          data: string
+          id: string
+          treino_id: string
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          id?: string
+          treino_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          id?: string
+          treino_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'execucoes_treino_treino_id_fkey'
+            columns: ['treino_id']
+            isOneToOne: false
+            referencedRelation: 'treinos'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      execucoes_exercicio: {
+        Row: {
+          carga_real: number
+          execucao_treino_id: string
+          exercicio_id: string
+          id: string
+          reps_reais: number
+          rpe: number | null
+        }
+        Insert: {
+          carga_real: number
+          execucao_treino_id: string
+          exercicio_id: string
+          id?: string
+          reps_reais: number
+          rpe?: number | null
+        }
+        Update: {
+          carga_real?: number
+          execucao_treino_id?: string
+          exercicio_id?: string
+          id?: string
+          reps_reais?: number
+          rpe?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'execucoes_exercicio_execucao_treino_id_fkey'
+            columns: ['execucao_treino_id']
+            isOneToOne: false
+            referencedRelation: 'execucoes_treino'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'execucoes_exercicio_exercicio_id_fkey'
+            columns: ['exercicio_id']
+            isOneToOne: false
+            referencedRelation: 'exercicios_treino'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      personal_records: {
+        Row: {
+          carga: number
+          created_at: string
+          data: string
+          exercicio_id: string
+          id: string
+          reps: number
+          um_rm_estimado: number
+        }
+        Insert: {
+          carga: number
+          created_at?: string
+          data: string
+          exercicio_id: string
+          id?: string
+          reps: number
+          um_rm_estimado: number
+        }
+        Update: {
+          carga?: number
+          created_at?: string
+          data?: string
+          exercicio_id?: string
+          id?: string
+          reps?: number
+          um_rm_estimado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'personal_records_exercicio_id_fkey'
+            columns: ['exercicio_id']
+            isOneToOne: false
+            referencedRelation: 'exercicios_treino'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      registro_corporal: {
+        Row: {
+          created_at: string
+          data: string
+          foto_storage_path: string | null
+          id: string
+          medidas: Json | null
+          peso: number | null
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          foto_storage_path?: string | null
+          id?: string
+          medidas?: Json | null
+          peso?: number | null
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          foto_storage_path?: string | null
+          id?: string
+          medidas?: Json | null
+          peso?: number | null
+        }
+        Relationships: []
+      }
+      registro_lesoes: {
+        Row: {
+          created_at: string
+          data: string
+          id: string
+          intensidade: number
+          observacao: string | null
+          regiao: string
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          id?: string
+          intensidade: number
+          observacao?: string | null
+          regiao: string
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          id?: string
+          intensidade?: number
+          observacao?: string | null
+          regiao?: string
+        }
+        Relationships: []
       }
       conclusoes_fluxograma: {
         Row: {

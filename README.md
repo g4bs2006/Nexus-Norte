@@ -28,7 +28,7 @@ plano registra as resoluções de lacunas decididas antes da implementação —
 | 0 | Fundação — setup, design system, schema base, shell de layout | ✅ Concluída |
 | 1 | Financeiro | ✅ Concluída |
 | 2 | Estudos | ✅ Concluída |
-| 3 | Treino | ⬜ Pendente |
+| 3 | Treino | ✅ Concluída |
 | 4 | Projetos | ⬜ Pendente |
 | 5 | Calendário unificado | ⬜ Pendente |
 | 6 | Home | ⬜ Pendente |
@@ -88,6 +88,28 @@ coluna `natureza` em `categorias` — ver resolução 10.12 no plano.
 **Decisões desta fase:** `avaliacoes` ganhou coluna `data` (resolução 10.14) e
 foi criada `conclusoes_fluxograma` (resolução 10.15) — o plano pedia o toggle de
 concluído sem definir onde guardá-lo.
+
+### Fase 3 — Treino
+
+- Schema: `treinos`, `exercicios_treino` com `grupo_muscular` (resolução 10.1),
+  `execucoes_treino`, `execucoes_exercicio`, `personal_records`,
+  `registro_corporal`, `registro_lesoes`
+- `fluxograma_semanal` estendida com `treino_id` e check constraint final
+  (resolução 10.6) — completa a substituição da referência polimórfica
+- Trigger que grava PR automaticamente por Epley a cada execução
+- Cálculos como funções puras: 1RM, frequência, progressão, sinal de
+  estagnação, volume por grupo muscular
+- Card "treino de hoje" derivado do fluxograma, com registro de execução
+  pré-preenchido pelos alvos
+- Indicador de frequência semanal e volume por grupo
+- Seção de PRs recentes
+- Sub-página do exercício com gráfico de progressão e alerta de estagnação
+- Peso corporal com gráfico discreto e upload de foto de progresso
+- Registro de lesões
+
+**Decisão desta fase:** `treinos.dias_semana` foi descartada — era uma segunda
+fonte de verdade competindo com o fluxograma (resolução 10.17). Cada linha de
+`execucoes_exercicio` passa a representar uma série.
 
 ## Estrutura
 

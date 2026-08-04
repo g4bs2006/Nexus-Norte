@@ -25,6 +25,17 @@ export type RegistroLista = Tables<'registro_listas'>
 export type SessaoEstudo = Tables<'sessoes_estudo'>
 export type FluxogramaSemanal = Tables<'fluxograma_semanal'>
 
+/**
+ * Entrada de fluxograma que representa uma AULA.
+ *
+ * A tabela é compartilhada com Treino (resolução 10.6) e o check constraint
+ * garante que exatamente uma das FKs esteja preenchida. Este tipo estreita
+ * `materia_id` para não-nulo nas consultas já filtradas.
+ */
+export type FluxogramaAula = Omit<FluxogramaSemanal, 'materia_id'> & {
+  materia_id: string
+}
+
 export type ConfigCalculoMedia = Omit<
   Tables<'config_calculo_media'>,
   'tipo'

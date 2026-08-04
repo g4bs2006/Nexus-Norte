@@ -6,7 +6,7 @@ import type {
   Documento,
   ExcecaoFluxograma,
   Falta,
-  FluxogramaSemanal,
+  FluxogramaAula,
   Materia,
   RegistroLista,
   SessaoEstudo,
@@ -269,14 +269,21 @@ export async function excluirDocumento(
 
 // --- Fluxograma semanal -----------------------------------------------------
 
-export async function listarFluxograma(): Promise<FluxogramaSemanal[]> {
-  return lancarSeErro(
-    await supabase
-      .from('fluxograma_semanal')
-      .select('*')
-      .order('dia_semana')
-      .order('horario_inicio'),
-  )
+/**
+ * Aulas no fluxograma.
+ *
+ * A partir da Fase 3 a tabela guarda aulas E treinos (resolução 10.6), então o
+ * filtro por `materia_id not null` é obrigatório — sem ele, treinos apareceriam
+ * como aulas nos checks de Estudos.
+ */
+export async function listarFluxograma(): Promise<FluxogramaAula[]> {
+  const resultado = await supabase
+    .from('fluxograma_semanal')
+    .select('*')
+    .not('materia_id', 'is', null)
+    .order('dia_semana')
+    .order('horario_inicio')
+  return lancarSeErro(resultado) as FluxogramaAula[]
 }
 
 export async function criarFluxograma(

@@ -529,6 +529,21 @@ gravar `false`. Assim a tabela só registra o que de fato aconteceu e não
 pré-gera linhas para todo dia do calendário — coerente com a decisão de não
 materializar a recorrência (10.5).
 
+### 10.17 Fonte única do planejamento de treino (corrige 4.1) — descoberta na Fase 3
+O plano definia `treinos.dias_semana int[]` (4.1) **e** usava o fluxograma para
+o card "treino de hoje" (4.3) — duas fontes de verdade para o mesmo fato, que
+sairiam de sincronia na primeira vez que uma fosse editada sem a outra.
+
+`dias_semana` foi **descartada**. O fluxograma é a fonte única:
+- "Treino de hoje" expande as ocorrências do fluxograma para a data atual
+- `frequencia_semana` compara execuções reais com as ocorrências previstas no
+  fluxograma na semana
+
+**Convenção adicional:** cada linha de `execucoes_exercicio` representa **uma
+série**. É o que permite `volume_grupo_muscular` ser `Σ(reps × carga)` somando
+linha a linha, sem depender do número de séries planejado — o plano escrevia
+"séries × reps × carga", que dá o mesmo resultado sob essa convenção.
+
 ### 10.16 Referência pendente no plano (3.3)
 A seção 3.3 menciona "Registro de listas de exercícios (Opção C, começando pela
 Opção A)", mas essas opções não estão definidas em nenhum ponto do documento.
