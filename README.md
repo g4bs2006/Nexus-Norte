@@ -31,7 +31,7 @@ plano registra as resoluções de lacunas decididas antes da implementação —
 | 3 | Treino | ✅ Concluída |
 | 4 | Projetos | ✅ Concluída |
 | 5 | Calendário unificado | ✅ Concluída |
-| 6 | Home | ⬜ Pendente |
+| 6 | Home | ✅ Concluída |
 | 7 | Polimento | ⬜ Pendente |
 
 ### Fase 0 — Fundação
@@ -141,6 +141,22 @@ não foi decomposto. Projeto sem nenhum log conta como momentum baixo.
 - Sono renderizado como evento de fundo: contexto, não compromisso
 - Visões mensal e semanal, filtro de camadas por pilar
 - FullCalendar re-tematizado para a paleta Notion, nos dois temas
+
+### Fase 6 — Home
+
+- Bloco unificado de checks do dia: financeiro, aulas e treinos em uma lista só
+- Mini-card Financeiro: saldo do mês, entrada/saída e projeção, lendo o
+  campo-resumo sem reagregar (plano 7.2)
+- Mini-card Estudos: matérias em risco e próxima avaliação entre todas
+- Mini-card Treino: frequência da semana e PR mais recente
+- Mini-card Projetos: projetos sem movimento e o mais ativo
+- Indicador de sono: horas de ontem versus a meta do dia
+- Próximos eventos do calendário, reaproveitando o construtor da Fase 5
+- Módulo de sono (`features/sono`), que faltava desde a Fase 0
+
+**Correção encontrada nesta fase:** os `format()` do date-fns usavam a locale
+padrão (inglês). `lib/locale.ts` passa a definir pt-BR e segunda como início da
+semana globalmente.
 
 ## Estrutura
 
