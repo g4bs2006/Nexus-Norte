@@ -51,7 +51,7 @@ export function SecaoPRs({ prs, nomePorExercicio, limite = 5 }: SecaoPRsProps) {
                   {pr.reps}
                 </p>
               </div>
-              <span className="text-treino shrink-0 text-sm tabular-nums">
+              <span className="metric-sm text-treino shrink-0">
                 {pr.um_rm_estimado.toFixed(1)}kg
               </span>
             </li>

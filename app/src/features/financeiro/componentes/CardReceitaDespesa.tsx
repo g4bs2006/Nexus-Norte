@@ -35,7 +35,7 @@ export function CardReceitaDespesa({
             <ArrowDownRight className="text-status-risco size-3.5" />
             Despesa do mês
           </div>
-          <p className="text-xl">{formatarMoeda(totais.despesa)}</p>
+          <p className="metric-md">{formatarMoeda(totais.despesa)}</p>
         </div>
 
         <div className="space-y-1">
@@ -45,7 +45,7 @@ export function CardReceitaDespesa({
           </div>
           <p
             className={cn(
-              'text-xl',
+              'metric-md',
               saldoPositivo ? 'text-status-ok' : 'text-status-risco',
             )}
           >

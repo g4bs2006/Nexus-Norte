@@ -1,12 +1,18 @@
 import { Suspense } from 'react'
 import { Outlet } from 'react-router-dom'
+import { SkeletonPagina } from '@/components/Skeletons'
 import { Sidebar } from './Sidebar'
 import { BottomNav } from './BottomNav'
 import { ThemeToggle } from './ThemeToggle'
 import { useTemaEfetivo } from '@/hooks/useTemaEfetivo'
 
+/**
+ * Fallback do Suspense do code-splitting. Genérico de propósito: aqui não se
+ * sabe qual rota está entrando, então usa a composição mais neutra. Cada page
+ * tem o seu próprio esqueleto para o carregamento dos dados.
+ */
 function Carregando() {
-  return <p className="text-muted-foreground text-sm">Carregando…</p>
+  return <SkeletonPagina variante="grade" />
 }
 
 export function AppShell() {

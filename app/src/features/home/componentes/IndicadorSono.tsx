@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { Moon } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
+import { BarraProgresso } from '@/components/BarraProgresso'
 import { cn } from '@/lib/utils'
 import { formatarHoras } from '@/features/sono/calculos'
 
@@ -37,7 +37,7 @@ export function IndicadorSono({
           <span className="flex items-center gap-2">
             <span
               className={cn(
-                'text-lg tabular-nums',
+                'metric-md',
                 abaixo && 'text-status-atencao',
               )}
             >
@@ -55,7 +55,11 @@ export function IndicadorSono({
           </p>
         ) : (
           <>
-            <Progress value={Math.min(percentual, 100)} />
+            <BarraProgresso
+              valor={percentual}
+              classeCor="bg-sono"
+              rotulo="Sono em relação à meta"
+            />
             <p className="text-muted-foreground text-xs">
               meta {formatarHoras(horasMeta as number)} ·{' '}
               {Math.round(percentual)}%

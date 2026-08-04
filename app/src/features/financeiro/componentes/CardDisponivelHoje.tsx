@@ -1,5 +1,5 @@
 import { Card, CardContent } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
+import { BarraProgresso } from '@/components/BarraProgresso'
 import { formatarMoeda } from '@/lib/datas'
 import { cn } from '@/lib/utils'
 
@@ -34,7 +34,7 @@ export function CardDisponivelHoje({
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-1">
             <p className="text-muted-foreground text-xs">Disponível hoje</p>
-            <p className="text-xl">{formatarMoeda(disponivelGeral)}</p>
+            <p className="metric-md">{formatarMoeda(disponivelGeral)}</p>
             <p className="text-muted-foreground text-[11px]">
               meta restante ÷ dias do mês
             </p>
@@ -42,7 +42,7 @@ export function CardDisponivelHoje({
 
           <div className="space-y-1">
             <p className="text-muted-foreground text-xs">Planejado para hoje</p>
-            <p className="text-xl">{formatarMoeda(disponivelPlanejado)}</p>
+            <p className="metric-md">{formatarMoeda(disponivelPlanejado)}</p>
             <p className="text-muted-foreground text-[11px]">
               do planejamento da semana
             </p>
@@ -52,7 +52,7 @@ export function CardDisponivelHoje({
             <p className="text-muted-foreground text-xs">Gasto de hoje</p>
             <p
               className={cn(
-                'flex items-center gap-2 text-xl',
+                'metric-md flex items-center gap-2',
                 status === 'ok' ? 'text-status-ok' : 'text-status-risco',
               )}
             >
@@ -79,7 +79,11 @@ export function CardDisponivelHoje({
               {metaTotal > 0 && ` de ${formatarMoeda(metaTotal)}`}
             </span>
           </div>
-          <Progress value={Math.min(progressoMes, 100)} />
+          <BarraProgresso
+            valor={progressoMes}
+            classeCor={progressoMes > 100 ? "bg-status-risco" : "bg-financeiro"}
+            rotulo="Progresso do mês"
+          />
         </div>
       </CardContent>
     </Card>

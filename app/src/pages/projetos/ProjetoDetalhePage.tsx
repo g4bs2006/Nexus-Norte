@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
+import { SkeletonPagina } from '@/components/Skeletons'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -13,7 +14,7 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Progress } from '@/components/ui/progress'
+import { BarraProgresso } from '@/components/BarraProgresso'
 import {
   Select,
   SelectContent,
@@ -90,7 +91,7 @@ export default function ProjetoDetalhePage() {
     return (
       <>
         <PageHeader titulo="Projeto" />
-        <p className="text-muted-foreground text-sm">Carregando…</p>
+        <SkeletonPagina variante="detalhe" />
       </>
     )
   }
@@ -203,7 +204,11 @@ export default function ProjetoDetalhePage() {
                     : `${Math.round(percentual)}%`}
                 </span>
               </div>
-              <Progress value={percentual ?? 0} />
+              <BarraProgresso
+            valor={percentual ?? 0}
+            classeCor="bg-projetos"
+            rotulo="Marcos concluídos"
+          />
             </div>
 
             <p

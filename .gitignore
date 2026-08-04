@@ -16,3 +16,6 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# Saída do graphify — grafo regenerável, não versionado
+graphify-out/

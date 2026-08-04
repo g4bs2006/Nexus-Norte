@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
+import { SkeletonPagina } from '@/components/Skeletons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -79,7 +80,7 @@ export default function MateriaDetalhePage() {
     return (
       <>
         <PageHeader titulo="Matéria" />
-        <p className="text-muted-foreground text-sm">Carregando…</p>
+        <SkeletonPagina variante="detalhe" />
       </>
     )
   }
@@ -135,19 +136,19 @@ export default function MateriaDetalhePage() {
           <CardContent className="grid gap-4 sm:grid-cols-4">
             <div>
               <p className="text-muted-foreground text-xs">Média atual</p>
-              <p className="text-2xl tabular-nums">
+              <p className="metric-lg">
                 {media === null ? '—' : media.toFixed(1)}
               </p>
             </div>
             <div>
               <p className="text-muted-foreground text-xs">Média projetada</p>
-              <p className="text-2xl tabular-nums">
+              <p className="metric-lg">
                 {projetada === null ? '—' : projetada.toFixed(1)}
               </p>
             </div>
             <div>
               <p className="text-muted-foreground text-xs">Faltas restantes</p>
-              <p className="text-2xl tabular-nums">
+              <p className="metric-lg">
                 {materia.limite_faltas === 0 ? '—' : restantes}
               </p>
             </div>

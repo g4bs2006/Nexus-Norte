@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useValorAnimado } from '@/hooks/useValorAnimado'
 import { cn } from '@/lib/utils'
 
 interface AnelProgressoProps {
@@ -31,7 +32,10 @@ export function AnelProgresso({
 }: AnelProgressoProps) {
   const raio = (tamanho - espessura) / 2
   const circunferencia = 2 * Math.PI * raio
-  const preenchido = Math.min(Math.max(percentual ?? 0, 0), 100)
+
+  // Parte de 0 na montagem para que a transição abaixo tenha de onde sair.
+  const animado = useValorAnimado(percentual)
+  const preenchido = Math.min(Math.max(animado ?? 0, 0), 100)
   const recuo = circunferencia * (1 - preenchido / 100)
 
   return (

@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Dumbbell, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
+import { SkeletonPagina } from '@/components/Skeletons'
 import { GradeFluxograma, type ItemFluxograma } from '@/components/GradeFluxograma'
 import { Button } from '@/components/ui/button'
 import {
@@ -11,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
+import { BarraProgresso } from '@/components/BarraProgresso'
 import { inicioSemana, paraISO } from '@/lib/datas'
 import { expandirRecorrencia } from '@/lib/recorrencia'
 import { addDays } from 'date-fns'
@@ -117,7 +118,7 @@ export default function TreinoPage() {
     return (
       <>
         <PageHeader titulo="Treino" />
-        <p className="text-muted-foreground text-sm">Carregando…</p>
+        <SkeletonPagina variante="lista" />
       </>
     )
   }
@@ -220,7 +221,7 @@ export default function TreinoPage() {
                   <p className="text-muted-foreground text-xs">
                     Frequência da semana
                   </p>
-                  <p className="text-2xl tabular-nums">
+                  <p className="metric-lg">
                     {frequencia.realizados}
                     <span className="text-muted-foreground text-base">
                       /{frequencia.previstos || '—'}
@@ -238,7 +239,11 @@ export default function TreinoPage() {
                   Agende treinos no fluxograma para acompanhar a aderência.
                 </p>
               ) : (
-                <Progress value={Math.min(frequencia.percentual, 100)} />
+                <BarraProgresso
+                  valor={frequencia.percentual}
+                  classeCor="bg-treino"
+                  rotulo="Frequência da semana"
+                />
               )}
             </CardContent>
           </Card>

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
+import { BarraProgresso } from '@/components/BarraProgresso'
 import { cn } from '@/lib/utils'
 import { ROTULOS_STATUS_PROJETO, type Projeto } from '../types'
 
@@ -60,7 +60,11 @@ export function CardProjeto({
               {percentual === null ? 'sem marcos' : `${Math.round(percentual)}%`}
             </span>
           </div>
-          <Progress value={percentual ?? 0} />
+          <BarraProgresso
+            valor={percentual ?? 0}
+            classeCor="bg-projetos"
+            rotulo="Marcos concluídos"
+          />
         </div>
 
         <p

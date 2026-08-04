@@ -80,7 +80,7 @@ export function CardMateria({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <p className="text-muted-foreground text-[11px]">Média</p>
-            <p className="text-lg tabular-nums">
+            <p className="metric-md">
               {media === null ? '—' : media.toFixed(1)}
             </p>
           </div>
@@ -88,7 +88,7 @@ export function CardMateria({
             <p className="text-muted-foreground text-[11px]">Faltas restantes</p>
             <p
               className={cn(
-                'text-lg tabular-nums',
+                'metric-md',
                 faltasCriticas && 'text-status-risco',
               )}
             >

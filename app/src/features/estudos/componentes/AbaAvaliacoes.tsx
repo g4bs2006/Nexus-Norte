@@ -234,7 +234,7 @@ export function AbaAvaliacoes({
                 {avaliacoes.map((avaliacao) => (
                   <TableRow key={avaliacao.id}>
                     <TableCell className="text-sm">{avaliacao.nome}</TableCell>
-                    <TableCell className="text-right text-sm tabular-nums">
+                    <TableCell className="metric-sm text-right">
                       {avaliacao.peso}
                     </TableCell>
                     <TableCell>

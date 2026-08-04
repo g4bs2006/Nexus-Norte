@@ -12,6 +12,7 @@ import {
   YAxis,
 } from 'recharts'
 import { PageHeader } from '@/components/PageHeader'
+import { SkeletonPagina } from '@/components/Skeletons'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -97,7 +98,7 @@ export default function ExercicioDetalhePage() {
     return (
       <>
         <PageHeader titulo="Exercício" />
-        <p className="text-muted-foreground text-sm">Carregando…</p>
+        <SkeletonPagina variante="detalhe" />
       </>
     )
   }
@@ -163,13 +164,13 @@ export default function ExercicioDetalhePage() {
             </div>
             <div>
               <p className="text-muted-foreground text-xs">Melhor 1RM</p>
-              <p className="text-2xl tabular-nums">
+              <p className="metric-lg">
                 {melhorPr === null ? '—' : `${melhorPr.toFixed(1)}kg`}
               </p>
             </div>
             <div>
               <p className="text-muted-foreground text-xs">Sessões registradas</p>
-              <p className="text-2xl tabular-nums">{sessoes.length}</p>
+              <p className="metric-lg">{sessoes.length}</p>
             </div>
           </CardContent>
         </Card>
@@ -256,7 +257,7 @@ export default function ExercicioDetalhePage() {
                         key={serie.id}
                         className="flex items-center justify-between gap-3 px-4 py-2.5"
                       >
-                        <p className="text-sm tabular-nums">
+                        <p className="metric-sm">
                           {format(deISO(serie.data), 'dd/MM/yyyy')} ·{' '}
                           {serie.carga_real}kg × {serie.reps_reais}
                           {serie.rpe !== null && (

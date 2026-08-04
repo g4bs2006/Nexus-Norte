@@ -394,7 +394,7 @@ export default function HomePage() {
         </Card>
 
         {/* Mini-cards dos pilares */}
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="surgir-grupo grid gap-3 sm:grid-cols-2">
           <MiniCard
             titulo="Financeiro"
             icone={Wallet}
@@ -409,7 +409,7 @@ export default function HomePage() {
                   </span>
                   <span
                     className={cn(
-                      'text-lg tabular-nums',
+                      'metric-md',
                       CLASSE_STATUS[financeiro.status],
                     )}
                   >
@@ -490,7 +490,7 @@ export default function HomePage() {
                   <span className="text-muted-foreground text-xs">
                     Frequência da semana
                   </span>
-                  <span className="text-lg tabular-nums">
+                  <span className="metric-md">
                     {treino.frequencia.realizados}
                     <span className="text-muted-foreground text-sm">
                       /{treino.frequencia.previstos || '—'}

@@ -2,6 +2,8 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
+/* Face exclusiva das métricas — ver utilitários .metric-* no fim do arquivo */
+@import "@fontsource-variable/jetbrains-mono";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -14,6 +16,11 @@
 @theme inline {
     --font-heading: var(--font-sans);
     --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+    /* Só para dígitos. O Nexus é um painel de leituras (saldo, média, 1RM,
+       horas): dar face própria ao número faz dele um mostrador, não uma
+       palavra. Inter segue para todo o resto. */
+    --font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular,
+      Menlo, Consolas, monospace;
 
     /* Cores por pilar — expostas como utilitários Tailwind
        (ex: text-financeiro, bg-estudos-soft, border-treino) */
@@ -203,6 +210,96 @@
     h3,
     h4 {
         @apply font-medium tracking-tight;
+    }
+}
+
+/* ---------------------------------------------------------------------------
+   Escala de métrica — Bloco A do brief de design.
+
+   Três tamanhos, todos em face mono com figuras tabulares. `metric-lg` é o
+   número-herói de uma seção; `metric-md`, o valor de um mini-card; `metric-sm`,
+   valor em tabela ou linha de lista.
+--------------------------------------------------------------------------- */
+
+@utility metric-lg {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 1.875rem;
+    line-height: 1;
+    letter-spacing: -0.03em;
+}
+
+@utility metric-md {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 1.25rem;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+}
+
+@utility metric-sm {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.875rem;
+    line-height: 1.2;
+}
+
+/* ---------------------------------------------------------------------------
+   Entrada orquestrada — Bloco A do brief.
+
+   Sobe 8px com opacidade, uma única vez na montagem. O escalonamento vem de
+   `--surgir-atraso`, definido inline pelo índice do item. Não deve ser aplicado
+   em conteúdo que re-renderiza a cada digitação: ali o movimento vira ruído.
+--------------------------------------------------------------------------- */
+
+@keyframes surgir {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@utility surgir {
+    animation: surgir 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: var(--surgir-atraso, 0ms);
+}
+
+/* Escalona os filhos diretos de um container — serve tanto para grade vinda de
+   map quanto para filhos estáticos, sem precisar envolver cada item. Para além
+   do 8º item o atraso fica no teto: mais que isso já é espera, não sequência. */
+@utility surgir-grupo {
+    & > * {
+        animation: surgir 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+    & > *:nth-child(1) { animation-delay: 0ms; }
+    & > *:nth-child(2) { animation-delay: 40ms; }
+    & > *:nth-child(3) { animation-delay: 80ms; }
+    & > *:nth-child(4) { animation-delay: 120ms; }
+    & > *:nth-child(5) { animation-delay: 160ms; }
+    & > *:nth-child(6) { animation-delay: 200ms; }
+    & > *:nth-child(7) { animation-delay: 240ms; }
+    & > *:nth-child(n + 8) { animation-delay: 280ms; }
+}
+
+/* ---------------------------------------------------------------------------
+   Piso de qualidade: movimento reduzido.
+
+   Quem pede menos movimento recebe o estado final imediatamente — inclusive as
+   transições de anel e barra, que são conduzidas por CSS.
+--------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
     }
 }
 

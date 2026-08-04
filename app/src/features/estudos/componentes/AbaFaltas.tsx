@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Progress } from '@/components/ui/progress'
+import { BarraProgresso } from '@/components/BarraProgresso'
 import { deISO, paraISO } from '@/lib/datas'
 import { cn } from '@/lib/utils'
 import { useCriarFalta, useExcluirFalta } from '../hooks'
@@ -55,7 +55,7 @@ export function AbaFaltas({
               <p className="text-muted-foreground text-xs">Faltas restantes</p>
               <p
                 className={cn(
-                  'text-2xl tabular-nums',
+                  'metric-lg',
                   critico && 'text-status-risco',
                 )}
               >
@@ -68,7 +68,11 @@ export function AbaFaltas({
             </p>
           </div>
           {limiteFaltas > 0 && (
-            <Progress value={Math.min(percentualUsado, 100)} />
+            <BarraProgresso
+              valor={percentualUsado}
+              classeCor={critico ? "bg-status-risco" : "bg-estudos"}
+              rotulo="Faltas usadas"
+            />
           )}
           {limiteFaltas === 0 && (
             <p className="text-muted-foreground text-xs">

@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Trash2 } from 'lucide-react'
 import { AnelProgresso } from '@/components/AnelProgresso'
 import { PageHeader } from '@/components/PageHeader'
+import { SkeletonPagina } from '@/components/Skeletons'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -46,7 +47,7 @@ export default function CategoriaDetalhePage() {
     return (
       <>
         <PageHeader titulo="Categoria" />
-        <p className="text-muted-foreground text-sm">Carregando…</p>
+        <SkeletonPagina variante="detalhe" />
       </>
     )
   }
@@ -114,7 +115,7 @@ export default function CategoriaDetalhePage() {
               <p className="text-muted-foreground text-xs">
                 Gasto no mês corrente
               </p>
-              <p className="text-2xl tabular-nums">
+              <p className="metric-lg">
                 {formatarMoeda(categoria.total_gasto_mes)}
               </p>
               <p className="text-muted-foreground text-xs">
@@ -165,7 +166,7 @@ export default function CategoriaDetalhePage() {
                             </span>
                           )}
                         </TableCell>
-                        <TableCell className="text-right text-sm tabular-nums">
+                        <TableCell className="metric-sm text-right">
                           {formatarMoeda(lancamento.valor)}
                         </TableCell>
                         <TableCell>

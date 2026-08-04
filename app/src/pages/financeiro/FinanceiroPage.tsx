@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { getDate, getDaysInMonth } from 'date-fns'
 import { PageHeader } from '@/components/PageHeader'
+import { SkeletonPagina } from '@/components/Skeletons'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   diasRestantesNoMes,
@@ -118,7 +119,7 @@ export default function FinanceiroPage() {
     return (
       <>
         <PageHeader titulo="Financeiro" />
-        <p className="text-muted-foreground text-sm">Carregando…</p>
+        <SkeletonPagina variante="financeiro" />
       </>
     )
   }
@@ -200,7 +201,7 @@ export default function FinanceiroPage() {
 
           <section className="space-y-3">
             <h2 className="text-sm font-medium">Categorias de despesa</h2>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="surgir-grupo grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {despesas.map((categoria) => (
                 <CardCategoria
                   key={categoria.id}

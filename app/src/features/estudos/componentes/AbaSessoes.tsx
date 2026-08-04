@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Progress } from '@/components/ui/progress'
+import { BarraProgresso } from '@/components/BarraProgresso'
 import { deISO, paraISO } from '@/lib/datas'
 import { useCriarSessao, useExcluirSessao } from '../hooks'
 import { frequenciaEstudoSemana } from '../calculos'
@@ -84,7 +84,7 @@ export function AbaSessoes({ materiaId, sessoes, hoje }: AbaSessoesProps) {
               <p className="text-muted-foreground text-xs">
                 Estudado nos últimos 7 dias
               </p>
-              <p className="text-2xl tabular-nums">
+              <p className="metric-lg">
                 {Math.floor(frequencia.minutosEstudados / 60)}h
                 {String(frequencia.minutosEstudados % 60).padStart(2, '0')}
               </p>
@@ -101,7 +101,11 @@ export function AbaSessoes({ materiaId, sessoes, hoje }: AbaSessoesProps) {
               percentual.
             </p>
           ) : (
-            <Progress value={Math.min(frequencia.percentual, 100)} />
+            <BarraProgresso
+              valor={frequencia.percentual}
+              classeCor="bg-estudos"
+              rotulo="Meta de estudo da semana"
+            />
           )}
         </CardContent>
       </Card>

@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { PageHeader } from '@/components/PageHeader'
+import { SkeletonPagina } from '@/components/Skeletons'
 import { ChecksFluxograma } from '@/components/ChecksFluxograma'
 import { GradeFluxograma, type ItemFluxograma } from '@/components/GradeFluxograma'
 import {
@@ -115,7 +116,7 @@ export default function EstudosPage() {
     return (
       <>
         <PageHeader titulo="Estudos" />
-        <p className="text-muted-foreground text-sm">Carregando…</p>
+        <SkeletonPagina variante="lista" />
       </>
     )
   }
@@ -182,7 +183,7 @@ export default function EstudosPage() {
 
           <section className="space-y-3">
             <h2 className="text-sm font-medium">Matérias</h2>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="surgir-grupo grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {cards.map((card) => (
                 <CardMateria
                   key={card.materia.id}

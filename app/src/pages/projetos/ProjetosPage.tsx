@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { PageHeader } from '@/components/PageHeader'
+import { SkeletonPagina } from '@/components/Skeletons'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -55,7 +56,7 @@ export default function ProjetosPage() {
     return (
       <>
         <PageHeader titulo="Projetos" />
-        <p className="text-muted-foreground text-sm">Carregando…</p>
+        <SkeletonPagina variante="grade" />
       </>
     )
   }
@@ -122,7 +123,7 @@ export default function ProjetosPage() {
                     </CardContent>
                   </Card>
                 ) : (
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="surgir-grupo grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {doGrupo.map((item) => (
                       <CardProjeto
                         key={item.projeto.id}

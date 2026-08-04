@@ -40,13 +40,13 @@ export function SecaoInvestimentos({
       <CardContent className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1">
           <p className="text-muted-foreground text-xs">Aportado no mês</p>
-          <p className="text-lg tabular-nums">{formatarMoeda(aportes)}</p>
+          <p className="metric-md">{formatarMoeda(aportes)}</p>
         </div>
         <div className="space-y-1">
           <p className="text-muted-foreground text-xs">Rendimento no mês</p>
           <p
             className={cn(
-              'text-lg tabular-nums',
+              'metric-md',
               rendimentos > 0 && 'text-status-ok',
               rendimentos < 0 && 'text-status-risco',
             )}
