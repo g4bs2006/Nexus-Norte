@@ -25,6 +25,7 @@ import { DIAS_SEMANA } from '@/lib/constants'
 import { paraISO } from '@/lib/datas'
 import { formatarHoras, horasEntre } from '../calculos'
 import {
+  useExcluirRegistroSono,
   usePlanejamentoCompleto,
   useSalvarPlanejamentoSono,
   useSalvarRegistroSono,
@@ -46,6 +47,7 @@ interface DialogSonoProps {
 export function DialogSono({ hoje }: DialogSonoProps) {
   const [aberto, setAberto] = useState(false)
   const salvarRegistro = useSalvarRegistroSono()
+  const excluirRegistro = useExcluirRegistroSono()
   const salvarPlano = useSalvarPlanejamentoSono()
   const planejamento = usePlanejamentoCompleto()
 
@@ -67,6 +69,11 @@ export function DialogSono({ hoje }: DialogSonoProps) {
       hora_dormir_real: dormir,
       hora_acordar_real: acordar,
     })
+    setAberto(false)
+  }
+
+  async function handleExcluirRegistro() {
+    await excluirRegistro.mutateAsync(data)
     setAberto(false)
   }
 
@@ -145,6 +152,15 @@ export function DialogSono({ hoje }: DialogSonoProps) {
             </p>
 
             <DialogFooter>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => void handleExcluirRegistro()}
+                disabled={excluirRegistro.isPending}
+                className="sm:mr-auto"
+              >
+                {excluirRegistro.isPending ? 'Excluindo…' : 'Excluir registro da data'}
+              </Button>
               <Button
                 onClick={() => void submeterRegistro()}
                 disabled={salvarRegistro.isPending}

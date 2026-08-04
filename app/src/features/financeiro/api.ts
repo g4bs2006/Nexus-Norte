@@ -94,6 +94,14 @@ export async function criarLancamento(
   if (error) throw new Error(error.message)
 }
 
+export async function atualizarLancamento(
+  id: string,
+  dados: TablesUpdate<'lancamentos'>,
+): Promise<void> {
+  const { error } = await supabase.from('lancamentos').update(dados).eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
 export async function excluirLancamento(id: string): Promise<void> {
   const { error } = await supabase.from('lancamentos').delete().eq('id', id)
   if (error) throw new Error(error.message)
@@ -170,6 +178,19 @@ export async function criarInvestimento(
   dados: TablesInsert<'investimentos'>,
 ): Promise<void> {
   const { error } = await supabase.from('investimentos').insert(dados)
+  if (error) throw new Error(error.message)
+}
+
+export async function atualizarInvestimento(
+  id: string,
+  dados: TablesUpdate<'investimentos'>,
+): Promise<void> {
+  const { error } = await supabase.from('investimentos').update(dados).eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+export async function excluirInvestimento(id: string): Promise<void> {
+  const { error } = await supabase.from('investimentos').delete().eq('id', id)
   if (error) throw new Error(error.message)
 }
 

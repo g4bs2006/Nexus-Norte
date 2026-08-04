@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
 import { SeletorCor } from '@/components/SeletorCor'
 import { Button } from '@/components/ui/button'
 import {
@@ -30,8 +30,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useCriarCategoria } from '../hooks'
+import { useCriarCategoria, useAtualizarCategoria } from '../hooks'
 import { schemaCategoria, textoOuNulo, type FormularioCategoria } from '../schemas'
+import type { Categoria } from '../types'
 
 const VAZIO: FormularioCategoria = {
   nome: '',
@@ -42,21 +43,45 @@ const VAZIO: FormularioCategoria = {
   cor: '',
 }
 
-/** Cadastro de categoria (plano 2.5). */
-export function DialogCategoria() {
+interface DialogCategoriaProps {
+  /** Se passada, o dialog abre em modo de edição. */
+  categoria?: Categoria
+}
+
+/** Cadastro e edição de categoria (plano 2.5). */
+export function DialogCategoria({ categoria }: DialogCategoriaProps = {}) {
+  const modoEdicao = Boolean(categoria)
   const [aberto, setAberto] = useState(false)
   const criar = useCriarCategoria()
+  const atualizar = useAtualizarCategoria()
 
   const form = useForm<FormularioCategoria>({
     resolver: zodResolver(schemaCategoria),
     defaultValues: VAZIO,
   })
 
+  // Quando o dialog abre em modo edição, preenche o form com os dados existentes
+  useEffect(() => {
+    if (aberto && categoria) {
+      form.reset({
+        nome: categoria.nome,
+        natureza: categoria.natureza,
+        tipo: categoria.tipo ?? '',
+        meta_mensal: categoria.meta_mensal ?? Number.NaN,
+        meta_tipo: categoria.meta_tipo ?? '',
+        cor: categoria.cor ?? '',
+      })
+    } else if (aberto && !categoria) {
+      form.reset(VAZIO)
+    }
+  }, [aberto, categoria, form])
+
   const natureza = form.watch('natureza')
   const ehReceita = natureza === 'receita'
+  const pendente = criar.isPending || atualizar.isPending
 
   async function submeter(valores: FormularioCategoria) {
-    await criar.mutateAsync({
+    const dados = {
       nome: valores.nome,
       natureza: valores.natureza,
       // Constraint categorias_tipo_por_natureza: receita não tem tipo.
@@ -64,7 +89,13 @@ export function DialogCategoria() {
       meta_mensal: Number.isNaN(valores.meta_mensal) ? null : valores.meta_mensal,
       meta_tipo: valores.meta_tipo === '' ? null : valores.meta_tipo,
       cor: textoOuNulo(valores.cor),
-    })
+    }
+
+    if (modoEdicao && categoria) {
+      await atualizar.mutateAsync({ id: categoria.id, dados })
+    } else {
+      await criar.mutateAsync(dados)
+    }
     form.reset(VAZIO)
     setAberto(false)
   }
@@ -72,14 +103,23 @@ export function DialogCategoria() {
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="secondary">
-          <Plus className="size-4" />
-          Categoria
-        </Button>
+        {modoEdicao ? (
+          <Button size="sm" variant="ghost">
+            <Pencil className="size-3.5" />
+            Editar
+          </Button>
+        ) : (
+          <Button size="sm" variant="secondary">
+            <Plus className="size-4" />
+            Categoria
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nova categoria</DialogTitle>
+          <DialogTitle>
+            {modoEdicao ? 'Editar categoria' : 'Nova categoria'}
+          </DialogTitle>
           <DialogDescription>
             Receitas não usam fixo/variável nem meta.
           </DialogDescription>
@@ -234,8 +274,8 @@ export function DialogCategoria() {
             />
 
             <DialogFooter>
-              <Button type="submit" disabled={criar.isPending}>
-                {criar.isPending ? 'Salvando…' : 'Salvar'}
+              <Button type="submit" disabled={pendente}>
+                {pendente ? 'Salvando…' : 'Salvar'}
               </Button>
             </DialogFooter>
           </form>

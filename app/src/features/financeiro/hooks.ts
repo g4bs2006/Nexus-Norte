@@ -133,12 +133,32 @@ export function useCriarLancamento() {
   return useMutationFinanceiro(api.criarLancamento, 'Lançamento registrado')
 }
 
+export function useAtualizarLancamento() {
+  return useMutationFinanceiro(
+    ({ id, dados }: { id: string; dados: Parameters<typeof api.atualizarLancamento>[1] }) =>
+      api.atualizarLancamento(id, dados),
+    'Lançamento atualizado',
+  )
+}
+
 export function useExcluirLancamento() {
   return useMutationFinanceiro(api.excluirLancamento, 'Lançamento excluído')
 }
 
 export function useCriarInvestimento() {
   return useMutationFinanceiro(api.criarInvestimento, 'Investimento registrado')
+}
+
+export function useAtualizarInvestimento() {
+  return useMutationFinanceiro(
+    ({ id, dados }: { id: string; dados: Parameters<typeof api.atualizarInvestimento>[1] }) =>
+      api.atualizarInvestimento(id, dados),
+    'Investimento atualizado',
+  )
+}
+
+export function useExcluirInvestimento() {
+  return useMutationFinanceiro(api.excluirInvestimento, 'Investimento excluído')
 }
 
 export function useSalvarPlanejamento() {

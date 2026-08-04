@@ -140,6 +140,14 @@ export async function criarFalta(dados: TablesInsert<'faltas'>): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
+export async function atualizarFalta(
+  id: string,
+  dados: TablesUpdate<'faltas'>,
+): Promise<void> {
+  const { error } = await supabase.from('faltas').update(dados).eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
 export async function excluirFalta(id: string): Promise<void> {
   const { error } = await supabase.from('faltas').delete().eq('id', id)
   if (error) throw new Error(error.message)
@@ -161,6 +169,14 @@ export async function criarSessao(
   dados: TablesInsert<'sessoes_estudo'>,
 ): Promise<void> {
   const { error } = await supabase.from('sessoes_estudo').insert(dados)
+  if (error) throw new Error(error.message)
+}
+
+export async function atualizarSessao(
+  id: string,
+  dados: TablesUpdate<'sessoes_estudo'>,
+): Promise<void> {
+  const { error } = await supabase.from('sessoes_estudo').update(dados).eq('id', id)
   if (error) throw new Error(error.message)
 }
 
@@ -187,6 +203,14 @@ export async function criarRegistroLista(
   dados: TablesInsert<'registro_listas'>,
 ): Promise<void> {
   const { error } = await supabase.from('registro_listas').insert(dados)
+  if (error) throw new Error(error.message)
+}
+
+export async function atualizarRegistroLista(
+  id: string,
+  dados: TablesUpdate<'registro_listas'>,
+): Promise<void> {
+  const { error } = await supabase.from('registro_listas').update(dados).eq('id', id)
   if (error) throw new Error(error.message)
 }
 
@@ -290,6 +314,14 @@ export async function criarFluxograma(
   dados: TablesInsert<'fluxograma_semanal'>,
 ): Promise<void> {
   const { error } = await supabase.from('fluxograma_semanal').insert(dados)
+  if (error) throw new Error(error.message)
+}
+
+export async function atualizarFluxograma(
+  id: string,
+  dados: TablesUpdate<'fluxograma_semanal'>,
+): Promise<void> {
+  const { error } = await supabase.from('fluxograma_semanal').update(dados).eq('id', id)
   if (error) throw new Error(error.message)
 }
 

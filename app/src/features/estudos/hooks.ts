@@ -165,6 +165,14 @@ export function useCriarFalta() {
   return useMutationEstudos(api.criarFalta, 'Falta registrada')
 }
 
+export function useAtualizarFalta() {
+  return useMutationEstudos(
+    ({ id, dados }: { id: string; dados: Parameters<typeof api.atualizarFalta>[1] }) =>
+      api.atualizarFalta(id, dados),
+    'Falta atualizada',
+  )
+}
+
 export function useExcluirFalta() {
   return useMutationEstudos(api.excluirFalta, 'Falta removida')
 }
@@ -173,12 +181,28 @@ export function useCriarSessao() {
   return useMutationEstudos(api.criarSessao, 'Sessão registrada')
 }
 
+export function useAtualizarSessao() {
+  return useMutationEstudos(
+    ({ id, dados }: { id: string; dados: Parameters<typeof api.atualizarSessao>[1] }) =>
+      api.atualizarSessao(id, dados),
+    'Sessão atualizada',
+  )
+}
+
 export function useExcluirSessao() {
   return useMutationEstudos(api.excluirSessao, 'Sessão removida')
 }
 
 export function useCriarRegistroLista() {
   return useMutationEstudos(api.criarRegistroLista, 'Lista registrada')
+}
+
+export function useAtualizarRegistroLista() {
+  return useMutationEstudos(
+    ({ id, dados }: { id: string; dados: Parameters<typeof api.atualizarRegistroLista>[1] }) =>
+      api.atualizarRegistroLista(id, dados),
+    'Lista atualizada',
+  )
 }
 
 export function useExcluirRegistroLista() {
@@ -230,6 +254,14 @@ export function useDefinirConclusao() {
 
 export function useCriarFluxograma() {
   return useMutationEstudos(api.criarFluxograma, 'Horário adicionado')
+}
+
+export function useAtualizarFluxograma() {
+  return useMutationEstudos(
+    ({ id, dados }: { id: string; dados: Parameters<typeof api.atualizarFluxograma>[1] }) =>
+      api.atualizarFluxograma(id, dados),
+    'Horário atualizado',
+  )
 }
 
 export function useExcluirFluxograma() {

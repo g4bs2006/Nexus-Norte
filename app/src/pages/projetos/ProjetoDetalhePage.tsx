@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { format } from 'date-fns'
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react'
+import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { PageHeader } from '@/components/PageHeader'
 import { SkeletonPagina } from '@/components/Skeletons'
 import { Button } from '@/components/ui/button'
@@ -30,16 +31,19 @@ import {
   percentualConcluido,
 } from '@/features/projetos/calculos'
 import {
+  useAtualizarLog,
   useAtualizarMarco,
   useAtualizarProjeto,
   useCriarLog,
   useCriarMarco,
   useExcluirLog,
   useExcluirMarco,
+  useExcluirProjeto,
   useLogs,
   useMarcos,
   useProjetos,
 } from '@/features/projetos/hooks'
+import { DialogProjeto } from '@/features/projetos/componentes/DialogProjeto'
 import {
   ROTULOS_STATUS_MARCO,
   ROTULOS_STATUS_PROJETO,
@@ -58,6 +62,7 @@ const CLASSE_MARCO: Record<StatusMarco, string> = {
 
 export default function ProjetoDetalhePage() {
   const { projetoId } = useParams<{ projetoId: string }>()
+  const navigate = useNavigate()
   const hoje = useMemo(() => new Date(), [])
 
   const projetos = useProjetos()
@@ -65,15 +70,19 @@ export default function ProjetoDetalhePage() {
   const logs = useLogs()
 
   const atualizarProjeto = useAtualizarProjeto()
+  const excluirProjeto = useExcluirProjeto()
   const criarMarco = useCriarMarco()
   const atualizarMarco = useAtualizarMarco()
   const excluirMarco = useExcluirMarco()
   const criarLog = useCriarLog()
+  const atualizarLog = useAtualizarLog()
   const excluirLog = useExcluirLog()
 
   const [nomeMarco, setNomeMarco] = useState('')
   const [dataMarco, setDataMarco] = useState('')
   const [conteudoLog, setConteudoLog] = useState('')
+  const [idLogEditando, setIdLogEditando] = useState<string | null>(null)
+  const [textoLogEditando, setTextoLogEditando] = useState('')
 
   const projeto = projetos.data?.find((item) => item.id === projetoId)
 
@@ -150,12 +159,24 @@ export default function ProjetoDetalhePage() {
         descricao={projeto.descricao ?? undefined}
         pilar="projetos"
         acoes={
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/projetos">
-              <ArrowLeft className="size-4" />
-              Voltar
-            </Link>
-          </Button>
+          <div className="flex items-center gap-1">
+            <DialogProjeto hoje={hoje} projeto={projeto} />
+            <DialogConfirmarExclusao
+              titulo="Excluir projeto"
+              mensagem={`Todos os marcos e logs de progresso do projeto "${projeto.nome}" serão excluídos.`}
+              onConfirmar={async () => {
+                await excluirProjeto.mutateAsync(projeto.id)
+                navigate('/projetos')
+              }}
+              pendente={excluirProjeto.isPending}
+            />
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/projetos">
+                <ArrowLeft className="size-4" />
+                Voltar
+              </Link>
+            </Button>
+          </div>
         }
       />
 
@@ -390,20 +411,76 @@ export default function ProjetoDetalhePage() {
                       <span className="bg-border mt-1 w-px flex-1" />
                     </div>
                     <div className="min-w-0 flex-1 pb-1">
-                      <p className="text-sm">{log.conteudo}</p>
-                      <p className="text-muted-foreground text-xs tabular-nums">
-                        {format(deISO(log.data), 'dd/MM/yyyy')}
-                      </p>
+                      {idLogEditando === log.id ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            className="h-8 text-sm"
+                            value={textoLogEditando}
+                            onChange={(e) => setTextoLogEditando(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && textoLogEditando.trim()) {
+                                void atualizarLog.mutateAsync({
+                                  id: log.id,
+                                  dados: { conteudo: textoLogEditando.trim() },
+                                })
+                                setIdLogEditando(null)
+                              }
+                            }}
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              if (textoLogEditando.trim()) {
+                                void atualizarLog.mutateAsync({
+                                  id: log.id,
+                                  dados: { conteudo: textoLogEditando.trim() },
+                                })
+                                setIdLogEditando(null)
+                              }
+                            }}
+                          >
+                            Salvar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setIdLogEditando(null)}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-sm">{log.conteudo}</p>
+                          <p className="text-muted-foreground text-xs tabular-nums">
+                            {format(deISO(log.data), 'dd/MM/yyyy')}
+                          </p>
+                        </>
+                      )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-muted-foreground hover:text-status-risco size-7 shrink-0"
-                      aria-label="Remover registro"
-                      onClick={() => excluirLog.mutate(log.id)}
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-foreground size-7 shrink-0"
+                        aria-label="Editar registro"
+                        onClick={() => {
+                          setIdLogEditando(log.id)
+                          setTextoLogEditando(log.conteudo)
+                        }}
+                      >
+                        <Pencil className="size-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-status-risco size-7 shrink-0"
+                        aria-label="Remover registro"
+                        onClick={() => excluirLog.mutate(log.id)}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
                   </li>
                 ))}
               </ol>

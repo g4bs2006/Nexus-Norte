@@ -44,6 +44,11 @@ export async function salvarRegistroSono(
   if (error) throw new Error(error.message)
 }
 
+export async function excluirRegistroSono(data: string): Promise<void> {
+  const { error } = await supabase.from('registro_sono').delete().eq('data', data)
+  if (error) throw new Error(error.message)
+}
+
 export async function listarPlanejamentoSono(): Promise<PlanejamentoSono[]> {
   const { data, error } = await supabase
     .from('planejamento_sono')
@@ -60,5 +65,13 @@ export async function salvarPlanejamentoSono(
   const { error } = await supabase
     .from('planejamento_sono')
     .upsert(dados, { onConflict: 'dia_semana' })
+  if (error) throw new Error(error.message)
+}
+
+export async function excluirPlanejamentoSono(diaSemana: number): Promise<void> {
+  const { error } = await supabase
+    .from('planejamento_sono')
+    .delete()
+    .eq('dia_semana', diaSemana)
   if (error) throw new Error(error.message)
 }

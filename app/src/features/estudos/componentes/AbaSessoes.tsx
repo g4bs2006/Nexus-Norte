@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { format, subDays } from 'date-fns'
-import { Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import {
   Bar,
   BarChart,
@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label'
 import { BarraProgresso } from '@/components/BarraProgresso'
 import { ESTILO_TOOLTIP } from '@/components/grafico'
 import { deISO, paraISO } from '@/lib/datas'
-import { useCriarSessao, useExcluirSessao } from '../hooks'
+import { useCriarSessao, useAtualizarSessao, useExcluirSessao } from '../hooks'
 import { frequenciaEstudoSemana } from '../calculos'
 import type { SessaoEstudo } from '../types'
 
@@ -31,11 +31,13 @@ interface AbaSessoesProps {
 
 export function AbaSessoes({ materiaId, sessoes, hoje }: AbaSessoesProps) {
   const criar = useCriarSessao()
+  const atualizar = useAtualizarSessao()
   const excluir = useExcluirSessao()
 
   const [data, setData] = useState(paraISO(hoje))
   const [duracao, setDuracao] = useState('')
   const [meta, setMeta] = useState('')
+  const [idEditando, setIdEditando] = useState<string | null>(null)
 
   const frequencia = useMemo(() => {
     const limite = paraISO(subDays(hoje, 6))
@@ -62,19 +64,44 @@ export function AbaSessoes({ materiaId, sessoes, hoje }: AbaSessoesProps) {
     return dias
   }, [sessoes, hoje])
 
-  async function adicionar() {
+  function iniciarEdicao(sessao: SessaoEstudo) {
+    setIdEditando(sessao.id)
+    setData(sessao.data)
+    setDuracao(String(sessao.duracao_minutos))
+    setMeta(sessao.meta_diaria_minutos ? String(sessao.meta_diaria_minutos) : '')
+  }
+
+  function cancelarEdicao() {
+    setIdEditando(null)
+    setData(paraISO(hoje))
+    setDuracao('')
+    setMeta('')
+  }
+
+  async function salvar() {
     const minutos = Number(duracao)
     if (!Number.isInteger(minutos) || minutos <= 0) return
     const metaNumero = Number(meta)
-    await criar.mutateAsync({
-      materia_id: materiaId,
+    const dados = {
       data,
       duracao_minutos: minutos,
       meta_diaria_minutos:
         Number.isInteger(metaNumero) && metaNumero > 0 ? metaNumero : null,
-    })
-    setDuracao('')
+    }
+
+    if (idEditando) {
+      await atualizar.mutateAsync({ id: idEditando, dados })
+      cancelarEdicao()
+    } else {
+      await criar.mutateAsync({
+        materia_id: materiaId,
+        ...dados,
+      })
+      setDuracao('')
+    }
   }
+
+  const pendente = criar.isPending || atualizar.isPending
 
   return (
     <div className="space-y-5">
@@ -157,12 +184,17 @@ export function AbaSessoes({ materiaId, sessoes, hoje }: AbaSessoesProps) {
           </div>
           <Button
             size="sm"
-            onClick={() => void adicionar()}
-            disabled={criar.isPending}
+            onClick={() => void salvar()}
+            disabled={pendente}
           >
-            <Plus className="size-4" />
-            Registrar
+            {idEditando ? <Pencil className="size-4" /> : <Plus className="size-4" />}
+            {idEditando ? 'Salvar' : 'Registrar'}
           </Button>
+          {idEditando && (
+            <Button size="sm" variant="ghost" onClick={cancelarEdicao}>
+              Cancelar
+            </Button>
+          )}
         </CardContent>
       </Card>
 
@@ -220,15 +252,26 @@ export function AbaSessoes({ materiaId, sessoes, hoje }: AbaSessoesProps) {
                       </p>
                     )}
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground hover:text-status-risco size-7 shrink-0"
-                    aria-label="Remover sessão"
-                    onClick={() => excluir.mutate(sessao.id)}
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-foreground size-7"
+                      aria-label="Editar sessão"
+                      onClick={() => iniciarEdicao(sessao)}
+                    >
+                      <Pencil className="size-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-status-risco size-7 shrink-0"
+                      aria-label="Remover sessão"
+                      onClick={() => excluir.mutate(sessao.id)}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
                 </li>
               ))}
             </ul>

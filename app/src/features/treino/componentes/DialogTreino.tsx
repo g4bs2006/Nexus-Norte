@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Plus } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Pencil, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -12,21 +12,47 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useCriarTreino } from '../hooks'
+import { useCriarTreino, useAtualizarTreino } from '../hooks'
+import type { Treino } from '../types'
 
-/** Cadastro de treino. Os exercícios são adicionados depois, no card do treino. */
-export function DialogTreino() {
+interface DialogTreinoProps {
+  /** Se passado, o dialog abre em modo de edição. */
+  treino?: Treino
+}
+
+/** Cadastro e edição de treino. Os exercícios são adicionados depois, no card do treino. */
+export function DialogTreino({ treino }: DialogTreinoProps = {}) {
+  const modoEdicao = Boolean(treino)
   const [aberto, setAberto] = useState(false)
   const [nome, setNome] = useState('')
   const [tipo, setTipo] = useState('')
   const criar = useCriarTreino()
+  const atualizar = useAtualizarTreino()
+
+  useEffect(() => {
+    if (aberto && treino) {
+      setNome(treino.nome)
+      setTipo(treino.tipo ?? '')
+    } else if (aberto && !treino) {
+      setNome('')
+      setTipo('')
+    }
+  }, [aberto, treino])
+
+  const pendente = criar.isPending || atualizar.isPending
 
   async function submeter() {
     if (nome.trim() === '') return
-    await criar.mutateAsync({
+    const dados = {
       nome: nome.trim(),
       tipo: tipo.trim() === '' ? null : tipo.trim(),
-    })
+    }
+
+    if (modoEdicao && treino) {
+      await atualizar.mutateAsync({ id: treino.id, dados })
+    } else {
+      await criar.mutateAsync(dados)
+    }
     setNome('')
     setTipo('')
     setAberto(false)
@@ -35,16 +61,27 @@ export function DialogTreino() {
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus className="size-4" />
-          Novo treino
-        </Button>
+        {modoEdicao ? (
+          <Button size="sm" variant="ghost" className="text-xs">
+            <Pencil className="size-3.5" />
+            Editar
+          </Button>
+        ) : (
+          <Button size="sm">
+            <Plus className="size-4" />
+            Novo treino
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Novo treino</DialogTitle>
+          <DialogTitle>
+            {modoEdicao ? 'Editar treino' : 'Novo treino'}
+          </DialogTitle>
           <DialogDescription>
-            Depois de criar, adicione os exercícios no card do treino.
+            {modoEdicao
+              ? 'Atualize nome e tipo do treino.'
+              : 'Depois de criar, adicione os exercícios no card do treino.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -71,8 +108,8 @@ export function DialogTreino() {
         </div>
 
         <DialogFooter>
-          <Button onClick={() => void submeter()} disabled={criar.isPending}>
-            {criar.isPending ? 'Salvando…' : 'Salvar'}
+          <Button onClick={() => void submeter()} disabled={pendente}>
+            {pendente ? 'Salvando…' : 'Salvar'}
           </Button>
         </DialogFooter>
       </DialogContent>

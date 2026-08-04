@@ -66,6 +66,8 @@ const CLASSE_PROGRESSAO: Record<Progressao, string> = {
   indefinido: 'text-muted-foreground',
 }
 
+import { DialogExercicio } from '@/features/treino/componentes/DialogExercicio'
+
 export default function ExercicioDetalhePage() {
   const { exercicioId } = useParams<{ exercicioId: string }>()
 
@@ -150,12 +152,19 @@ export default function ExercicioDetalhePage() {
         }
         pilar="treino"
         acoes={
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/treino">
-              <ArrowLeft className="size-4" />
-              Voltar
-            </Link>
-          </Button>
+          <div className="flex items-center gap-1">
+            <DialogExercicio
+              treinoId={exercicio.treino_id}
+              treinoNome=""
+              exercicio={exercicio}
+            />
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/treino">
+                <ArrowLeft className="size-4" />
+                Voltar
+              </Link>
+            </Button>
+          </div>
         }
       />
 

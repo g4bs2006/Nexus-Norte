@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import type { TablesInsert } from '@/types/database'
+import type { TablesInsert, TablesUpdate } from '@/types/database'
 import type {
   ExecucaoTreino,
   ExercicioTreino,
@@ -36,6 +36,14 @@ export async function criarTreino(
   if (error) throw new Error(error.message)
 }
 
+export async function atualizarTreino(
+  id: string,
+  dados: TablesUpdate<'treinos'>,
+): Promise<void> {
+  const { error } = await supabase.from('treinos').update(dados).eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
 export async function excluirTreino(id: string): Promise<void> {
   const { error } = await supabase.from('treinos').delete().eq('id', id)
   if (error) throw new Error(error.message)
@@ -51,6 +59,14 @@ export async function criarExercicio(
   dados: TablesInsert<'exercicios_treino'>,
 ): Promise<void> {
   const { error } = await supabase.from('exercicios_treino').insert(dados)
+  if (error) throw new Error(error.message)
+}
+
+export async function atualizarExercicio(
+  id: string,
+  dados: TablesUpdate<'exercicios_treino'>,
+): Promise<void> {
+  const { error } = await supabase.from('exercicios_treino').update(dados).eq('id', id)
   if (error) throw new Error(error.message)
 }
 
@@ -182,6 +198,11 @@ export async function salvarRegistroCorporal(
   if (error) throw new Error(error.message)
 }
 
+export async function excluirRegistroCorporal(id: string): Promise<void> {
+  const { error } = await supabase.from('registro_corporal').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
 export async function enviarFotoProgresso(
   data: string,
   arquivo: File,
@@ -221,6 +242,14 @@ export async function criarLesao(
   if (error) throw new Error(error.message)
 }
 
+export async function atualizarLesao(
+  id: string,
+  dados: TablesUpdate<'registro_lesoes'>,
+): Promise<void> {
+  const { error } = await supabase.from('registro_lesoes').update(dados).eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
 export async function excluirLesao(id: string): Promise<void> {
   const { error } = await supabase.from('registro_lesoes').delete().eq('id', id)
   if (error) throw new Error(error.message)
@@ -243,5 +272,10 @@ export async function criarFluxogramaTreino(
   dados: TablesInsert<'fluxograma_semanal'>,
 ): Promise<void> {
   const { error } = await supabase.from('fluxograma_semanal').insert(dados)
+  if (error) throw new Error(error.message)
+}
+
+export async function excluirFluxogramaTreino(id: string): Promise<void> {
+  const { error } = await supabase.from('fluxograma_semanal').delete().eq('id', id)
   if (error) throw new Error(error.message)
 }

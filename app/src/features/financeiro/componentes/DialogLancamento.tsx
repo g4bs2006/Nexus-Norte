@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -29,43 +29,66 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { paraISO } from '@/lib/datas'
-import { useCriarLancamento } from '../hooks'
+import { useCriarLancamento, useAtualizarLancamento } from '../hooks'
 import { schemaLancamento, textoOuNulo, type FormularioLancamento } from '../schemas'
-import type { Categoria } from '../types'
+import type { Categoria, Lancamento } from '../types'
 
 interface DialogLancamentoProps {
   categorias: readonly Categoria[]
   hoje: Date
+  /** Se passado, o dialog abre em modo de edição. */
+  lancamento?: Lancamento
 }
 
 /**
- * Formulário de novo lançamento — o mais usado no dia a dia, então abre com
- * data já preenchida e foco direto no valor (plano 8: reduzir fricção).
+ * Formulário de novo/edição de lançamento — o mais usado no dia a dia, então
+ * abre com data já preenchida e foco direto no valor (plano 8: reduzir fricção).
  */
-export function DialogLancamento({ categorias, hoje }: DialogLancamentoProps) {
+export function DialogLancamento({ categorias, hoje, lancamento }: DialogLancamentoProps) {
+  const modoEdicao = Boolean(lancamento)
   const [aberto, setAberto] = useState(false)
   const criar = useCriarLancamento()
+  const atualizar = useAtualizarLancamento()
+
+  const valoresPadrao: FormularioLancamento = {
+    valor: Number.NaN,
+    categoria_id: '',
+    data: paraISO(hoje),
+    descricao: '',
+    forma_pagamento: '',
+    data_vencimento: '',
+  }
 
   const form = useForm<FormularioLancamento>({
     resolver: zodResolver(schemaLancamento),
-    defaultValues: {
-      valor: Number.NaN,
-      categoria_id: '',
-      data: paraISO(hoje),
-      descricao: '',
-      forma_pagamento: '',
-      data_vencimento: '',
-    },
+    defaultValues: valoresPadrao,
   })
+
+  useEffect(() => {
+    if (aberto && lancamento) {
+      form.reset({
+        valor: lancamento.valor,
+        categoria_id: lancamento.categoria_id,
+        data: lancamento.data,
+        descricao: lancamento.descricao ?? '',
+        forma_pagamento: lancamento.forma_pagamento ?? '',
+        data_vencimento: lancamento.data_vencimento ?? '',
+      })
+    } else if (aberto && !lancamento) {
+      form.reset(valoresPadrao)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aberto, lancamento])
 
   const categoriaSelecionada = categorias.find(
     (c) => c.id === form.watch('categoria_id'),
   )
   // Vencimento só é oferecido para despesa fixa (resolução 10.2).
   const mostrarVencimento = categoriaSelecionada?.tipo === 'fixo'
+  const pendente = criar.isPending || atualizar.isPending
 
   async function submeter(valores: FormularioLancamento) {
-    await criar.mutateAsync({
+    const dados = {
       valor: valores.valor,
       categoria_id: valores.categoria_id,
       data: valores.data,
@@ -74,31 +97,41 @@ export function DialogLancamento({ categorias, hoje }: DialogLancamentoProps) {
       data_vencimento: mostrarVencimento
         ? textoOuNulo(valores.data_vencimento)
         : null,
-    })
-    form.reset({
-      valor: Number.NaN,
-      categoria_id: '',
-      data: paraISO(hoje),
-      descricao: '',
-      forma_pagamento: '',
-      data_vencimento: '',
-    })
+    }
+
+    if (modoEdicao && lancamento) {
+      await atualizar.mutateAsync({ id: lancamento.id, dados })
+    } else {
+      await criar.mutateAsync(dados)
+    }
+    form.reset(valoresPadrao)
     setAberto(false)
   }
 
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus className="size-4" />
-          Novo lançamento
-        </Button>
+        {modoEdicao ? (
+          <Button size="sm" variant="ghost">
+            <Pencil className="size-3.5" />
+            Editar
+          </Button>
+        ) : (
+          <Button size="sm">
+            <Plus className="size-4" />
+            Novo lançamento
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Novo lançamento</DialogTitle>
+          <DialogTitle>
+            {modoEdicao ? 'Editar lançamento' : 'Novo lançamento'}
+          </DialogTitle>
           <DialogDescription>
-            Registre uma entrada ou saída do dia.
+            {modoEdicao
+              ? 'Atualize os dados do lançamento.'
+              : 'Registre uma entrada ou saída do dia.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -222,8 +255,8 @@ export function DialogLancamento({ categorias, hoje }: DialogLancamentoProps) {
             />
 
             <DialogFooter>
-              <Button type="submit" disabled={criar.isPending}>
-                {criar.isPending ? 'Salvando…' : 'Salvar'}
+              <Button type="submit" disabled={pendente}>
+                {pendente ? 'Salvando…' : 'Salvar'}
               </Button>
             </DialogFooter>
           </form>

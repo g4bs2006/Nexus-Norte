@@ -17,6 +17,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { BarraProgresso } from '@/components/BarraProgresso'
+import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { inicioSemana, paraISO } from '@/lib/datas'
 import { expandirRecorrencia } from '@/lib/recorrencia'
 import { addDays } from 'date-fns'
@@ -26,6 +27,7 @@ import {
 } from '@/features/treino/calculos'
 import {
   useExcluirExercicio,
+  useExcluirFluxogramaTreino,
   useExcluirTreino,
   useExecucoes,
   useExercicios,
@@ -64,6 +66,7 @@ export default function TreinoPage() {
 
   const excluirTreino = useExcluirTreino()
   const excluirExercicio = useExcluirExercicio()
+  const excluirFluxograma = useExcluirFluxogramaTreino()
 
   const listaTreinos = useMemo(() => treinos.data ?? [], [treinos.data])
   const listaExercicios = useMemo(
@@ -313,19 +316,19 @@ export default function TreinoPage() {
                         )}
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
+                        <DialogTreino treino={treino} />
                         <DialogExercicio
                           treinoId={treino.id}
                           treinoNome={treino.nome}
                         />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-muted-foreground hover:text-status-risco size-7"
-                          aria-label={`Excluir ${treino.nome}`}
-                          onClick={() => excluirTreino.mutate(treino.id)}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
+                        <DialogConfirmarExclusao
+                          titulo={`Excluir ${treino.nome}`}
+                          mensagem={`Todos os exercícios e configurações associados ao treino "${treino.nome}" serão removidos.`}
+                          onConfirmar={async () => {
+                            await excluirTreino.mutateAsync(treino.id)
+                          }}
+                          pendente={excluirTreino.isPending}
+                        />
                       </div>
                     </CardHeader>
                     <CardContent>
@@ -360,17 +363,24 @@ export default function TreinoPage() {
                                   )}
                                 </p>
                               </div>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-muted-foreground hover:text-status-risco size-7 shrink-0"
-                                aria-label={`Remover ${exercicio.nome}`}
-                                onClick={() =>
-                                  excluirExercicio.mutate(exercicio.id)
-                                }
-                              >
-                                <Trash2 className="size-3.5" />
-                              </Button>
+                              <div className="flex shrink-0 items-center gap-0.5">
+                                <DialogExercicio
+                                  treinoId={treino.id}
+                                  treinoNome={treino.nome}
+                                  exercicio={exercicio}
+                                />
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-muted-foreground hover:text-status-risco size-7 shrink-0"
+                                  aria-label={`Remover ${exercicio.nome}`}
+                                  onClick={() =>
+                                    excluirExercicio.mutate(exercicio.id)
+                                  }
+                                >
+                                  <Trash2 className="size-3.5" />
+                                </Button>
+                              </div>
                             </li>
                           ))}
                         </ul>
@@ -398,6 +408,7 @@ export default function TreinoPage() {
                 <GradeFluxograma
                   itens={itensGrade}
                   classeCorPadrao="bg-treino"
+                  onExcluir={(id) => excluirFluxograma.mutate(id)}
                 />
               )}
             </CardContent>

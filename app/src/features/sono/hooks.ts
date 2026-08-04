@@ -45,6 +45,20 @@ export function useSalvarRegistroSono() {
   })
 }
 
+export function useExcluirRegistroSono() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: api.excluirRegistroSono,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: chaves.raiz })
+      void queryClient.invalidateQueries({ queryKey: ['calendario'] })
+      toast.success('Registro de sono removido')
+    },
+    onError: (erro: Error) => toast.error(erro.message),
+  })
+}
+
 export function useSalvarPlanejamentoSono() {
   const queryClient = useQueryClient()
 
@@ -54,6 +68,20 @@ export function useSalvarPlanejamentoSono() {
       void queryClient.invalidateQueries({ queryKey: chaves.raiz })
       void queryClient.invalidateQueries({ queryKey: ['calendario'] })
       toast.success('Meta de sono salva')
+    },
+    onError: (erro: Error) => toast.error(erro.message),
+  })
+}
+
+export function useExcluirPlanejamentoSono() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: api.excluirPlanejamentoSono,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: chaves.raiz })
+      void queryClient.invalidateQueries({ queryKey: ['calendario'] })
+      toast.success('Meta de sono removida')
     },
     onError: (erro: Error) => toast.error(erro.message),
   })

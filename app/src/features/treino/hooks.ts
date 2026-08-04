@@ -87,12 +87,28 @@ export function useCriarTreino() {
   return useMutationTreino(api.criarTreino, 'Treino criado')
 }
 
+export function useAtualizarTreino() {
+  return useMutationTreino(
+    ({ id, dados }: { id: string; dados: Parameters<typeof api.atualizarTreino>[1] }) =>
+      api.atualizarTreino(id, dados),
+    'Treino atualizado',
+  )
+}
+
 export function useExcluirTreino() {
   return useMutationTreino(api.excluirTreino, 'Treino excluído')
 }
 
 export function useCriarExercicio() {
   return useMutationTreino(api.criarExercicio, 'Exercício adicionado')
+}
+
+export function useAtualizarExercicio() {
+  return useMutationTreino(
+    ({ id, dados }: { id: string; dados: Parameters<typeof api.atualizarExercicio>[1] }) =>
+      api.atualizarExercicio(id, dados),
+    'Exercício atualizado',
+  )
 }
 
 export function useExcluirExercicio() {
@@ -138,14 +154,30 @@ export function useSalvarRegistroCorporal() {
   return useMutationTreino(api.salvarRegistroCorporal, 'Registro salvo')
 }
 
+export function useExcluirRegistroCorporal() {
+  return useMutationTreino(api.excluirRegistroCorporal, 'Registro excluído')
+}
+
 export function useCriarLesao() {
   return useMutationTreino(api.criarLesao, 'Lesão registrada')
 }
 
+export function useAtualizarLesao() {
+  return useMutationTreino(
+    ({ id, dados }: { id: string; dados: Parameters<typeof api.atualizarLesao>[1] }) =>
+      api.atualizarLesao(id, dados),
+    'Lesão atualizada',
+  )
+}
+
 export function useExcluirLesao() {
-  return useMutationTreino(api.excluirLesao, 'Registro removido')
+  return useMutationTreino(api.excluirLesao, 'Lesão removida')
 }
 
 export function useCriarFluxogramaTreino() {
   return useMutationTreino(api.criarFluxogramaTreino, 'Horário adicionado')
+}
+
+export function useExcluirFluxogramaTreino() {
+  return useMutationTreino(api.excluirFluxogramaTreino, 'Horário removido')
 }

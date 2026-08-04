@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Trash2 } from 'lucide-react'
 import { AnelProgresso } from '@/components/AnelProgresso'
+import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { PageHeader } from '@/components/PageHeader'
 import { SkeletonPagina } from '@/components/Skeletons'
 import { Button } from '@/components/ui/button'
@@ -19,17 +20,21 @@ import { format } from 'date-fns'
 import { metaEfetiva, progressoCategoria } from '@/features/financeiro/calculos'
 import {
   useCategorias,
+  useExcluirCategoria,
   useExcluirLancamento,
   useLancamentosDaCategoria,
   useReceitaDoMes,
   useResumoMensal,
 } from '@/features/financeiro/hooks'
 import { GraficoTendencia } from '@/features/financeiro/componentes/GraficoTendencia'
+import { DialogCategoria } from '@/features/financeiro/componentes/DialogCategoria'
+import { DialogLancamento } from '@/features/financeiro/componentes/DialogLancamento'
 
 const MESES_TENDENCIA = 6
 
 export default function CategoriaDetalhePage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const hoje = useMemo(() => new Date(), [])
   const mesAtual = mesDeISO(hoje)
   const meses = useMemo(() => ultimosMeses(hoje, MESES_TENDENCIA), [hoje])
@@ -38,7 +43,8 @@ export default function CategoriaDetalhePage() {
   const receita = useReceitaDoMes(mesAtual)
   const lancamentos = useLancamentosDaCategoria(id)
   const resumo = useResumoMensal(meses[0] ?? mesAtual, mesAtual)
-  const excluir = useExcluirLancamento()
+  const excluirLancamento = useExcluirLancamento()
+  const excluirCategoria = useExcluirCategoria()
 
   const categoria = categorias.data?.find((c) => c.id === id)
   const receitaDoMes = receita.data ?? 0
@@ -85,12 +91,24 @@ export default function CategoriaDetalhePage() {
         }
         pilar="financeiro"
         acoes={
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/financeiro">
-              <ArrowLeft className="size-4" />
-              Voltar
-            </Link>
-          </Button>
+          <div className="flex items-center gap-1">
+            <DialogCategoria categoria={categoria} />
+            <DialogConfirmarExclusao
+              titulo="Excluir categoria"
+              mensagem={`Todos os lançamentos de "${categoria.nome}" serão perdidos. Essa ação não pode ser desfeita.`}
+              onConfirmar={async () => {
+                await excluirCategoria.mutateAsync(categoria.id)
+                navigate('/financeiro')
+              }}
+              pendente={excluirCategoria.isPending}
+            />
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/financeiro">
+                <ArrowLeft className="size-4" />
+                Voltar
+              </Link>
+            </Button>
+          </div>
         }
       />
 
@@ -151,7 +169,7 @@ export default function CategoriaDetalhePage() {
                       <TableHead className="w-28">Data</TableHead>
                       <TableHead>Descrição</TableHead>
                       <TableHead className="text-right">Valor</TableHead>
-                      <TableHead className="w-12" />
+                      <TableHead className="w-20" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -172,16 +190,25 @@ export default function CategoriaDetalhePage() {
                           {formatarMoeda(lancamento.valor)}
                         </TableCell>
                         <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-muted-foreground hover:text-status-risco size-7"
-                            aria-label="Excluir lançamento"
-                            onClick={() => excluir.mutate(lancamento.id)}
-                            disabled={excluir.isPending}
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
+                          <div className="flex items-center gap-0.5">
+                            <DialogLancamento
+                              categorias={categorias.data ?? []}
+                              hoje={hoje}
+                              lancamento={lancamento}
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-muted-foreground hover:text-status-risco size-7"
+                              aria-label="Excluir lançamento"
+                              onClick={() =>
+                                excluirLancamento.mutate(lancamento.id)
+                              }
+                              disabled={excluirLancamento.isPending}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}

@@ -92,6 +92,14 @@ export async function criarLog(
   if (error) throw new Error(error.message)
 }
 
+export async function atualizarLog(
+  id: string,
+  dados: TablesUpdate<'log_progresso'>,
+): Promise<void> {
+  const { error } = await supabase.from('log_progresso').update(dados).eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
 export async function excluirLog(id: string): Promise<void> {
   const { error } = await supabase.from('log_progresso').delete().eq('id', id)
   if (error) throw new Error(error.message)

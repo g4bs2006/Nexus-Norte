@@ -236,6 +236,7 @@ export default function FinanceiroPage() {
           <SecaoInvestimentos
             investimentos={investimentos.data ?? []}
             acao={<DialogInvestimento hoje={hoje} />}
+            hoje={hoje}
           />
         </div>
       )}

@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
-import { ImageUp } from 'lucide-react'
+import { ImageUp, Trash2 } from 'lucide-react'
 import {
   CartesianGrid,
   Line,
@@ -24,7 +24,7 @@ import { Label } from '@/components/ui/label'
 import { ESTILO_TOOLTIP } from '@/components/grafico'
 import { deISO, paraISO } from '@/lib/datas'
 import { enviarFotoProgresso } from '../api'
-import { useSalvarRegistroCorporal } from '../hooks'
+import { useSalvarRegistroCorporal, useExcluirRegistroCorporal } from '../hooks'
 import type { RegistroCorporal } from '../types'
 
 interface SecaoCorporalProps {
@@ -40,13 +40,19 @@ interface SecaoCorporalProps {
  */
 export function SecaoCorporal({ registros, hoje }: SecaoCorporalProps) {
   const salvar = useSalvarRegistroCorporal()
+  const excluir = useExcluirRegistroCorporal()
   const inputFoto = useRef<HTMLInputElement>(null)
 
   const [data, setData] = useState(paraISO(hoje))
   const [peso, setPeso] = useState('')
   const [enviando, setEnviando] = useState(false)
 
-  const dados = useMemo(
+  const registrosOrdenados = useMemo(
+    () => [...registros].sort((a, b) => b.data.localeCompare(a.data)),
+    [registros],
+  )
+
+  const dadosGrafico = useMemo(
     () =>
       [...registros]
         .filter((registro) => registro.peso !== null)
@@ -80,7 +86,7 @@ export function SecaoCorporal({ registros, hoje }: SecaoCorporalProps) {
     }
   }
 
-  const ultimo = dados[dados.length - 1]
+  const ultimo = dadosGrafico[dadosGrafico.length - 1]
 
   return (
     <Card>
@@ -146,9 +152,9 @@ export function SecaoCorporal({ registros, hoje }: SecaoCorporalProps) {
           </Button>
         </div>
 
-        {dados.length > 1 && (
+        {dadosGrafico.length > 1 && (
           <ResponsiveContainer width="100%" height={140}>
-            <LineChart data={dados}>
+            <LineChart data={dadosGrafico}>
               <CartesianGrid
                 strokeDasharray="3 3"
                 vertical={false}
@@ -178,6 +184,31 @@ export function SecaoCorporal({ registros, hoje }: SecaoCorporalProps) {
               />
             </LineChart>
           </ResponsiveContainer>
+        )}
+
+        {registrosOrdenados.length > 0 && (
+          <ul className="divide-border divide-y border-t pt-2">
+            {registrosOrdenados.slice(0, 5).map((reg) => (
+              <li key={reg.id} className="flex items-center justify-between py-1.5 text-xs">
+                <span className="text-muted-foreground tabular-nums">
+                  {format(deISO(reg.data), 'dd/MM/yyyy')}
+                </span>
+                <div className="flex items-center gap-2">
+                  {reg.peso !== null && <span className="font-medium tabular-nums">{reg.peso} kg</span>}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-status-risco size-6"
+                    aria-label="Excluir registro corporal"
+                    onClick={() => excluir.mutate(reg.id)}
+                    disabled={excluir.isPending}
+                  >
+                    <Trash2 className="size-3" />
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
       </CardContent>
     </Card>

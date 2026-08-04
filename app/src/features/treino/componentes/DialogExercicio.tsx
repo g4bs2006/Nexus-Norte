@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Plus } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Pencil, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -12,16 +12,21 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useCriarExercicio } from '../hooks'
+import { useCriarExercicio, useAtualizarExercicio } from '../hooks'
+import type { ExercicioTreino } from '../types'
 
 interface DialogExercicioProps {
   treinoId: string
   treinoNome: string
+  /** Se passado, o dialog abre em modo de edição. */
+  exercicio?: ExercicioTreino
 }
 
-export function DialogExercicio({ treinoId, treinoNome }: DialogExercicioProps) {
+export function DialogExercicio({ treinoId, treinoNome, exercicio }: DialogExercicioProps) {
+  const modoEdicao = Boolean(exercicio)
   const [aberto, setAberto] = useState(false)
   const criar = useCriarExercicio()
+  const atualizar = useAtualizarExercicio()
 
   const [nome, setNome] = useState('')
   const [grupo, setGrupo] = useState('')
@@ -30,10 +35,34 @@ export function DialogExercicio({ treinoId, treinoNome }: DialogExercicioProps) 
   const [carga, setCarga] = useState('')
   const [descanso, setDescanso] = useState('')
 
+  useEffect(() => {
+    if (aberto && exercicio) {
+      setNome(exercicio.nome)
+      setGrupo(exercicio.grupo_muscular ?? '')
+      setSeries(String(exercicio.series))
+      setReps(exercicio.reps_alvo !== null ? String(exercicio.reps_alvo) : '')
+      setCarga(exercicio.carga_alvo !== null ? String(exercicio.carga_alvo) : '')
+      setDescanso(
+        exercicio.descanso_segundos !== null
+          ? String(exercicio.descanso_segundos)
+          : '',
+      )
+    } else if (aberto && !exercicio) {
+      setNome('')
+      setGrupo('')
+      setSeries('3')
+      setReps('')
+      setCarga('')
+      setDescanso('')
+    }
+  }, [aberto, exercicio])
+
   function numeroOuNulo(valor: string): number | null {
     const numero = Number(valor)
     return valor.trim() !== '' && Number.isFinite(numero) ? numero : null
   }
+
+  const pendente = criar.isPending || atualizar.isPending
 
   async function submeter() {
     const seriesNumero = Number(series)
@@ -41,7 +70,7 @@ export function DialogExercicio({ treinoId, treinoNome }: DialogExercicioProps) 
       return
     }
 
-    await criar.mutateAsync({
+    const dados = {
       treino_id: treinoId,
       nome: nome.trim(),
       // grupo_muscular alimenta volume_grupo_muscular (resolução 10.1)
@@ -50,7 +79,13 @@ export function DialogExercicio({ treinoId, treinoNome }: DialogExercicioProps) 
       reps_alvo: numeroOuNulo(reps),
       carga_alvo: numeroOuNulo(carga),
       descanso_segundos: numeroOuNulo(descanso),
-    })
+    }
+
+    if (modoEdicao && exercicio) {
+      await atualizar.mutateAsync({ id: exercicio.id, dados })
+    } else {
+      await criar.mutateAsync(dados)
+    }
 
     setNome('')
     setGrupo('')
@@ -64,14 +99,29 @@ export function DialogExercicio({ treinoId, treinoNome }: DialogExercicioProps) 
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="ghost" className="text-xs">
-          <Plus className="size-3.5" />
-          Exercício
-        </Button>
+        {modoEdicao ? (
+          <Button
+            size="icon"
+            variant="ghost"
+            className="text-muted-foreground size-7"
+            aria-label={`Editar ${exercicio?.nome}`}
+          >
+            <Pencil className="size-3.5" />
+          </Button>
+        ) : (
+          <Button size="sm" variant="ghost" className="text-xs">
+            <Plus className="size-3.5" />
+            Exercício
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Exercício em {treinoNome}</DialogTitle>
+          <DialogTitle>
+            {modoEdicao
+              ? `Editar ${exercicio?.nome}`
+              : `Exercício em ${treinoNome}`}
+          </DialogTitle>
           <DialogDescription>
             Carga e reps alvo pré-preenchem o registro da execução.
           </DialogDescription>
@@ -156,8 +206,8 @@ export function DialogExercicio({ treinoId, treinoNome }: DialogExercicioProps) 
         </div>
 
         <DialogFooter>
-          <Button onClick={() => void submeter()} disabled={criar.isPending}>
-            {criar.isPending ? 'Salvando…' : 'Adicionar'}
+          <Button onClick={() => void submeter()} disabled={pendente}>
+            {pendente ? 'Salvando…' : modoEdicao ? 'Salvar' : 'Adicionar'}
           </Button>
         </DialogFooter>
       </DialogContent>

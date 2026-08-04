@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -22,13 +22,14 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { useCriarMateria } from '../hooks'
+import { useCriarMateria, useAtualizarMateria } from '../hooks'
 import {
   numeroOuNulo,
   schemaMateria,
   textoOuNulo,
   type FormularioMateria,
 } from '../schemas'
+import type { Materia } from '../types'
 
 const VAZIO: FormularioMateria = {
   nome: '',
@@ -38,23 +39,52 @@ const VAZIO: FormularioMateria = {
   semestre: '',
 }
 
-export function DialogMateria() {
+interface DialogMateriaProps {
+  /** Se passada, o dialog abre em modo de edição. */
+  materia?: Materia
+}
+
+export function DialogMateria({ materia }: DialogMateriaProps = {}) {
+  const modoEdicao = Boolean(materia)
   const [aberto, setAberto] = useState(false)
   const criar = useCriarMateria()
+  const atualizar = useAtualizarMateria()
 
   const form = useForm<FormularioMateria>({
     resolver: zodResolver(schemaMateria),
     defaultValues: VAZIO,
   })
 
+  useEffect(() => {
+    if (aberto && materia) {
+      form.reset({
+        nome: materia.nome,
+        professor: materia.professor ?? '',
+        carga_horaria_total: materia.carga_horaria_total ?? Number.NaN,
+        limite_faltas: materia.limite_faltas,
+        semestre: materia.semestre ?? '',
+      })
+    } else if (aberto && !materia) {
+      form.reset(VAZIO)
+    }
+  }, [aberto, materia, form])
+
+  const pendente = criar.isPending || atualizar.isPending
+
   async function submeter(valores: FormularioMateria) {
-    await criar.mutateAsync({
+    const dados = {
       nome: valores.nome,
       professor: textoOuNulo(valores.professor),
       carga_horaria_total: numeroOuNulo(valores.carga_horaria_total),
       limite_faltas: valores.limite_faltas,
       semestre: textoOuNulo(valores.semestre),
-    })
+    }
+
+    if (modoEdicao && materia) {
+      await atualizar.mutateAsync({ id: materia.id, dados })
+    } else {
+      await criar.mutateAsync(dados)
+    }
     form.reset(VAZIO)
     setAberto(false)
   }
@@ -62,14 +92,23 @@ export function DialogMateria() {
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus className="size-4" />
-          Nova matéria
-        </Button>
+        {modoEdicao ? (
+          <Button size="sm" variant="ghost">
+            <Pencil className="size-3.5" />
+            Editar
+          </Button>
+        ) : (
+          <Button size="sm">
+            <Plus className="size-4" />
+            Nova matéria
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nova matéria</DialogTitle>
+          <DialogTitle>
+            {modoEdicao ? 'Editar matéria' : 'Nova matéria'}
+          </DialogTitle>
           <DialogDescription>
             O limite de faltas alimenta o semáforo de risco.
           </DialogDescription>
@@ -174,8 +213,8 @@ export function DialogMateria() {
             </div>
 
             <DialogFooter>
-              <Button type="submit" disabled={criar.isPending}>
-                {criar.isPending ? 'Salvando…' : 'Salvar'}
+              <Button type="submit" disabled={pendente}>
+                {pendente ? 'Salvando…' : 'Salvar'}
               </Button>
             </DialogFooter>
           </form>

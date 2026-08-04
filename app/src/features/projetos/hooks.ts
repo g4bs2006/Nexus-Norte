@@ -83,6 +83,19 @@ export function useCriarLog() {
   return useMutationProjetos(api.criarLog, 'Progresso registrado')
 }
 
+export function useAtualizarLog() {
+  return useMutationProjetos(
+    ({
+      id,
+      dados,
+    }: {
+      id: string
+      dados: Parameters<typeof api.atualizarLog>[1]
+    }) => api.atualizarLog(id, dados),
+    'Registro atualizado',
+  )
+}
+
 export function useExcluirLog() {
   return useMutationProjetos(api.excluirLog, 'Registro removido')
 }

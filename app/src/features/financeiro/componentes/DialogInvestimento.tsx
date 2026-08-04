@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -30,21 +30,31 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { paraISO } from '@/lib/datas'
-import { useCriarInvestimento } from '../hooks'
+import {
+  useCriarInvestimento,
+  useAtualizarInvestimento,
+  useExcluirInvestimento,
+} from '../hooks'
 import {
   schemaInvestimento,
   textoOuNulo,
   type FormularioInvestimento,
 } from '../schemas'
+import type { Investimento } from '../types'
 
 interface DialogInvestimentoProps {
   hoje: Date
+  /** Se passado, o dialog abre em modo de edição. */
+  investimento?: Investimento
 }
 
 /** Aporte ou rendimento — uma linha por evento (resolução 10.4). */
-export function DialogInvestimento({ hoje }: DialogInvestimentoProps) {
+export function DialogInvestimento({ hoje, investimento }: DialogInvestimentoProps) {
+  const modoEdicao = Boolean(investimento)
   const [aberto, setAberto] = useState(false)
   const criar = useCriarInvestimento()
+  const atualizar = useAtualizarInvestimento()
+  const excluir = useExcluirInvestimento()
 
   const vazio: FormularioInvestimento = {
     tipo: 'aporte',
@@ -58,32 +68,69 @@ export function DialogInvestimento({ hoje }: DialogInvestimentoProps) {
     defaultValues: vazio,
   })
 
+  useEffect(() => {
+    if (aberto && investimento) {
+      form.reset({
+        tipo: investimento.tipo,
+        valor: investimento.valor,
+        data: investimento.data,
+        descricao: investimento.descricao ?? '',
+      })
+    } else if (aberto && !investimento) {
+      form.reset(vazio)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aberto, investimento])
+
   const tipo = form.watch('tipo')
+  const pendente = criar.isPending || atualizar.isPending
 
   async function submeter(valores: FormularioInvestimento) {
-    await criar.mutateAsync({
+    const dados = {
       tipo: valores.tipo,
       valor: valores.valor,
       data: valores.data,
       descricao: textoOuNulo(valores.descricao),
-    })
+    }
+
+    if (modoEdicao && investimento) {
+      await atualizar.mutateAsync({ id: investimento.id, dados })
+    } else {
+      await criar.mutateAsync(dados)
+    }
     form.reset(vazio)
+    setAberto(false)
+  }
+
+  async function handleExcluir() {
+    if (!investimento) return
+    await excluir.mutateAsync(investimento.id)
     setAberto(false)
   }
 
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="secondary">
-          <Plus className="size-4" />
-          Registrar
-        </Button>
+        {modoEdicao ? (
+          <Button size="sm" variant="ghost" className="size-7" aria-label="Editar investimento">
+            <Pencil className="size-3.5" />
+          </Button>
+        ) : (
+          <Button size="sm" variant="secondary">
+            <Plus className="size-4" />
+            Registrar
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Investimento</DialogTitle>
+          <DialogTitle>
+            {modoEdicao ? 'Editar investimento' : 'Investimento'}
+          </DialogTitle>
           <DialogDescription>
-            Registre um aporte ou o rendimento do período.
+            {modoEdicao
+              ? 'Atualize os dados do registro.'
+              : 'Registre um aporte ou o rendimento do período.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -173,8 +220,19 @@ export function DialogInvestimento({ hoje }: DialogInvestimentoProps) {
             />
 
             <DialogFooter>
-              <Button type="submit" disabled={criar.isPending}>
-                {criar.isPending ? 'Salvando…' : 'Salvar'}
+              {modoEdicao && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => void handleExcluir()}
+                  disabled={excluir.isPending}
+                  className="sm:mr-auto"
+                >
+                  {excluir.isPending ? 'Excluindo…' : 'Excluir'}
+                </Button>
+              )}
+              <Button type="submit" disabled={pendente}>
+                {pendente ? 'Salvando…' : 'Salvar'}
               </Button>
             </DialogFooter>
           </form>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { deISO, paraISO } from '@/lib/datas'
 import { cn } from '@/lib/utils'
-import { useCriarLesao, useExcluirLesao } from '../hooks'
+import { useCriarLesao, useAtualizarLesao, useExcluirLesao } from '../hooks'
 import type { RegistroLesao } from '../types'
 
 interface SecaoLesoesProps {
@@ -24,25 +24,50 @@ interface SecaoLesoesProps {
 /** Registro de lesões: formulário simples e lista histórica (plano 4.3). */
 export function SecaoLesoes({ lesoes, hoje }: SecaoLesoesProps) {
   const criar = useCriarLesao()
+  const atualizar = useAtualizarLesao()
   const excluir = useExcluirLesao()
 
   const [data, setData] = useState(paraISO(hoje))
   const [regiao, setRegiao] = useState('')
   const [intensidade, setIntensidade] = useState('5')
+  const [idEditando, setIdEditando] = useState<string | null>(null)
 
-  async function adicionar() {
+  function iniciarEdicao(lesao: RegistroLesao) {
+    setIdEditando(lesao.id)
+    setData(lesao.data)
+    setRegiao(lesao.regiao)
+    setIntensidade(String(lesao.intensidade))
+  }
+
+  function cancelarEdicao() {
+    setIdEditando(null)
+    setData(paraISO(hoje))
+    setRegiao('')
+    setIntensidade('5')
+  }
+
+  async function salvar() {
     const nivel = Number(intensidade)
     if (regiao.trim() === '') return
     if (!Number.isInteger(nivel) || nivel < 1 || nivel > 10) return
 
-    await criar.mutateAsync({
+    const dados = {
       data,
       regiao: regiao.trim(),
       intensidade: nivel,
-    })
-    setRegiao('')
-    setIntensidade('5')
+    }
+
+    if (idEditando) {
+      await atualizar.mutateAsync({ id: idEditando, dados })
+      cancelarEdicao()
+    } else {
+      await criar.mutateAsync(dados)
+      setRegiao('')
+      setIntensidade('5')
+    }
   }
+
+  const pendente = criar.isPending || atualizar.isPending
 
   return (
     <Card>
@@ -94,12 +119,17 @@ export function SecaoLesoes({ lesoes, hoje }: SecaoLesoesProps) {
           <Button
             size="sm"
             variant="secondary"
-            onClick={() => void adicionar()}
-            disabled={criar.isPending}
+            onClick={() => void salvar()}
+            disabled={pendente}
           >
-            <Plus className="size-4" />
-            Registrar
+            {idEditando ? <Pencil className="size-4" /> : <Plus className="size-4" />}
+            {idEditando ? 'Salvar' : 'Registrar'}
           </Button>
+          {idEditando && (
+            <Button size="sm" variant="ghost" onClick={cancelarEdicao}>
+              Cancelar
+            </Button>
+          )}
         </div>
 
         {lesoes.length === 0 ? (
@@ -119,10 +149,10 @@ export function SecaoLesoes({ lesoes, hoje }: SecaoLesoesProps) {
                     {format(deISO(lesao.data), 'dd/MM/yyyy')}
                   </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 items-center gap-1">
                   <span
                     className={cn(
-                      'text-sm tabular-nums',
+                      'text-sm tabular-nums mr-1',
                       lesao.intensidade >= 7
                         ? 'text-status-risco'
                         : lesao.intensidade >= 4
@@ -132,6 +162,15 @@ export function SecaoLesoes({ lesoes, hoje }: SecaoLesoesProps) {
                   >
                     {lesao.intensidade}/10
                   </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-foreground size-7"
+                    aria-label="Editar registro"
+                    onClick={() => iniciarEdicao(lesao)}
+                  >
+                    <Pencil className="size-3.5" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"

@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { deISO, paraISO } from '@/lib/datas'
 import { cn } from '@/lib/utils'
-import { useCriarRegistroLista, useExcluirRegistroLista } from '../hooks'
+import { useCriarRegistroLista, useAtualizarRegistroLista, useExcluirRegistroLista } from '../hooks'
 import { percentualAcerto } from '../calculos'
 import { parsearQuestoesErradas } from '../schemas'
 import type { RegistroLista } from '../types'
@@ -25,6 +25,7 @@ interface AbaListasProps {
  */
 export function AbaListas({ materiaId, registros, hoje }: AbaListasProps) {
   const criar = useCriarRegistroLista()
+  const atualizar = useAtualizarRegistroLista()
   const excluir = useExcluirRegistroLista()
 
   const [nome, setNome] = useState('')
@@ -32,6 +33,7 @@ export function AbaListas({ materiaId, registros, hoje }: AbaListasProps) {
   const [total, setTotal] = useState('')
   const [erradas, setErradas] = useState('')
   const [topico, setTopico] = useState('')
+  const [idEditando, setIdEditando] = useState<string | null>(null)
 
   const listaErradas = parsearQuestoesErradas(erradas)
   const totalNumero = Number(total)
@@ -40,25 +42,54 @@ export function AbaListas({ materiaId, registros, hoje }: AbaListasProps) {
     totalNumero > 0 &&
     listaErradas.some((numero) => numero > totalNumero)
 
-  async function adicionar() {
+  function iniciarEdicao(registro: RegistroLista) {
+    setIdEditando(registro.id)
+    setNome(registro.nome_lista)
+    setData(registro.data)
+    setTotal(String(registro.total_questoes))
+    setErradas(registro.questoes_erradas.join(', '))
+    setTopico(registro.topico ?? '')
+  }
+
+  function cancelarEdicao() {
+    setIdEditando(null)
+    setNome('')
+    setData(paraISO(hoje))
+    setTotal('')
+    setErradas('')
+    setTopico('')
+  }
+
+  async function salvar() {
     if (nome.trim() === '' || !Number.isInteger(totalNumero) || totalNumero <= 0) {
       return
     }
     if (acimaDoTotal) return
 
-    await criar.mutateAsync({
-      materia_id: materiaId,
+    const dados = {
       nome_lista: nome.trim(),
       data,
       total_questoes: totalNumero,
       questoes_erradas: listaErradas,
       topico: topico.trim() === '' ? null : topico.trim(),
-    })
-    setNome('')
-    setTotal('')
-    setErradas('')
-    setTopico('')
+    }
+
+    if (idEditando) {
+      await atualizar.mutateAsync({ id: idEditando, dados })
+      cancelarEdicao()
+    } else {
+      await criar.mutateAsync({
+        materia_id: materiaId,
+        ...dados,
+      })
+      setNome('')
+      setTotal('')
+      setErradas('')
+      setTopico('')
+    }
   }
+
+  const pendente = criar.isPending || atualizar.isPending
 
   return (
     <div className="space-y-5">
@@ -133,12 +164,17 @@ export function AbaListas({ materiaId, registros, hoje }: AbaListasProps) {
             </div>
             <Button
               size="sm"
-              onClick={() => void adicionar()}
-              disabled={criar.isPending || acimaDoTotal}
+              onClick={() => void salvar()}
+              disabled={pendente || acimaDoTotal}
             >
-              <Plus className="size-4" />
-              Registrar
+              {idEditando ? <Pencil className="size-4" /> : <Plus className="size-4" />}
+              {idEditando ? 'Salvar' : 'Registrar'}
             </Button>
+            {idEditando && (
+              <Button size="sm" variant="ghost" onClick={cancelarEdicao}>
+                Cancelar
+              </Button>
+            )}
           </div>
 
           {acimaDoTotal && (
@@ -187,11 +223,11 @@ export function AbaListas({ materiaId, registros, hoje }: AbaListasProps) {
                           ` · errou ${registro.questoes_erradas.join(', ')}`}
                       </p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-1">
                       {acerto !== null && (
                         <span
                           className={cn(
-                            'text-sm tabular-nums',
+                            'text-sm tabular-nums mr-1',
                             acerto >= 70
                               ? 'text-status-ok'
                               : acerto >= 50
@@ -202,6 +238,15 @@ export function AbaListas({ materiaId, registros, hoje }: AbaListasProps) {
                           {Math.round(acerto)}%
                         </span>
                       )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-foreground size-7"
+                        aria-label="Editar registro"
+                        onClick={() => iniciarEdicao(registro)}
+                      >
+                        <Pencil className="size-3.5" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"

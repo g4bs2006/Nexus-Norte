@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -29,21 +29,26 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { DIAS_SEMANA } from '@/lib/constants'
-import { useCriarFluxograma } from '../hooks'
+import { useCriarFluxograma, useAtualizarFluxograma, useExcluirFluxograma } from '../hooks'
 import { schemaFluxograma, type FormularioFluxograma } from '../schemas'
-import type { Materia } from '../types'
+import type { FluxogramaAula, Materia } from '../types'
 
 /** Segunda a domingo na exibição, mantendo 0 = domingo no valor. */
 const ORDEM_DIAS = [1, 2, 3, 4, 5, 6, 0] as const
 
 interface DialogFluxogramaProps {
   materias: readonly Materia[]
+  /** Se passado, o dialog abre em modo de edição. */
+  fluxograma?: FluxogramaAula
 }
 
-/** Adiciona uma aula recorrente ao fluxograma semanal (plano 3.3). */
-export function DialogFluxograma({ materias }: DialogFluxogramaProps) {
+/** Adiciona ou edita uma aula recorrente ao fluxograma semanal (plano 3.3). */
+export function DialogFluxograma({ materias, fluxograma }: DialogFluxogramaProps) {
+  const modoEdicao = Boolean(fluxograma)
   const [aberto, setAberto] = useState(false)
   const criar = useCriarFluxograma()
+  const atualizar = useAtualizarFluxograma()
+  const excluir = useExcluirFluxograma()
 
   const vazio: FormularioFluxograma = {
     materia_id: '',
@@ -57,23 +62,57 @@ export function DialogFluxograma({ materias }: DialogFluxogramaProps) {
     defaultValues: vazio,
   })
 
+  useEffect(() => {
+    if (aberto && fluxograma) {
+      form.reset({
+        materia_id: fluxograma.materia_id,
+        dia_semana: fluxograma.dia_semana,
+        horario_inicio: fluxograma.horario_inicio.slice(0, 5),
+        horario_fim: fluxograma.horario_fim.slice(0, 5),
+      })
+    } else if (aberto && !fluxograma) {
+      form.reset(vazio)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aberto, fluxograma])
+
+  const pendente = criar.isPending || atualizar.isPending
+
   async function submeter(valores: FormularioFluxograma) {
-    await criar.mutateAsync(valores)
+    if (modoEdicao && fluxograma) {
+      await atualizar.mutateAsync({ id: fluxograma.id, dados: valores })
+    } else {
+      await criar.mutateAsync(valores)
+    }
     form.reset(vazio)
+    setAberto(false)
+  }
+
+  async function handleExcluir() {
+    if (!fluxograma) return
+    await excluir.mutateAsync(fluxograma.id)
     setAberto(false)
   }
 
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="secondary" disabled={materias.length === 0}>
-          <Plus className="size-4" />
-          Horário
-        </Button>
+        {modoEdicao ? (
+          <Button size="icon" variant="ghost" className="size-6">
+            <Pencil className="size-3" />
+          </Button>
+        ) : (
+          <Button size="sm" variant="secondary" disabled={materias.length === 0}>
+            <Plus className="size-4" />
+            Horário
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Aula no fluxograma</DialogTitle>
+          <DialogTitle>
+            {modoEdicao ? 'Editar aula no fluxograma' : 'Aula no fluxograma'}
+          </DialogTitle>
           <DialogDescription>
             Padrão semanal recorrente — não é uma data única.
           </DialogDescription>
@@ -168,8 +207,19 @@ export function DialogFluxograma({ materias }: DialogFluxogramaProps) {
             </div>
 
             <DialogFooter>
-              <Button type="submit" disabled={criar.isPending}>
-                {criar.isPending ? 'Salvando…' : 'Adicionar'}
+              {modoEdicao && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => void handleExcluir()}
+                  disabled={excluir.isPending}
+                  className="sm:mr-auto"
+                >
+                  {excluir.isPending ? 'Excluindo…' : 'Excluir'}
+                </Button>
+              )}
+              <Button type="submit" disabled={pendente}>
+                {pendente ? 'Salvando…' : modoEdicao ? 'Salvar' : 'Adicionar'}
               </Button>
             </DialogFooter>
           </form>

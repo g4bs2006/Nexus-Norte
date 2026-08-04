@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { BarraProgresso } from '@/components/BarraProgresso'
 import { deISO, paraISO } from '@/lib/datas'
 import { cn } from '@/lib/utils'
-import { useCriarFalta, useExcluirFalta } from '../hooks'
+import { useCriarFalta, useAtualizarFalta, useExcluirFalta } from '../hooks'
 import { faltasRestantes } from '../calculos'
 import type { Falta } from '../types'
 
@@ -26,25 +26,50 @@ export function AbaFaltas({
   hoje,
 }: AbaFaltasProps) {
   const criar = useCriarFalta()
+  const atualizar = useAtualizarFalta()
   const excluir = useExcluirFalta()
 
   const [data, setData] = useState(paraISO(hoje))
   const [motivo, setMotivo] = useState('')
+  const [idEditando, setIdEditando] = useState<string | null>(null)
 
   const restantes = faltasRestantes(limiteFaltas, faltas.length)
   const percentualUsado =
     limiteFaltas > 0 ? (faltas.length / limiteFaltas) * 100 : 0
   const critico = limiteFaltas > 0 && restantes <= 2
 
-  async function adicionar() {
-    if (data === '') return
-    await criar.mutateAsync({
-      materia_id: materiaId,
-      data,
-      motivo: motivo.trim() === '' ? null : motivo.trim(),
-    })
+  function iniciarEdicao(falta: Falta) {
+    setIdEditando(falta.id)
+    setData(falta.data)
+    setMotivo(falta.motivo ?? '')
+  }
+
+  function cancelarEdicao() {
+    setIdEditando(null)
+    setData(paraISO(hoje))
     setMotivo('')
   }
+
+  async function salvar() {
+    if (data === '') return
+    const dados = {
+      data,
+      motivo: motivo.trim() === '' ? null : motivo.trim(),
+    }
+
+    if (idEditando) {
+      await atualizar.mutateAsync({ id: idEditando, dados })
+      cancelarEdicao()
+    } else {
+      await criar.mutateAsync({
+        materia_id: materiaId,
+        ...dados,
+      })
+      setMotivo('')
+    }
+  }
+
+  const pendente = criar.isPending || atualizar.isPending
 
   return (
     <div className="space-y-5">
@@ -110,12 +135,17 @@ export function AbaFaltas({
           </div>
           <Button
             size="sm"
-            onClick={() => void adicionar()}
-            disabled={criar.isPending}
+            onClick={() => void salvar()}
+            disabled={pendente}
           >
-            <Plus className="size-4" />
-            Registrar falta
+            {idEditando ? <Pencil className="size-4" /> : <Plus className="size-4" />}
+            {idEditando ? 'Salvar' : 'Registrar falta'}
           </Button>
+          {idEditando && (
+            <Button size="sm" variant="ghost" onClick={cancelarEdicao}>
+              Cancelar
+            </Button>
+          )}
         </CardContent>
       </Card>
 
@@ -144,15 +174,26 @@ export function AbaFaltas({
                       </p>
                     )}
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground hover:text-status-risco size-7 shrink-0"
-                    aria-label="Remover falta"
-                    onClick={() => excluir.mutate(falta.id)}
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-foreground size-7"
+                      aria-label="Editar falta"
+                      onClick={() => iniciarEdicao(falta)}
+                    >
+                      <Pencil className="size-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-status-risco size-7 shrink-0"
+                      aria-label="Remover falta"
+                      onClick={() => excluir.mutate(falta.id)}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </div>
                 </li>
               ))}
             </ul>

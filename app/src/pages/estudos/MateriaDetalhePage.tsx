@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
+import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { PageHeader } from '@/components/PageHeader'
 import { SkeletonPagina } from '@/components/Skeletons'
 import { Badge } from '@/components/ui/badge'
@@ -19,6 +20,7 @@ import {
   useAvaliacoes,
   useConfigMedia,
   useDocumentos,
+  useExcluirMateria,
   useFaltas,
   useMaterias,
   useRegistroListas,
@@ -29,6 +31,7 @@ import { AbaDocumentos } from '@/features/estudos/componentes/AbaDocumentos'
 import { AbaFaltas } from '@/features/estudos/componentes/AbaFaltas'
 import { AbaListas } from '@/features/estudos/componentes/AbaListas'
 import { AbaSessoes } from '@/features/estudos/componentes/AbaSessoes'
+import { DialogMateria } from '@/features/estudos/componentes/DialogMateria'
 import type { Status } from '@/features/estudos/types'
 
 const ROTULO_STATUS: Record<Status, string> = {
@@ -45,6 +48,7 @@ const CLASSE_STATUS: Record<Status, string> = {
 
 export default function MateriaDetalhePage() {
   const { materiaId } = useParams<{ materiaId: string }>()
+  const navigate = useNavigate()
   const hoje = useMemo(() => new Date(), [])
 
   const materias = useMaterias()
@@ -54,6 +58,7 @@ export default function MateriaDetalhePage() {
   const config = useConfigMedia(materiaId)
   const documentos = useDocumentos(materiaId)
   const registros = useRegistroListas(materiaId)
+  const excluirMateria = useExcluirMateria()
 
   const materia = materias.data?.find((item) => item.id === materiaId)
 
@@ -127,12 +132,24 @@ export default function MateriaDetalhePage() {
         }
         pilar="estudos"
         acoes={
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/estudos">
-              <ArrowLeft className="size-4" />
-              Voltar
-            </Link>
-          </Button>
+          <div className="flex items-center gap-1">
+            <DialogMateria materia={materia} />
+            <DialogConfirmarExclusao
+              titulo="Excluir matéria"
+              mensagem={`Todas as avaliações, faltas, sessões e documentos de "${materia.nome}" serão excluídos. Essa ação não pode ser desfeita.`}
+              onConfirmar={async () => {
+                await excluirMateria.mutateAsync(materia.id)
+                navigate('/estudos')
+              }}
+              pendente={excluirMateria.isPending}
+            />
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/estudos">
+                <ArrowLeft className="size-4" />
+                Voltar
+              </Link>
+            </Button>
+          </div>
         }
       />
 
