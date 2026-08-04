@@ -13,7 +13,8 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        'bg-sidebar border-sidebar-border flex shrink-0 flex-col border-r transition-[width] duration-200',
+        // Escondida no mobile: lá a navegação é a BottomNav
+        'bg-sidebar border-sidebar-border hidden shrink-0 flex-col border-r transition-[width] duration-200 md:flex',
         colapsada ? 'w-14' : 'w-56',
       )}
     >

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { Moon } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
@@ -7,12 +8,15 @@ import { formatarHoras } from '@/features/sono/calculos'
 interface IndicadorSonoProps {
   horasDormidas: number | null
   horasMeta: number | null
+  /** Ação de registro — o schema de sono não tinha entrada de dados no plano. */
+  acao?: ReactNode
 }
 
 /** Horas dormidas ontem versus a meta do dia (plano 7.1). */
 export function IndicadorSono({
   horasDormidas,
   horasMeta,
+  acao,
 }: IndicadorSonoProps) {
   const percentual =
     horasDormidas !== null && horasMeta !== null && horasMeta > 0
@@ -30,13 +34,16 @@ export function IndicadorSono({
             <Moon className="text-sono size-4" />
             Sono de ontem
           </span>
-          <span
-            className={cn(
-              'text-lg tabular-nums',
-              abaixo && 'text-status-atencao',
-            )}
-          >
-            {horasDormidas === null ? '—' : formatarHoras(horasDormidas)}
+          <span className="flex items-center gap-2">
+            <span
+              className={cn(
+                'text-lg tabular-nums',
+                abaixo && 'text-status-atencao',
+              )}
+            >
+              {horasDormidas === null ? '—' : formatarHoras(horasDormidas)}
+            </span>
+            {acao}
           </span>
         </div>
 

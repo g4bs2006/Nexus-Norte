@@ -32,7 +32,7 @@ plano registra as resoluções de lacunas decididas antes da implementação —
 | 4 | Projetos | ✅ Concluída |
 | 5 | Calendário unificado | ✅ Concluída |
 | 6 | Home | ✅ Concluída |
-| 7 | Polimento | ⬜ Pendente |
+| 7 | Polimento | ✅ Concluída |
 
 ### Fase 0 — Fundação
 
@@ -157,6 +157,18 @@ não foi decomposto. Projeto sem nenhum log conta como momentum baixo.
 **Correção encontrada nesta fase:** os `format()` do date-fns usavam a locale
 padrão (inglês). `lib/locale.ts` passa a definir pt-BR e segunda como início da
 semana globalmente.
+
+### Fase 7 — Polimento
+
+- **Code-splitting por rota** (`React.lazy`): bundle inicial caiu de 443 kB para
+  ~137 kB gzip. Recharts e FullCalendar só carregam nas pages que os usam
+- **Responsividade:** sidebar escondida no mobile e substituída por navegação
+  inferior, ao alcance do polegar; barra superior com o toggle de tema
+- **Índices de cobertura** para 3 foreign keys apontadas pelo linter do Supabase
+- **UI de sono**, que faltava: o schema existe desde a Fase 0 e é lido pela Home
+  e pelo Calendário, mas nenhuma page do plano previa a entrada desses dados
+- Dark mode já estava completo desde a Fase 0 (paleta e toggle)
+- RLS **não** foi habilitado — ver seção de Segurança e resolução 10.8
 
 ## Estrutura
 

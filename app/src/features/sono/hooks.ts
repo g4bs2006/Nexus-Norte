@@ -23,6 +23,13 @@ export function usePlanejamentoSono(diaSemana: number) {
   })
 }
 
+export function usePlanejamentoCompleto() {
+  return useQuery({
+    queryKey: ['sono', 'planejamento', 'todos'] as const,
+    queryFn: api.listarPlanejamentoSono,
+  })
+}
+
 export function useSalvarRegistroSono() {
   const queryClient = useQueryClient()
 
@@ -30,7 +37,23 @@ export function useSalvarRegistroSono() {
     mutationFn: api.salvarRegistroSono,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: chaves.raiz })
+      // O calendário lê planejamento_sono; invalidar mantém a grade coerente
+      void queryClient.invalidateQueries({ queryKey: ['calendario'] })
       toast.success('Sono registrado')
+    },
+    onError: (erro: Error) => toast.error(erro.message),
+  })
+}
+
+export function useSalvarPlanejamentoSono() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: api.salvarPlanejamentoSono,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: chaves.raiz })
+      void queryClient.invalidateQueries({ queryKey: ['calendario'] })
+      toast.success('Meta de sono salva')
     },
     onError: (erro: Error) => toast.error(erro.message),
   })

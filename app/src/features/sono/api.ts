@@ -43,3 +43,22 @@ export async function salvarRegistroSono(
     .upsert(dados, { onConflict: 'data' })
   if (error) throw new Error(error.message)
 }
+
+export async function listarPlanejamentoSono(): Promise<PlanejamentoSono[]> {
+  const { data, error } = await supabase
+    .from('planejamento_sono')
+    .select('*')
+    .order('dia_semana')
+  if (error) throw new Error(error.message)
+  return data ?? []
+}
+
+/** Um alvo por dia da semana — reenviar o mesmo dia atualiza o existente. */
+export async function salvarPlanejamentoSono(
+  dados: TablesInsert<'planejamento_sono'>,
+): Promise<void> {
+  const { error } = await supabase
+    .from('planejamento_sono')
+    .upsert(dados, { onConflict: 'dia_semana' })
+  if (error) throw new Error(error.message)
+}

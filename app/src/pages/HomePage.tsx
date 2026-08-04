@@ -71,6 +71,7 @@ import {
 import { useLogs, useProjetos } from '@/features/projetos/hooks'
 import { horasEntre } from '@/features/sono/calculos'
 import { usePlanejamentoSono, useRegistroSono } from '@/features/sono/hooks'
+import { DialogSono } from '@/features/sono/componentes/DialogSono'
 import { construirEventos, COR_CAMADA } from '@/features/calendario/eventos'
 import { useFontesCalendario } from '@/features/calendario/hooks'
 import { MiniCard } from '@/features/home/componentes/MiniCard'
@@ -553,6 +554,7 @@ export default function HomePage() {
         <IndicadorSono
           horasDormidas={sono.horasDormidas}
           horasMeta={sono.horasMeta}
+          acao={<DialogSono hoje={hoje} />}
         />
 
         {/* Atalho para o calendário (plano 7.1) */}
