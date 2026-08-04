@@ -1,8 +1,15 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronRight, type LucideIcon } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
+import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { Status } from '@/features/financeiro/types'
+
+/** Listra de severidade — encoda estado em forma, não só em cor. */
+const LISTRA: Record<Status, string> = {
+  ok: 'bg-transparent',
+  atencao: 'bg-status-atencao',
+  risco: 'bg-status-risco',
+}
 
 interface MiniCardProps {
   titulo: string
@@ -10,37 +17,55 @@ interface MiniCardProps {
   /** Classe de cor do pilar (ex: `text-financeiro`). */
   classeCor: string
   rota: string
-  children: ReactNode
+  /** Valor principal — já formatado. */
+  valor: ReactNode
+  /** Uma linha de contexto abaixo do valor. */
+  detalhe: ReactNode
+  /**
+   * Severidade. Só `atencao` e `risco` desenham a listra: se tudo ganhasse
+   * marca, a marca deixaria de chamar atenção.
+   */
+  status?: Status
 }
 
 /**
- * Cartão compacto da Home.
+ * Tile compacto de pilar na Home.
  *
- * A Home não duplica dado nem recalcula agregação — apenas apresenta o que os
- * pilares já resolveram (plano 7.1 / 7.2).
+ * Reescrito no Bloco D: eram quatro cards grandes de peso visual idêntico, o
+ * que achatava a hierarquia da página (item 4 do diagnóstico). Agora são tiles
+ * densos numa linha, com listra de severidade à esquerda — o que precisa de
+ * atenção lê antes do detalhe.
  */
 export function MiniCard({
   titulo,
   icone: Icone,
   classeCor,
   rota,
-  children,
+  valor,
+  detalhe,
+  status = 'ok',
 }: MiniCardProps) {
   return (
-    <Card className="hover:border-foreground/20 transition-colors">
-      <CardContent className="space-y-3">
-        <Link
-          to={rota}
-          className="group flex items-center justify-between gap-2"
-        >
-          <span className="flex items-center gap-2 text-sm font-medium">
-            <Icone className={cn('size-4', classeCor)} />
-            {titulo}
-          </span>
-          <ChevronRight className="text-muted-foreground group-hover:text-foreground size-4 shrink-0 transition-colors" />
-        </Link>
-        {children}
-      </CardContent>
-    </Card>
+    <Link
+      to={rota}
+      className={cn(
+        'group border-border bg-card relative flex flex-col gap-1.5 overflow-hidden rounded-lg border p-3 transition-colors',
+        'hover:border-foreground/20',
+      )}
+    >
+      <span
+        aria-hidden
+        className={cn('absolute inset-y-0 left-0 w-[3px]', LISTRA[status])}
+      />
+
+      <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
+        <Icone className={cn('size-3.5', classeCor)} />
+        {titulo}
+      </span>
+
+      <span className="metric-md truncate">{valor}</span>
+
+      <span className="text-muted-foreground truncate text-xs">{detalhe}</span>
+    </Link>
   )
 }

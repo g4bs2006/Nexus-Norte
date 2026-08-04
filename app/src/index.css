@@ -290,6 +290,83 @@
 }
 
 /* ---------------------------------------------------------------------------
+   Check do dia — a assinatura (Bloco C do brief de design).
+
+   É onde a ousadia foi gasta, e o único lugar. A tese declarada do plano é que
+   checks são AÇÃO, não resultado; este é o objeto que se toca todos os dias, e
+   era a coisa mais sem graça da Home.
+
+   Tratado como objeto físico: alvo maior, marca que se desenha, risco que varre
+   o texto da esquerda para a direita. Sem confete e sem som — a satisfação vem
+   da precisão, não do volume. Em uso diário, celebração vira interrupção na
+   terceira vez.
+--------------------------------------------------------------------------- */
+
+@utility check-caixa {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 1.15rem;
+    height: 1.15rem;
+    border-radius: 0.3rem;
+    border: 1.5px solid var(--rule-forte, var(--border));
+    background: var(--card);
+    transition:
+        background 180ms ease,
+        border-color 180ms ease,
+        transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Marca desenhada em 180ms, com 60ms de espera para a caixa preencher antes */
+@utility check-marca {
+    width: 0.72rem;
+    height: 0.72rem;
+    fill: none;
+    stroke: var(--card);
+    stroke-width: 3.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 24;
+    stroke-dashoffset: 24;
+    transition: stroke-dashoffset 180ms ease 60ms;
+}
+
+/* Risco varrendo da esquerda para a direita em 260ms */
+@utility check-texto {
+    position: relative;
+
+    &::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 54%;
+        height: 1px;
+        width: 100%;
+        background: currentColor;
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 260ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+}
+
+@utility check-marcado {
+    & .check-caixa {
+        background: var(--status-ok);
+        border-color: var(--status-ok);
+        transform: scale(1.08);
+    }
+    & .check-marca {
+        stroke-dashoffset: 0;
+    }
+    & .check-texto {
+        color: var(--muted-foreground);
+    }
+    & .check-texto::after {
+        transform: scaleX(1);
+    }
+}
+
+/* ---------------------------------------------------------------------------
    Piso de qualidade: movimento reduzido.
 
    Quem pede menos movimento recebe o estado final imediatamente — inclusive as

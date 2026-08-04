@@ -1,6 +1,4 @@
-import { Checkbox } from '@/components/ui/checkbox'
-import { Label } from '@/components/ui/label'
-import { cn } from '@/lib/utils'
+import { CheckDia } from '@/components/CheckDia'
 
 export interface ItemCheckFluxograma {
   /** Id do registro em `fluxograma_semanal`. */
@@ -34,33 +32,18 @@ export function ChecksFluxograma({
   }
 
   return (
-    <ul className="space-y-2.5">
+    <ul className="space-y-0.5">
       {itens.map((item) => (
-        <li key={item.fluxogramaId} className="flex items-center gap-2.5">
-          <Checkbox
+        <li key={item.fluxogramaId}>
+          <CheckDia
             id={`check-${item.fluxogramaId}`}
-            checked={item.concluido}
-            onCheckedChange={(marcado) =>
-              onAlternar(item.fluxogramaId, marcado === true)
-            }
-          />
-          <Label
-            htmlFor={`check-${item.fluxogramaId}`}
-            className={cn(
-              'flex-1 text-sm font-normal',
-              item.concluido && 'text-muted-foreground line-through',
-            )}
+            marcado={item.concluido}
+            onAlternar={(marcado) => onAlternar(item.fluxogramaId, marcado)}
+            detalhe={item.horario}
+            {...(item.remarcada ? { aviso: 'remarcado' } : {})}
           >
             {item.rotulo}
-            <span className="text-muted-foreground ml-1.5 text-xs tabular-nums">
-              {item.horario}
-            </span>
-            {item.remarcada && (
-              <span className="text-status-atencao ml-1.5 text-xs">
-                remarcado
-              </span>
-            )}
-          </Label>
+          </CheckDia>
         </li>
       ))}
     </ul>

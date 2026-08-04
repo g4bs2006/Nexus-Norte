@@ -44,6 +44,7 @@ import { SecaoInvestimentos } from '@/features/financeiro/componentes/SecaoInves
 import { DialogCategoria } from '@/features/financeiro/componentes/DialogCategoria'
 import { DialogInvestimento } from '@/features/financeiro/componentes/DialogInvestimento'
 import { DialogLancamento } from '@/features/financeiro/componentes/DialogLancamento'
+import { LancamentoRapido } from '@/features/financeiro/componentes/LancamentoRapido'
 
 const MESES_TENDENCIA = 6
 
@@ -171,6 +172,9 @@ export default function FinanceiroPage() {
         </Card>
       ) : (
         <div className="space-y-6">
+          {/* Primeiro elemento da página: é a ação mais frequente (Bloco D) */}
+          <LancamentoRapido categorias={listaCategorias} hoje={hoje} />
+
           <CardReceitaDespesa
             totais={calculos.totais}
             saldoProjetado={calculos.saldoProjetado}

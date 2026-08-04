@@ -6,8 +6,15 @@ export type Tema = 'claro' | 'escuro' | 'sistema'
 interface EstadoUI {
   tema: Tema
   sidebarColapsada: boolean
+  /**
+   * Última categoria usada no lançamento rápido. Persistida para que o campo
+   * abra já preenchido: lançar um gasto é a ação mais repetida do sistema, e
+   * escolher a categoria de novo a cada vez é a maior parte da fricção.
+   */
+  ultimaCategoriaLancamento: string | null
   setTema: (tema: Tema) => void
   alternarSidebar: () => void
+  setUltimaCategoriaLancamento: (id: string) => void
 }
 
 /**
@@ -19,9 +26,12 @@ export const useUIStore = create<EstadoUI>()(
     (set) => ({
       tema: 'sistema',
       sidebarColapsada: false,
+      ultimaCategoriaLancamento: null,
       setTema: (tema) => set({ tema }),
       alternarSidebar: () =>
         set((estado) => ({ sidebarColapsada: !estado.sidebarColapsada })),
+      setUltimaCategoriaLancamento: (id) =>
+        set({ ultimaCategoriaLancamento: id }),
     }),
     { name: 'nexus-ui' },
   ),

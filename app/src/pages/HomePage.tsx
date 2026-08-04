@@ -11,6 +11,8 @@ import {
 } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
 import { ChecksFluxograma, type ItemCheckFluxograma } from '@/components/ChecksFluxograma'
+import { CheckDia } from '@/components/CheckDia'
+import { BarraProgresso } from '@/components/BarraProgresso'
 import {
   Card,
   CardContent,
@@ -18,9 +20,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import {
   deISO,
   formatarMoeda,
@@ -201,8 +200,22 @@ export default function HomePage() {
         )?.nome
       : undefined
 
+    /**
+     * Severidade da semana. Sem nada previsto no fluxograma não há aderência a
+     * julgar — seria injusto pintar de vermelho quem não planejou treino.
+     */
+    const status =
+      frequencia.percentual === null
+        ? ('ok' as const)
+        : frequencia.percentual >= 100
+          ? ('ok' as const)
+          : frequencia.percentual >= 50
+            ? ('atencao' as const)
+            : ('risco' as const)
+
     return {
       frequencia,
+      status,
       ultimoPr,
       nomeExercicio,
       temDados: (treinos.data ?? []).length > 0,
@@ -298,6 +311,24 @@ export default function HomePage() {
     hojeISO,
   ])
 
+  /**
+   * Contagem do dia. Inclui o check semanal só no domingo, senão o denominador
+   * mostraria uma tarefa que não existe hoje.
+   */
+  const { concluidos, totalChecks } = useMemo(() => {
+    const ehDomingo = hoje.getDay() === 0
+    const fixos = [
+      check.data?.financeiro_registrado ?? false,
+      ...(ehDomingo ? [check.data?.planejamento_semana_feito ?? false] : []),
+    ]
+    const todos = [...fixos, ...checksFluxograma.map((i) => i.concluido)]
+
+    return {
+      concluidos: todos.filter(Boolean).length,
+      totalChecks: todos.length,
+    }
+  }, [check.data, checksFluxograma, hoje])
+
   const proximosEventos = useMemo(
     () =>
       construirEventos(fontes, proximos)
@@ -308,11 +339,6 @@ export default function HomePage() {
     [fontes, proximos],
   )
 
-  const CLASSE_STATUS = {
-    ok: 'text-status-ok',
-    atencao: 'text-status-atencao',
-    risco: 'text-status-risco',
-  } as const
 
   return (
     <>
@@ -322,62 +348,82 @@ export default function HomePage() {
       />
 
       <div className="space-y-6">
-        {/* Checks do dia — a ação, não o resultado (plano 7.1) */}
-        <Card>
+        {/*
+          O dia — assinatura da Home (Bloco C do brief).
+          Promovido a bloco de destaque: é a tese do plano ("checks são ação,
+          não resultado") e o que se toca todo dia. O resto da página é quieto
+          de propósito, para este ser o único lugar com peso visual.
+        */}
+        <Card className="border-foreground/15 shadow-none">
           <CardHeader>
-            <CardTitle className="text-base">Checks de hoje</CardTitle>
-            <CardDescription>
-              O que precisa ser feito, em uma lista só.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center gap-2.5">
-              <Checkbox
-                id="home-check-financeiro"
-                checked={check.data?.financeiro_registrado ?? false}
-                onCheckedChange={(marcado) =>
-                  salvarCheck.mutate({
-                    data: hojeISO,
-                    campos: { financeiro_registrado: marcado === true },
-                  })
-                }
-              />
-              <Label
-                htmlFor="home-check-financeiro"
-                className={cn(
-                  'text-sm font-normal',
-                  check.data?.financeiro_registrado &&
-                    'text-muted-foreground line-through',
-                )}
-              >
-                Lancei os gastos de hoje?
-              </Label>
-            </div>
-
-            {hoje.getDay() === 0 && (
-              <div className="flex items-center gap-2.5">
-                <Checkbox
-                  id="home-check-planejamento"
-                  checked={check.data?.planejamento_semana_feito ?? false}
-                  onCheckedChange={(marcado) =>
-                    salvarCheck.mutate({
-                      data: hojeISO,
-                      campos: { planejamento_semana_feito: marcado === true },
-                    })
-                  }
-                />
-                <Label
-                  htmlFor="home-check-planejamento"
+            <div className="flex items-baseline justify-between gap-3">
+              <div className="space-y-1.5">
+                <CardTitle className="text-base">O dia</CardTitle>
+                <CardDescription>
+                  {totalChecks === 0
+                    ? 'Nada previsto para hoje.'
+                    : concluidos === totalChecks
+                      ? 'Tudo feito.'
+                      : `${concluidos} de ${totalChecks} feito${concluidos === 1 ? '' : 's'}.`}
+                </CardDescription>
+              </div>
+              {totalChecks > 0 && (
+                <span
                   className={cn(
-                    'text-sm font-normal',
-                    check.data?.planejamento_semana_feito &&
-                      'text-muted-foreground line-through',
+                    'metric-md shrink-0',
+                    concluidos === totalChecks && 'text-status-ok',
                   )}
                 >
-                  Planejei a semana?
-                </Label>
-              </div>
+                  {concluidos}/{totalChecks}
+                </span>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {totalChecks > 0 && (
+              <BarraProgresso
+                valor={(concluidos / totalChecks) * 100}
+                classeCor={
+                  concluidos === totalChecks ? 'bg-status-ok' : 'bg-foreground/60'
+                }
+                rotulo="Checks concluídos hoje"
+              />
             )}
+
+            <ul className="space-y-0.5">
+              <li>
+                <CheckDia
+                  id="home-check-financeiro"
+                  marcado={check.data?.financeiro_registrado ?? false}
+                  onAlternar={(marcado) =>
+                    salvarCheck.mutate({
+                      data: hojeISO,
+                      campos: { financeiro_registrado: marcado },
+                    })
+                  }
+                >
+                  Lancei os gastos de hoje
+                </CheckDia>
+              </li>
+
+              {/* Ritual de domingo (plano 2.4) */}
+              {hoje.getDay() === 0 && (
+                <li>
+                  <CheckDia
+                    id="home-check-planejamento"
+                    marcado={check.data?.planejamento_semana_feito ?? false}
+                    onAlternar={(marcado) =>
+                      salvarCheck.mutate({
+                        data: hojeISO,
+                        campos: { planejamento_semana_feito: marcado },
+                      })
+                    }
+                  >
+                    Planejei a semana
+                  </CheckDia>
+                </li>
+              )}
+            </ul>
 
             <ChecksFluxograma
               itens={checksFluxograma}
@@ -393,162 +439,91 @@ export default function HomePage() {
           </CardContent>
         </Card>
 
-        {/* Mini-cards dos pilares */}
-        <div className="surgir-grupo grid gap-3 sm:grid-cols-2">
+        {/* Faixa de status dos pilares — resumo antes do detalhe (Bloco D) */}
+        <div className="surgir-grupo grid grid-cols-2 gap-3 lg:grid-cols-4">
           <MiniCard
             titulo="Financeiro"
             icone={Wallet}
             classeCor="text-financeiro"
             rota="/financeiro"
-          >
-            {financeiro.temDados ? (
-              <div className="space-y-1">
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-muted-foreground text-xs">
-                    Saldo do mês
-                  </span>
-                  <span
-                    className={cn(
-                      'metric-md',
-                      CLASSE_STATUS[financeiro.status],
-                    )}
-                  >
-                    {formatarMoeda(financeiro.totais.saldo)}
-                  </span>
-                </div>
-                <p className="text-muted-foreground text-xs tabular-nums">
-                  {formatarMoeda(financeiro.totais.receita)} entrou ·{' '}
-                  {formatarMoeda(financeiro.totais.despesa)} saiu
-                </p>
-                <p className="text-muted-foreground text-xs">
-                  projeção: {formatarMoeda(financeiro.saldoProjetado)}
-                </p>
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-xs">
-                Nenhuma categoria cadastrada.
-              </p>
-            )}
-          </MiniCard>
+            status={financeiro.status}
+            valor={
+              financeiro.temDados ? formatarMoeda(financeiro.totais.saldo) : '—'
+            }
+            detalhe={
+              financeiro.temDados
+                ? `projeção ${formatarMoeda(financeiro.saldoProjetado)}`
+                : 'sem categorias'
+            }
+          />
 
           <MiniCard
             titulo="Estudos"
             icone={GraduationCap}
             classeCor="text-estudos"
             rota="/estudos"
-          >
-            {estudos.total > 0 ? (
-              <div className="space-y-1.5">
-                {estudos.emRisco.length > 0 ? (
-                  <div className="space-y-1">
-                    <Badge
-                      variant="secondary"
-                      className="text-status-risco font-normal"
-                    >
-                      {estudos.emRisco.length}{' '}
-                      {estudos.emRisco.length === 1
-                        ? 'matéria em risco'
-                        : 'matérias em risco'}
-                    </Badge>
-                    <p className="text-muted-foreground truncate text-xs">
-                      {estudos.emRisco.map((materia) => materia.nome).join(', ')}
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-status-ok text-xs">
-                    Nenhuma matéria em risco.
-                  </p>
-                )}
-                <p className="text-muted-foreground text-xs">
-                  {estudos.proxima
-                    ? `${estudos.proxima.avaliacao.nome}${
-                        estudos.nomeMateria ? ` de ${estudos.nomeMateria}` : ''
-                      } em ${
-                        estudos.proxima.dias === 0
-                          ? 'hoje'
-                          : `${estudos.proxima.dias} dias`
-                      }`
-                    : 'Nenhuma avaliação marcada.'}
-                </p>
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-xs">
-                Nenhuma matéria cadastrada.
-              </p>
-            )}
-          </MiniCard>
+            status={estudos.emRisco.length > 0 ? 'risco' : 'ok'}
+            valor={
+              estudos.total === 0
+                ? '—'
+                : estudos.emRisco.length > 0
+                  ? `${estudos.emRisco.length} em risco`
+                  : 'Tudo certo'
+            }
+            detalhe={
+              estudos.total === 0
+                ? 'sem matérias'
+                : estudos.proxima
+                  ? `${estudos.proxima.avaliacao.nome} em ${
+                      estudos.proxima.dias === 0
+                        ? 'hoje'
+                        : `${estudos.proxima.dias} dias`
+                    }`
+                  : 'sem avaliação marcada'
+            }
+          />
 
           <MiniCard
             titulo="Treino"
             icone={Dumbbell}
             classeCor="text-treino"
             rota="/treino"
-          >
-            {treino.temDados ? (
-              <div className="space-y-1">
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="text-muted-foreground text-xs">
-                    Frequência da semana
-                  </span>
-                  <span className="metric-md">
-                    {treino.frequencia.realizados}
-                    <span className="text-muted-foreground text-sm">
-                      /{treino.frequencia.previstos || '—'}
-                    </span>
-                  </span>
-                </div>
-                <p className="text-muted-foreground truncate text-xs">
-                  {treino.ultimoPr
-                    ? `PR recente: ${treino.nomeExercicio ?? 'exercício'} — ${treino.ultimoPr.um_rm_estimado.toFixed(1)}kg`
-                    : 'Nenhum PR registrado.'}
-                </p>
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-xs">
-                Nenhum treino cadastrado.
-              </p>
-            )}
-          </MiniCard>
+            status={treino.status}
+            valor={
+              treino.temDados
+                ? `${treino.frequencia.realizados}/${treino.frequencia.previstos || '—'}`
+                : '—'
+            }
+            detalhe={
+              !treino.temDados
+                ? 'sem treinos'
+                : treino.ultimoPr
+                  ? `PR ${treino.ultimoPr.um_rm_estimado.toFixed(1)}kg · ${treino.nomeExercicio ?? 'exercício'}`
+                  : 'nenhum PR ainda'
+            }
+          />
 
           <MiniCard
             titulo="Projetos"
             icone={FolderKanban}
             classeCor="text-projetos"
             rota="/projetos"
-          >
-            {projetosResumo.total > 0 ? (
-              <div className="space-y-1.5">
-                {projetosResumo.frios.length > 0 ? (
-                  <div className="space-y-1">
-                    <Badge
-                      variant="secondary"
-                      className="text-status-atencao font-normal"
-                    >
-                      {projetosResumo.frios.length} sem movimento
-                    </Badge>
-                    <p className="text-muted-foreground truncate text-xs">
-                      {projetosResumo.frios
-                        .map((item) => item.projeto.nome)
-                        .join(', ')}
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-status-ok text-xs">
-                    Todos os projetos com movimento recente.
-                  </p>
-                )}
-                <p className="text-muted-foreground truncate text-xs">
-                  {projetosResumo.maisAtivo
-                    ? `Mais ativo: ${projetosResumo.maisAtivo.projeto.nome}`
-                    : 'Nenhum log de progresso ainda.'}
-                </p>
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-xs">
-                Nenhum projeto cadastrado.
-              </p>
-            )}
-          </MiniCard>
+            status={projetosResumo.frios.length > 0 ? 'atencao' : 'ok'}
+            valor={
+              projetosResumo.total === 0
+                ? '—'
+                : projetosResumo.frios.length > 0
+                  ? `${projetosResumo.frios.length} paradinho${projetosResumo.frios.length === 1 ? '' : 's'}`
+                  : 'Em movimento'
+            }
+            detalhe={
+              projetosResumo.total === 0
+                ? 'sem projetos'
+                : projetosResumo.maisAtivo
+                  ? `ativo: ${projetosResumo.maisAtivo.projeto.nome}`
+                  : 'nenhum log ainda'
+            }
+          />
         </div>
 
         <IndicadorSono
