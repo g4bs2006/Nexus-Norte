@@ -1,0 +1,18 @@
+# Dependências e builds (o app/ tem seu próprio .gitignore mais específico)
+node_modules/
+dist/
+
+# Variáveis de ambiente — nunca comitar credenciais
+.env
+.env.*
+!.env.example
+*.local
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Editores
+.vscode/*
+!.vscode/extensions.json
+.idea/
