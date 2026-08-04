@@ -200,6 +200,32 @@ cp .env.example .env.local   # preencha com as credenciais do Supabase
 npm run dev
 ```
 
+### Dados de exemplo
+
+O sistema começa vazio. Para ver as telas com conteúdo, rode
+[`app/supabase/seed.sql`](./app/supabase/seed.sql) — ~4 meses de histórico
+coerente, montado para exercitar os casos de borda: os três estados do semáforo
+de risco, uma categoria estourando a meta por 2 meses (candidata a corte), um
+projeto esfriando e outro sem nenhum log, PRs em progressão e sono cruzando a
+meia-noite. As datas são relativas a `current_date`, então o cenário nunca
+envelhece.
+
+Para limpar: [`app/supabase/seed_limpar.sql`](./app/supabase/seed_limpar.sql).
+Ele apaga **todos** os dados, não só os de exemplo — o banco não distingue os
+dois.
+
+### Atalhos de teclado
+
+| Atalho | Ação |
+| --- | --- |
+| `Ctrl`/`⌘` + `K` | Buscar e navegar |
+| `G` então `H` / `F` / `E` / `T` / `P` / `C` | Ir para Home / Financeiro / Estudos / Treino / Projetos / Calendário |
+| `?` | Mostrar a lista de atalhos |
+
+A busca cobre as rotas e também os registros cadastrados — categoria, matéria,
+treino, exercício, projeto. Teclas simples só disparam quando o foco não está em
+campo de texto; `Ctrl`/`⌘` + `K` funciona de qualquer lugar.
+
 ### Scripts
 
 | Comando | Ação |
