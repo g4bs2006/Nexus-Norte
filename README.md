@@ -29,7 +29,7 @@ plano registra as resoluções de lacunas decididas antes da implementação —
 | 1 | Financeiro | ✅ Concluída |
 | 2 | Estudos | ✅ Concluída |
 | 3 | Treino | ✅ Concluída |
-| 4 | Projetos | ⬜ Pendente |
+| 4 | Projetos | ✅ Concluída |
 | 5 | Calendário unificado | ⬜ Pendente |
 | 6 | Home | ⬜ Pendente |
 | 7 | Polimento | ⬜ Pendente |
@@ -110,6 +110,22 @@ concluído sem definir onde guardá-lo.
 **Decisão desta fase:** `treinos.dias_semana` foi descartada — era uma segunda
 fonte de verdade competindo com o fluxograma (resolução 10.17). Cada linha de
 `execucoes_exercicio` passa a representar uma série.
+
+### Fase 4 — Projetos
+
+- Schema: `projetos`, `marcos_projeto`, `log_progresso`
+- Sem campo-resumo por trigger: as duas métricas são calculadas na leitura
+  (resolução 10.9)
+- Cálculos como funções puras: percentual concluído, dias desde a última
+  atualização, momentum baixo
+- Grid de cards com esfriamento visual por momentum baixo
+- Abas Ativos / Pausados / Concluídos com contagem
+- Página do projeto: status editável, checklist de marcos com status, e timeline
+  do log de progresso
+
+**Detalhe de modelagem:** `percentualConcluido` devolve `null` (não `0`) para
+projeto sem marcos — 0% sugeriria projeto parado, quando na verdade ele ainda
+não foi decomposto. Projeto sem nenhum log conta como momentum baixo.
 
 ## Estrutura
 

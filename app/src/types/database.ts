@@ -721,6 +721,103 @@ export type Database = {
         }
         Relationships: []
       }
+      projetos: {
+        Row: {
+          created_at: string
+          data_inicio: string
+          descricao: string | null
+          id: string
+          nome: string
+          prazo_alvo: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          data_inicio?: string
+          descricao?: string | null
+          id?: string
+          nome: string
+          prazo_alvo?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          data_inicio?: string
+          descricao?: string | null
+          id?: string
+          nome?: string
+          prazo_alvo?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      marcos_projeto: {
+        Row: {
+          created_at: string
+          data_prevista: string | null
+          id: string
+          nome: string
+          projeto_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          data_prevista?: string | null
+          id?: string
+          nome: string
+          projeto_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          data_prevista?: string | null
+          id?: string
+          nome?: string
+          projeto_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'marcos_projeto_projeto_id_fkey'
+            columns: ['projeto_id']
+            isOneToOne: false
+            referencedRelation: 'projetos'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      log_progresso: {
+        Row: {
+          conteudo: string
+          created_at: string
+          data: string
+          id: string
+          projeto_id: string
+        }
+        Insert: {
+          conteudo: string
+          created_at?: string
+          data?: string
+          id?: string
+          projeto_id: string
+        }
+        Update: {
+          conteudo?: string
+          created_at?: string
+          data?: string
+          id?: string
+          projeto_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'log_progresso_projeto_id_fkey'
+            columns: ['projeto_id']
+            isOneToOne: false
+            referencedRelation: 'projetos'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       registro_lesoes: {
         Row: {
           created_at: string
