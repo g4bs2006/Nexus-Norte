@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { CORES_DISPONIVEIS } from '@/lib/cores'
 
 /**
  * Schemas de validação dos formulários do Financeiro (plano 2.5).
@@ -26,7 +27,16 @@ export const schemaCategoria = z
     /** Vazio significa "sem meta". */
     meta_mensal: z.union([z.number().positive('A meta deve ser maior que zero'), z.nan()]),
     meta_tipo: z.union([z.enum(['valor', 'percentual_renda']), z.literal('')]),
-    cor: z.string(),
+    // Restrita à paleta do design system: a cor vem de um seletor de swatches,
+    // não de entrada livre. `''` = sem cor (cai na cor do pilar).
+    cor: z
+      .string()
+      .refine(
+        (valor) =>
+          valor === '' ||
+          CORES_DISPONIVEIS.some((opcao) => opcao.valor === valor),
+        { message: 'Selecione uma cor da paleta' },
+      ),
   })
   .refine((v) => v.natureza === 'receita' || v.tipo !== '', {
     message: 'Despesa precisa ser fixa ou variável',

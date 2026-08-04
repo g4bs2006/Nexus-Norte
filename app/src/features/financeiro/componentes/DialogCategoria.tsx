@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Plus } from 'lucide-react'
+import { SeletorCor } from '@/components/SeletorCor'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -226,9 +227,7 @@ export function DialogCategoria() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Cor</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Opcional — ex: #4f9d69" {...field} />
-                  </FormControl>
+                  <SeletorCor valor={field.value} onChange={field.onChange} />
                   <FormMessage />
                 </FormItem>
               )}
