@@ -30,7 +30,7 @@ plano registra as resoluções de lacunas decididas antes da implementação —
 | 2 | Estudos | ✅ Concluída |
 | 3 | Treino | ✅ Concluída |
 | 4 | Projetos | ✅ Concluída |
-| 5 | Calendário unificado | ⬜ Pendente |
+| 5 | Calendário unificado | ✅ Concluída |
 | 6 | Home | ⬜ Pendente |
 | 7 | Polimento | ⬜ Pendente |
 
@@ -126,6 +126,21 @@ fonte de verdade competindo com o fluxograma (resolução 10.17). Cada linha de
 **Detalhe de modelagem:** `percentualConcluido` devolve `null` (não `0`) para
 projeto sem marcos — 0% sugeriria projeto parado, quando na verdade ele ainda
 não foi decomposto. Projeto sem nenhum log conta como momentum baixo.
+
+### Fase 5 — Calendário unificado
+
+- **Nenhuma tabela nova:** agrega as fontes existentes (plano 6.1)
+- Construtor de eventos como função pura, com 20 testes
+  (`features/calendario/eventos.ts`)
+- Camadas: provas, aulas e treinos recorrentes, contas fixas, marcos e sono
+- Recorrência expandida no cliente, apenas para o intervalo visível
+  (resolução 10.5) — o `datesSet` do FullCalendar delimita a expansão
+- Contas usam `data_vencimento` com fallback para `data` (resolução 10.2)
+- Blocos de sono cruzando a meia-noite terminam no dia seguinte, com a mesma
+  lógica da coluna gerada `registro_sono.horas_calculadas`
+- Sono renderizado como evento de fundo: contexto, não compromisso
+- Visões mensal e semanal, filtro de camadas por pilar
+- FullCalendar re-tematizado para a paleta Notion, nos dois temas
 
 ## Estrutura
 

@@ -205,3 +205,89 @@
         @apply font-medium tracking-tight;
     }
 }
+
+/* ---------------------------------------------------------------------------
+   FullCalendar — alinhado à paleta do design system (plano 6.2).
+   O tema padrão usa azul e bordas fortes; aqui ele passa a usar as mesmas
+   variáveis do resto da aplicação, funcionando nos dois temas.
+--------------------------------------------------------------------------- */
+
+.calendario-nexus {
+    --fc-border-color: var(--border);
+    --fc-page-bg-color: var(--card);
+    --fc-neutral-bg-color: var(--muted);
+    --fc-today-bg-color: color-mix(in oklab, var(--accent) 70%, transparent);
+    --fc-now-indicator-color: var(--status-risco);
+    --fc-event-text-color: #ffffff;
+    --fc-small-font-size: 0.75rem;
+}
+
+.calendario-nexus .fc {
+    font-size: 0.8125rem;
+}
+
+.calendario-nexus .fc .fc-toolbar-title {
+    font-size: 1rem;
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.calendario-nexus .fc .fc-button {
+    background: transparent;
+    border-color: var(--border);
+    color: var(--foreground);
+    font-size: 0.75rem;
+    font-weight: 400;
+    padding: 0.25rem 0.625rem;
+    border-radius: var(--radius-sm);
+    box-shadow: none;
+}
+
+.calendario-nexus .fc .fc-button:hover,
+.calendario-nexus .fc .fc-button:focus-visible {
+    background: var(--accent);
+    border-color: var(--border);
+    color: var(--accent-foreground);
+    box-shadow: none;
+}
+
+.calendario-nexus .fc .fc-button-active {
+    background: var(--accent) !important;
+    border-color: var(--border) !important;
+    color: var(--accent-foreground) !important;
+}
+
+.calendario-nexus .fc .fc-button-primary:disabled {
+    background: transparent;
+    border-color: var(--border);
+    color: var(--muted-foreground);
+}
+
+.calendario-nexus .fc .fc-col-header-cell-cushion,
+.calendario-nexus .fc .fc-daygrid-day-number {
+    color: var(--muted-foreground);
+    font-weight: 400;
+    text-decoration: none;
+    text-transform: capitalize;
+}
+
+.calendario-nexus .fc .fc-day-today .fc-daygrid-day-number {
+    color: var(--foreground);
+    font-weight: 500;
+}
+
+.calendario-nexus .fc .fc-event {
+    border-radius: var(--radius-sm);
+    border-width: 1px;
+    padding: 0 2px;
+}
+
+/* Sono entra como evento de fundo: contexto, não compromisso */
+.calendario-nexus .fc .fc-bg-event {
+    opacity: 0.22;
+}
+
+.calendario-nexus .fc .fc-timegrid-slot-label-cushion,
+.calendario-nexus .fc .fc-list-day-text {
+    color: var(--muted-foreground);
+}
