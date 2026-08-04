@@ -4,6 +4,7 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import ptBrLocale from '@fullcalendar/core/locales/pt-br'
 import type { DatesSetArg } from '@fullcalendar/core'
+import { CalendarDays } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardContent } from '@/components/ui/card'
 import { paraISO } from '@/lib/datas'
@@ -88,6 +89,8 @@ export default function CalendarioPage() {
       <PageHeader
         titulo="Calendário"
         descricao="Provas, aulas, treinos, vencimentos, marcos e sono em uma só grade."
+        pilar="sono"
+        icone={CalendarDays}
       />
 
       {erro && (

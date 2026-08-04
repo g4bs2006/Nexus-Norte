@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { GraduationCap } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
 import { SkeletonPagina } from '@/components/Skeletons'
 import { ChecksFluxograma } from '@/components/ChecksFluxograma'
@@ -115,7 +116,10 @@ export default function EstudosPage() {
   if (materias.isPending) {
     return (
       <>
-        <PageHeader titulo="Estudos" />
+        <PageHeader titulo="Estudos"
+        pilar="estudos"
+        icone={GraduationCap}
+      />
         <SkeletonPagina variante="lista" />
       </>
     )
@@ -124,7 +128,10 @@ export default function EstudosPage() {
   if (materias.isError) {
     return (
       <>
-        <PageHeader titulo="Estudos" />
+        <PageHeader titulo="Estudos"
+        pilar="estudos"
+        icone={GraduationCap}
+      />
         <Card className="border-status-risco/40">
           <CardContent className="text-status-risco text-sm">
             Erro ao carregar: {materias.error.message}

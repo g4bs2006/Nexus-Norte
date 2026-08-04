@@ -43,12 +43,10 @@ export function CardReceitaDespesa({
             <TrendingUp className="size-3.5" />
             Saldo líquido
           </div>
-          <p
-            className={cn(
-              'metric-md',
-              saldoPositivo ? 'text-status-ok' : 'text-status-risco',
-            )}
-          >
+          {/* Saldo positivo fica na cor de texto: cor semântica é reservada
+              para o que pede atenção. Verde em tudo que está bem esvazia o
+              significado do verde. */}
+          <p className={cn('metric-md', !saldoPositivo && 'text-status-risco')}>
             {formatarMoeda(totais.saldo)}
           </p>
           <p className="text-muted-foreground text-xs">

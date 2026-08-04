@@ -124,8 +124,12 @@
     --sono: #b8941f;
     --sono-soft: #faf6e8;
 
-    /* Status */
-    --status-ok: #4f9d69;
+    /* Status — deliberadamente distinto das cores de pilar.
+       O verde de "ok" era o mesmo hex do Financeiro, então saldo positivo e
+       identidade do pilar competiam pelo mesmo significado. Este puxa para o
+       ciano-verde: continua lendo como "tudo certo", mas não se confunde com
+       o verde do pilar quando os dois aparecem juntos. */
+    --status-ok: #2f8b6d;
     --status-atencao: #b8941f;
     --status-risco: #c4554d;
 
@@ -179,7 +183,7 @@
     --sono: #d9bc5c;
     --sono-soft: #2d2a1e;
 
-    --status-ok: #7fbf95;
+    --status-ok: #6cc0a5;
     --status-atencao: #d9bc5c;
     --status-risco: #d97970;
 

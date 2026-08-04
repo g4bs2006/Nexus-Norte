@@ -46,7 +46,9 @@ export default function CategoriaDetalhePage() {
   if (categorias.isPending) {
     return (
       <>
-        <PageHeader titulo="Categoria" />
+        <PageHeader titulo="Categoria"
+        pilar="financeiro"
+      />
         <SkeletonPagina variante="detalhe" />
       </>
     )
@@ -58,7 +60,8 @@ export default function CategoriaDetalhePage() {
         <PageHeader
           titulo="Categoria não encontrada"
           descricao="Esta categoria não existe ou foi excluída."
-        />
+        pilar="financeiro"
+      />
         <Button asChild variant="secondary" size="sm">
           <Link to="/financeiro">
             <ArrowLeft className="size-4" />

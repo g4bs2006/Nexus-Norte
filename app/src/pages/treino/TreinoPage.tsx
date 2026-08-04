@@ -117,7 +117,10 @@ export default function TreinoPage() {
   if (treinos.isPending) {
     return (
       <>
-        <PageHeader titulo="Treino" />
+        <PageHeader titulo="Treino"
+        pilar="treino"
+        icone={Dumbbell}
+      />
         <SkeletonPagina variante="lista" />
       </>
     )
@@ -126,7 +129,10 @@ export default function TreinoPage() {
   if (treinos.isError) {
     return (
       <>
-        <PageHeader titulo="Treino" />
+        <PageHeader titulo="Treino"
+        pilar="treino"
+        icone={Dumbbell}
+      />
         <Card className="border-status-risco/40">
           <CardContent className="text-status-risco text-sm">
             Erro ao carregar: {treinos.error.message}

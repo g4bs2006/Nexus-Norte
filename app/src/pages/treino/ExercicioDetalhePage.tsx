@@ -97,7 +97,9 @@ export default function ExercicioDetalhePage() {
   if (exercicios.isPending) {
     return (
       <>
-        <PageHeader titulo="Exercício" />
+        <PageHeader titulo="Exercício"
+        pilar="treino"
+      />
         <SkeletonPagina variante="detalhe" />
       </>
     )
@@ -109,7 +111,8 @@ export default function ExercicioDetalhePage() {
         <PageHeader
           titulo="Exercício não encontrado"
           descricao="Este exercício não existe ou foi excluído."
-        />
+        pilar="treino"
+      />
         <Button asChild variant="secondary" size="sm">
           <Link to="/treino">
             <ArrowLeft className="size-4" />

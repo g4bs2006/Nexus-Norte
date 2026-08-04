@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { getDate, getDaysInMonth } from 'date-fns'
+import { Wallet } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
 import { SkeletonPagina } from '@/components/Skeletons'
 import { Card, CardContent } from '@/components/ui/card'
@@ -118,7 +119,10 @@ export default function FinanceiroPage() {
   if (categorias.isPending) {
     return (
       <>
-        <PageHeader titulo="Financeiro" />
+        <PageHeader titulo="Financeiro"
+        pilar="financeiro"
+        icone={Wallet}
+      />
         <SkeletonPagina variante="financeiro" />
       </>
     )
@@ -127,7 +131,10 @@ export default function FinanceiroPage() {
   if (categorias.isError) {
     return (
       <>
-        <PageHeader titulo="Financeiro" />
+        <PageHeader titulo="Financeiro"
+        pilar="financeiro"
+        icone={Wallet}
+      />
         <Card className="border-status-risco/40">
           <CardContent className="text-status-risco text-sm">
             Erro ao carregar: {categorias.error.message}

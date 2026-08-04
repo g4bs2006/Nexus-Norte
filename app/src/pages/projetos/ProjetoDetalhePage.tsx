@@ -90,7 +90,9 @@ export default function ProjetoDetalhePage() {
   if (projetos.isPending) {
     return (
       <>
-        <PageHeader titulo="Projeto" />
+        <PageHeader titulo="Projeto"
+        pilar="projetos"
+      />
         <SkeletonPagina variante="detalhe" />
       </>
     )
@@ -102,7 +104,8 @@ export default function ProjetoDetalhePage() {
         <PageHeader
           titulo="Projeto não encontrado"
           descricao="Este projeto não existe ou foi excluído."
-        />
+        pilar="projetos"
+      />
         <Button asChild variant="secondary" size="sm">
           <Link to="/projetos">
             <ArrowLeft className="size-4" />

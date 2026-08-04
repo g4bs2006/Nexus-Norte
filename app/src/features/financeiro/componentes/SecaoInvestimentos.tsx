@@ -44,13 +44,8 @@ export function SecaoInvestimentos({
         </div>
         <div className="space-y-1">
           <p className="text-muted-foreground text-xs">Rendimento no mês</p>
-          <p
-            className={cn(
-              'metric-md',
-              rendimentos > 0 && 'text-status-ok',
-              rendimentos < 0 && 'text-status-risco',
-            )}
-          >
+          {/* Só prejuízo ganha cor — rendimento positivo é o esperado */}
+          <p className={cn('metric-md', rendimentos < 0 && 'text-status-risco')}>
             {formatarMoeda(rendimentos)}
           </p>
         </div>

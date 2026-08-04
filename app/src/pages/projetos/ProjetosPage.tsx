@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { FolderKanban } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
 import { SkeletonPagina } from '@/components/Skeletons'
 import { Card, CardContent } from '@/components/ui/card'
@@ -55,7 +56,10 @@ export default function ProjetosPage() {
   if (projetos.isPending) {
     return (
       <>
-        <PageHeader titulo="Projetos" />
+        <PageHeader titulo="Projetos"
+        pilar="projetos"
+        icone={FolderKanban}
+      />
         <SkeletonPagina variante="grade" />
       </>
     )
@@ -64,7 +68,10 @@ export default function ProjetosPage() {
   if (projetos.isError) {
     return (
       <>
-        <PageHeader titulo="Projetos" />
+        <PageHeader titulo="Projetos"
+        pilar="projetos"
+        icone={FolderKanban}
+      />
         <Card className="border-status-risco/40">
           <CardContent className="text-status-risco text-sm">
             Erro ao carregar: {projetos.error.message}
@@ -79,6 +86,8 @@ export default function ProjetosPage() {
       <PageHeader
         titulo="Projetos"
         descricao="Marcos, log de progresso e momentum."
+        pilar="projetos"
+        icone={FolderKanban}
         acoes={<DialogProjeto hoje={hoje} />}
       />
 

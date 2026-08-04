@@ -79,7 +79,9 @@ export default function MateriaDetalhePage() {
   if (materias.isPending) {
     return (
       <>
-        <PageHeader titulo="Matéria" />
+        <PageHeader titulo="Matéria"
+        pilar="estudos"
+      />
         <SkeletonPagina variante="detalhe" />
       </>
     )
@@ -91,7 +93,8 @@ export default function MateriaDetalhePage() {
         <PageHeader
           titulo="Matéria não encontrada"
           descricao="Esta matéria não existe ou foi excluída."
-        />
+        pilar="estudos"
+      />
         <Button asChild variant="secondary" size="sm">
           <Link to="/estudos">
             <ArrowLeft className="size-4" />
