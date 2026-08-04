@@ -1,0 +1,47 @@
+import type { Tables } from '@/types/database'
+import type { Status } from '@/features/financeiro/types'
+
+/** Tipos de domínio de Estudos — estreitam as colunas `text` com CHECK. */
+
+export type TipoDocumento =
+  | 'lista'
+  | 'livro'
+  | 'anotacao'
+  | 'ementa'
+  | 'prova_anterior'
+
+export type TipoCalculoMedia = 'ponderada' | 'manual'
+export type StatusExcecao = 'cancelado' | 'remarcado'
+
+export type Materia = Tables<'materias'>
+
+export type Documento = Omit<Tables<'documentos'>, 'tipo'> & {
+  tipo: TipoDocumento
+}
+
+export type Falta = Tables<'faltas'>
+export type Avaliacao = Tables<'avaliacoes'>
+export type RegistroLista = Tables<'registro_listas'>
+export type SessaoEstudo = Tables<'sessoes_estudo'>
+export type FluxogramaSemanal = Tables<'fluxograma_semanal'>
+
+export type ConfigCalculoMedia = Omit<
+  Tables<'config_calculo_media'>,
+  'tipo'
+> & {
+  tipo: TipoCalculoMedia
+}
+
+export type ExcecaoFluxograma = Omit<Tables<'excecoes_fluxograma'>, 'status'> & {
+  status: StatusExcecao
+}
+
+export type { Status }
+
+export const ROTULOS_TIPO_DOCUMENTO: Record<TipoDocumento, string> = {
+  lista: 'Lista',
+  livro: 'Livro',
+  anotacao: 'Anotação',
+  ementa: 'Ementa',
+  prova_anterior: 'Prova anterior',
+}

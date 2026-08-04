@@ -235,6 +235,339 @@ export type Database = {
         }
         Relationships: []
       }
+      materias: {
+        Row: {
+          carga_horaria_total: number | null
+          created_at: string
+          id: string
+          limite_faltas: number
+          media_atual: number | null
+          nome: string
+          professor: string | null
+          semestre: string | null
+        }
+        Insert: {
+          carga_horaria_total?: number | null
+          created_at?: string
+          id?: string
+          limite_faltas?: number
+          media_atual?: number | null
+          nome: string
+          professor?: string | null
+          semestre?: string | null
+        }
+        Update: {
+          carga_horaria_total?: number | null
+          created_at?: string
+          id?: string
+          limite_faltas?: number
+          media_atual?: number | null
+          nome?: string
+          professor?: string | null
+          semestre?: string | null
+        }
+        Relationships: []
+      }
+      documentos: {
+        Row: {
+          created_at: string
+          id: string
+          materia_id: string
+          nome: string
+          storage_path: string
+          tipo: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          materia_id: string
+          nome: string
+          storage_path: string
+          tipo: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          materia_id?: string
+          nome?: string
+          storage_path?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'documentos_materia_id_fkey'
+            columns: ['materia_id']
+            isOneToOne: false
+            referencedRelation: 'materias'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      faltas: {
+        Row: {
+          data: string
+          id: string
+          materia_id: string
+          motivo: string | null
+        }
+        Insert: {
+          data: string
+          id?: string
+          materia_id: string
+          motivo?: string | null
+        }
+        Update: {
+          data?: string
+          id?: string
+          materia_id?: string
+          motivo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'faltas_materia_id_fkey'
+            columns: ['materia_id']
+            isOneToOne: false
+            referencedRelation: 'materias'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      avaliacoes: {
+        Row: {
+          created_at: string
+          data: string | null
+          id: string
+          materia_id: string
+          nome: string
+          nota: number | null
+          peso: number
+        }
+        Insert: {
+          created_at?: string
+          data?: string | null
+          id?: string
+          materia_id: string
+          nome: string
+          nota?: number | null
+          peso: number
+        }
+        Update: {
+          created_at?: string
+          data?: string | null
+          id?: string
+          materia_id?: string
+          nome?: string
+          nota?: number | null
+          peso?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'avaliacoes_materia_id_fkey'
+            columns: ['materia_id']
+            isOneToOne: false
+            referencedRelation: 'materias'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      config_calculo_media: {
+        Row: {
+          id: string
+          materia_id: string
+          nota_manual: number | null
+          observacao: string | null
+          tipo: string
+        }
+        Insert: {
+          id?: string
+          materia_id: string
+          nota_manual?: number | null
+          observacao?: string | null
+          tipo: string
+        }
+        Update: {
+          id?: string
+          materia_id?: string
+          nota_manual?: number | null
+          observacao?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'config_calculo_media_materia_id_fkey'
+            columns: ['materia_id']
+            isOneToOne: true
+            referencedRelation: 'materias'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      registro_listas: {
+        Row: {
+          created_at: string
+          data: string
+          id: string
+          materia_id: string
+          nome_lista: string
+          questoes_erradas: number[]
+          topico: string | null
+          total_questoes: number
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          id?: string
+          materia_id: string
+          nome_lista: string
+          questoes_erradas?: number[]
+          topico?: string | null
+          total_questoes: number
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          id?: string
+          materia_id?: string
+          nome_lista?: string
+          questoes_erradas?: number[]
+          topico?: string | null
+          total_questoes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'registro_listas_materia_id_fkey'
+            columns: ['materia_id']
+            isOneToOne: false
+            referencedRelation: 'materias'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      sessoes_estudo: {
+        Row: {
+          created_at: string
+          data: string
+          duracao_minutos: number
+          id: string
+          materia_id: string
+          meta_diaria_minutos: number | null
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          duracao_minutos: number
+          id?: string
+          materia_id: string
+          meta_diaria_minutos?: number | null
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          duracao_minutos?: number
+          id?: string
+          materia_id?: string
+          meta_diaria_minutos?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'sessoes_estudo_materia_id_fkey'
+            columns: ['materia_id']
+            isOneToOne: false
+            referencedRelation: 'materias'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      fluxograma_semanal: {
+        Row: {
+          dia_semana: number
+          horario_fim: string
+          horario_inicio: string
+          id: string
+          materia_id: string
+        }
+        Insert: {
+          dia_semana: number
+          horario_fim: string
+          horario_inicio: string
+          id?: string
+          materia_id: string
+        }
+        Update: {
+          dia_semana?: number
+          horario_fim?: string
+          horario_inicio?: string
+          id?: string
+          materia_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'fluxograma_semanal_materia_id_fkey'
+            columns: ['materia_id']
+            isOneToOne: false
+            referencedRelation: 'materias'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      conclusoes_fluxograma: {
+        Row: {
+          created_at: string
+          data: string
+          fluxograma_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          fluxograma_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          fluxograma_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'conclusoes_fluxograma_fluxograma_id_fkey'
+            columns: ['fluxograma_id']
+            isOneToOne: false
+            referencedRelation: 'fluxograma_semanal'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      excecoes_fluxograma: {
+        Row: {
+          data: string
+          fluxograma_id: string
+          id: string
+          status: string
+        }
+        Insert: {
+          data: string
+          fluxograma_id: string
+          id?: string
+          status: string
+        }
+        Update: {
+          data?: string
+          fluxograma_id?: string
+          id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'excecoes_fluxograma_fluxograma_id_fkey'
+            columns: ['fluxograma_id']
+            isOneToOne: false
+            referencedRelation: 'fluxograma_semanal'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: {
       receita_mensal: {
@@ -263,6 +596,10 @@ export type Database = {
       }
     }
     Functions: {
+      calcular_media_materia: {
+        Args: { p_materia_id: string }
+        Returns: number
+      }
       candidatos_corte: {
         Args: never
         Returns: {

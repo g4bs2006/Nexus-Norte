@@ -12,6 +12,17 @@
 export const NOTA_MINIMA_APROVACAO = 6.0
 
 /**
+ * Margem acima da nota mínima dentro da qual a matéria entra em 🟡 atenção,
+ * mesmo sem estar reprovada (plano 3.2 — `risco_reprovacao`).
+ */
+export const MARGEM_ATENCAO_MEDIA = 1
+
+/**
+ * Faltas restantes a partir das quais a matéria entra em 🟡 atenção.
+ */
+export const FALTAS_ATENCAO = 2
+
+/**
  * Dias sem log de progresso a partir dos quais um projeto é considerado
  * "momentum baixo" e esfria visualmente (plano 5.2).
  */

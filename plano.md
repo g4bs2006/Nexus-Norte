@@ -499,3 +499,39 @@ estendida na Fase 3 (adicionando `treino_id` e o check constraint final).
 Consequência nas seções 3.4 e 4.4: a query dos checks diários deixa de filtrar
 por `pilar = 'estudos'` e passa a filtrar por `materia_id is not null` /
 `treino_id is not null`.
+
+### 10.14 Data das avaliações (corrige 3.1) — descoberta na Fase 2
+`dias_para_proxima_avaliacao` (3.2) e as provas no Calendário (6.1) dependem da
+data da avaliação, mas `avaliacoes` não tinha essa coluna. Adicionada:
+```sql
+avaliacoes (
+  ..., data date null  -- null = data ainda não marcada
+)
+```
+Avaliações sem data são ignoradas na contagem regressiva — não há como
+projetá-las no calendário.
+
+### 10.15 Persistência do check derivado (completa 3.4 / 4.4) — descoberta na Fase 2
+As seções 3.4 e 4.4 pedem check diário "derivado do fluxograma, com toggle de
+concluído". A derivação resolve **quais** itens aparecem no dia, mas o estado de
+conclusão precisa ser gravado — e `checks_diarios` só tem os campos do
+Financeiro.
+
+Nova tabela, modelada como presença:
+```sql
+conclusoes_fluxograma (
+  id, fluxograma_id references fluxograma_semanal on delete cascade,
+  data date, unique (fluxograma_id, data)
+)
+```
+Existir a linha significa "concluído"; desmarcar **apaga** a linha em vez de
+gravar `false`. Assim a tabela só registra o que de fato aconteceu e não
+pré-gera linhas para todo dia do calendário — coerente com a decisão de não
+materializar a recorrência (10.5).
+
+### 10.16 Referência pendente no plano (3.3)
+A seção 3.3 menciona "Registro de listas de exercícios (Opção C, começando pela
+Opção A)", mas essas opções não estão definidas em nenhum ponto do documento.
+Implementado o que a própria seção descreve: formulário pós-lista com total de
+questões, quais errou e tópico. Se as opções A/C tinham outro escopo, isso
+precisa ser revisitado.

@@ -1,0 +1,237 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import * as api from './api'
+
+/**
+ * Chaves de cache de Estudos. Como no Financeiro, toda mutation invalida a raiz
+ * `['estudos']`: nota, falta e configuração de média afetam a média resumo, o
+ * semáforo de risco e os cards de listagem ao mesmo tempo.
+ */
+export const chaves = {
+  raiz: ['estudos'] as const,
+  materias: () => ['estudos', 'materias'] as const,
+  avaliacoes: () => ['estudos', 'avaliacoes'] as const,
+  faltas: () => ['estudos', 'faltas'] as const,
+  sessoes: (de?: string, ate?: string) =>
+    ['estudos', 'sessoes', de ?? 'todas', ate ?? 'todas'] as const,
+  configMedia: (materiaId: string) =>
+    ['estudos', 'config-media', materiaId] as const,
+  documentos: (materiaId: string) =>
+    ['estudos', 'documentos', materiaId] as const,
+  registroListas: (materiaId: string) =>
+    ['estudos', 'registro-listas', materiaId] as const,
+  fluxograma: () => ['estudos', 'fluxograma'] as const,
+  excecoes: (de: string, ate: string) =>
+    ['estudos', 'excecoes', de, ate] as const,
+  conclusoes: (data: string) => ['estudos', 'conclusoes', data] as const,
+}
+
+// --- Leitura ----------------------------------------------------------------
+
+export function useMaterias() {
+  return useQuery({ queryKey: chaves.materias(), queryFn: api.listarMaterias })
+}
+
+export function useAvaliacoes() {
+  return useQuery({
+    queryKey: chaves.avaliacoes(),
+    queryFn: api.listarAvaliacoes,
+  })
+}
+
+export function useFaltas() {
+  return useQuery({ queryKey: chaves.faltas(), queryFn: api.listarFaltas })
+}
+
+export function useSessoes(de?: string, ate?: string) {
+  return useQuery({
+    queryKey: chaves.sessoes(de, ate),
+    queryFn: () => api.listarSessoes(de, ate),
+  })
+}
+
+export function useConfigMedia(materiaId: string | undefined) {
+  return useQuery({
+    queryKey: chaves.configMedia(materiaId ?? ''),
+    queryFn: () => api.obterConfigMedia(materiaId as string),
+    enabled: Boolean(materiaId),
+  })
+}
+
+export function useDocumentos(materiaId: string | undefined) {
+  return useQuery({
+    queryKey: chaves.documentos(materiaId ?? ''),
+    queryFn: () => api.listarDocumentos(materiaId as string),
+    enabled: Boolean(materiaId),
+  })
+}
+
+export function useRegistroListas(materiaId: string | undefined) {
+  return useQuery({
+    queryKey: chaves.registroListas(materiaId ?? ''),
+    queryFn: () => api.listarRegistroListas(materiaId as string),
+    enabled: Boolean(materiaId),
+  })
+}
+
+export function useFluxograma() {
+  return useQuery({
+    queryKey: chaves.fluxograma(),
+    queryFn: api.listarFluxograma,
+  })
+}
+
+export function useExcecoes(de: string, ate: string) {
+  return useQuery({
+    queryKey: chaves.excecoes(de, ate),
+    queryFn: () => api.listarExcecoes(de, ate),
+  })
+}
+
+// --- Escrita ----------------------------------------------------------------
+
+function useMutationEstudos<TVariaveis>(
+  fn: (variaveis: TVariaveis) => Promise<void>,
+  mensagemSucesso: string,
+) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: chaves.raiz })
+      toast.success(mensagemSucesso)
+    },
+    onError: (erro: Error) => toast.error(erro.message),
+  })
+}
+
+export function useCriarMateria() {
+  return useMutationEstudos(api.criarMateria, 'Matéria criada')
+}
+
+export function useAtualizarMateria() {
+  return useMutationEstudos(
+    ({
+      id,
+      dados,
+    }: {
+      id: string
+      dados: Parameters<typeof api.atualizarMateria>[1]
+    }) => api.atualizarMateria(id, dados),
+    'Matéria atualizada',
+  )
+}
+
+export function useExcluirMateria() {
+  return useMutationEstudos(api.excluirMateria, 'Matéria excluída')
+}
+
+export function useCriarAvaliacao() {
+  return useMutationEstudos(api.criarAvaliacao, 'Avaliação criada')
+}
+
+export function useAtualizarAvaliacao() {
+  return useMutationEstudos(
+    ({
+      id,
+      dados,
+    }: {
+      id: string
+      dados: Parameters<typeof api.atualizarAvaliacao>[1]
+    }) => api.atualizarAvaliacao(id, dados),
+    'Avaliação atualizada',
+  )
+}
+
+export function useExcluirAvaliacao() {
+  return useMutationEstudos(api.excluirAvaliacao, 'Avaliação excluída')
+}
+
+export function useSalvarConfigMedia() {
+  return useMutationEstudos(
+    ({
+      materiaId,
+      config,
+    }: {
+      materiaId: string
+      config: Parameters<typeof api.salvarConfigMedia>[1]
+    }) => api.salvarConfigMedia(materiaId, config),
+    'Cálculo da média atualizado',
+  )
+}
+
+export function useCriarFalta() {
+  return useMutationEstudos(api.criarFalta, 'Falta registrada')
+}
+
+export function useExcluirFalta() {
+  return useMutationEstudos(api.excluirFalta, 'Falta removida')
+}
+
+export function useCriarSessao() {
+  return useMutationEstudos(api.criarSessao, 'Sessão registrada')
+}
+
+export function useExcluirSessao() {
+  return useMutationEstudos(api.excluirSessao, 'Sessão removida')
+}
+
+export function useCriarRegistroLista() {
+  return useMutationEstudos(api.criarRegistroLista, 'Lista registrada')
+}
+
+export function useExcluirRegistroLista() {
+  return useMutationEstudos(api.excluirRegistroLista, 'Registro removido')
+}
+
+export function useEnviarDocumento() {
+  return useMutationEstudos(api.enviarDocumento, 'Documento enviado')
+}
+
+export function useExcluirDocumento() {
+  return useMutationEstudos(
+    ({ id, storagePath }: { id: string; storagePath: string }) =>
+      api.excluirDocumento(id, storagePath),
+    'Documento excluído',
+  )
+}
+
+export function useConclusoes(data: string) {
+  return useQuery({
+    queryKey: chaves.conclusoes(data),
+    queryFn: () => api.listarConclusoes(data),
+  })
+}
+
+/**
+ * Toggle de conclusão. Não emite toast: é um check de rotina, marcado várias
+ * vezes ao dia — notificar cada clique seria ruído.
+ */
+export function useDefinirConclusao() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      fluxogramaId,
+      data,
+      concluido,
+    }: {
+      fluxogramaId: string
+      data: string
+      concluido: boolean
+    }) => api.definirConclusao(fluxogramaId, data, concluido),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: chaves.raiz })
+    },
+    onError: (erro: Error) => toast.error(erro.message),
+  })
+}
+
+export function useCriarFluxograma() {
+  return useMutationEstudos(api.criarFluxograma, 'Horário adicionado')
+}
+
+export function useExcluirFluxograma() {
+  return useMutationEstudos(api.excluirFluxograma, 'Horário removido')
+}

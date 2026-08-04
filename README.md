@@ -27,7 +27,7 @@ plano registra as resoluções de lacunas decididas antes da implementação —
 | --- | --- | --- |
 | 0 | Fundação — setup, design system, schema base, shell de layout | ✅ Concluída |
 | 1 | Financeiro | ✅ Concluída |
-| 2 | Estudos | ⬜ Pendente |
+| 2 | Estudos | ✅ Concluída |
 | 3 | Treino | ⬜ Pendente |
 | 4 | Projetos | ⬜ Pendente |
 | 5 | Calendário unificado | ⬜ Pendente |
@@ -68,6 +68,26 @@ plano registra as resoluções de lacunas decididas antes da implementação —
 **Decisão desta fase:** o plano pedia card "Receita vs. Despesa" e
 `meta_tipo = 'percentual_renda'`, mas não modelava receita. Resolvido com a
 coluna `natureza` em `categorias` — ver resolução 10.12 no plano.
+
+### Fase 2 — Estudos
+
+- Schema: `materias`, `documentos`, `faltas`, `avaliacoes`,
+  `config_calculo_media`, `registro_listas`, `sessoes_estudo`
+- `fluxograma_semanal` + `excecoes_fluxograma` com FK real (resoluções 10.5/10.6)
+- `conclusoes_fluxograma` para persistir o check derivado (resolução 10.15)
+- Trigger de campo-resumo `materias.media_atual`, nos dois modos de cálculo
+- Cálculos como funções puras: média, média projetada, risco de reprovação,
+  frequência de estudo, próxima avaliação, percentual de acerto
+- Expansão de recorrência no cliente (`lib/recorrencia.ts`), com testes
+- Grid de cards de matéria com semáforo e contagem regressiva
+- Sub-página com 5 abas: Avaliações, Faltas, Sessões, Documentos, Listas
+- Upload de documentos no bucket privado, acesso por URL assinada
+- Grade de fluxograma semanal (componente compartilhado com Treino)
+- Checks diários derivados do fluxograma
+
+**Decisões desta fase:** `avaliacoes` ganhou coluna `data` (resolução 10.14) e
+foi criada `conclusoes_fluxograma` (resolução 10.15) — o plano pedia o toggle de
+concluído sem definir onde guardá-lo.
 
 ## Estrutura
 
