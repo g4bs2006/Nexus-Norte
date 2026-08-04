@@ -19,3 +19,6 @@ Thumbs.db
 
 # Saída do graphify — grafo regenerável, não versionado
 graphify-out/
+
+# Previews gerados do design system (rode design-system/gerar.py)
+design-system/out/
