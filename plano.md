@@ -637,3 +637,58 @@ restaurá-la. Aparecer riscada também é mais honesto sobre o que houve no dia.
 **Horário nulo é intencional.** Quando a remarcação só muda o dia, os horários
 ficam nulos e a ocorrência herda o do padrão — assim, mudar o padrão depois
 continua valendo para ela. Só grava horário próprio quem de fato mexeu no campo.
+
+### 10.20 Calendário: agenda no lugar da grade (reestrutura 6.1 / 6.2) — descoberta em uso
+A grade de mês respondia a pergunta errada. Grade serve para **agendar**, isto é,
+achar espaço livre — e aqui nada é agendado em espaço livre: a rotina está fixa no
+fluxograma e prova, conta e marco chegam com data colada. A pergunta real é "o que
+vem, e onde a semana aperta".
+
+Quatro problemas concretos da grade:
+
+1. **Peso visual igual para rotina e prazo.** Cerca de 20 ocorrências de aula e
+   treino por semana contra 1 ou 2 prazos, todas como bloco sólido colorido. É o
+   mesmo defeito que a Home tinha (a prova afogada na rotina), mas estrutural.
+2. **`dayMaxEvents` cortava por ordem de inserção**, então a prova tinha a mesma
+   chance de cair no "+2" que o terceiro treino.
+3. **Sono como `display: background`** tingia a célula inteira na vista de mês;
+   só funcionava na semana.
+4. **Chips de camada eram filtro, não informação** — não diziam nada até o
+   clique. E "Aulas e provas" numa camada só impedia separar rotina de prazo,
+   distinção que `TipoEvento` já carregava no dado.
+
+**Regra de apresentação nova: cor marca a camada, peso marca a natureza.** Rotina
+é filete na cor do pilar, sem preenchimento; prazo é preenchimento sólido; sono é
+tinta ao fundo. Derivada de `ehImportante()`, que já existia. Vale na agenda e
+também na grade de mês.
+
+**Estrutura.** A vista padrão é a semana: uma faixa de carga por cima e uma agenda
+com uma linha por dia abaixo. A faixa separa em dois eixos o que a grade misturava
+— **altura** da barra é tempo já comprometido pela rotina, segmentado por pilar;
+**marca acima** é o que vence no dia. Clicar num dia da faixa leva a agenda até
+ele. A grade de mês continua disponível, atrás de um botão.
+
+**Dois sinais a mais na faixa**, ambos só para dias passados, porque marcar o
+futuro como falha seria mentira: um traço quando o sono ficou abaixo da meta, e um
+anel quando havia rotina prevista e o check não saiu. São formas e não cores — no
+tema claro `--sono` e `--status-atencao` são o mesmo hex, então cor ali não
+distinguiria nada.
+
+**`origemId` em `EventoCalendario`.** O id do evento é composto
+(`fluxograma:regra:data`); a faixa precisa do id da regra, que é o que
+`conclusoes_fluxograma` referencia. O campo existe para ninguém precisar fatiar o
+id composto de volta.
+
+**Ganho de bundle.** O FullCalendar saiu para um módulo próprio carregado por
+`React.lazy`: a página caiu de 67,8 kB para 4,3 kB gzip, e os 66,5 kB só descem
+para quem abre a vista de mês.
+
+**`PainelImportantes` foi removido.** A agenda mostra prazo antes da rotina em cada
+dia, então o painel repetia a mesma resposta na mesma página. A Home segue com
+`eventosComPrazo` para a versão de relance.
+
+**Consulta condicional.** `useFontesCalendario` ganhou `comCarga`, desligado por
+padrão: a Home usa o mesmo hook e as duas consultas da faixa seriam requisições
+por nada. Ficam fora da lista de `carregando` quando desligadas — query
+desabilitada permanece `pending` no React Query, e contá-la deixaria a página
+carregando para sempre.

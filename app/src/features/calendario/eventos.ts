@@ -42,6 +42,13 @@ export interface EventoCalendario {
   tipo: TipoEvento
   /** Destino ao clicar. Ausente quando não há página para onde ir. */
   rota?: string
+  /**
+   * Id da linha de origem, sem a data. Nos eventos de fluxograma é o id da
+   * regra, que é o que `conclusoes_fluxograma` referencia — a faixa de carga usa
+   * para saber se o check daquele dia saiu. Existe para não obrigar ninguém a
+   * fatiar o `id` composto de volta.
+   */
+  origemId?: string
 }
 
 export interface Intervalo {
@@ -170,6 +177,7 @@ export function eventosFluxograma(
 
       return {
         id: `fluxograma:${regra.id}:${data}`,
+        origemId: regra.id,
         titulo: remarcada ? `${nome} (remarcado)` : nome,
         inicio: comHorario(data, regra.horario_inicio),
         fim: comHorario(data, regra.horario_fim),
@@ -298,7 +306,7 @@ export interface EventoComPrazo extends EventoCalendario {
 /**
  * Só os compromissos datados, ordenados pelo mais próximo.
  *
- * Alimenta o painel lateral do calendário e os próximos eventos da Home. Sem
+ * Alimenta os próximos eventos da Home. Sem
  * este filtro, as ~20 ocorrências de aula e treino de duas semanas ocupariam
  * todos os lugares e a prova nunca apareceria.
  */

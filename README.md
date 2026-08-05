@@ -245,6 +245,38 @@ mudar o padrão depois continua valendo para ela.
 Detalhes e o que mudou na expansão da recorrência em
 [`plano.md`, resolução 10.19](./plano.md).
 
+## Calendário
+
+A grade de mês respondia a pergunta errada. Grade serve para **agendar** — achar
+espaço livre — e aqui nada é agendado em espaço livre: a rotina está fixa no
+fluxograma e prova, conta e marco chegam com data colada. A pergunta real é o que
+vem e onde a semana aperta.
+
+A vista padrão passou a ser a semana, em duas partes:
+
+**A faixa de carga**, no topo, separa em dois eixos o que a grade misturava num
+bloco colorido só. A altura da barra é o tempo já comprometido pela rotina,
+segmentado por pilar; as marcas acima são o que vence naquele dia. Clicar num dia
+leva a agenda até ele.
+
+Dois sinais a mais, só em dias passados — marcar o futuro como falha seria
+mentira: um traço quando o sono ficou abaixo da meta, um anel quando havia rotina
+prevista e o check não saiu.
+
+**A agenda**, abaixo, com uma linha por dia. Prazo aparece antes da rotina,
+independente do horário. Dia vazio mantém a linha, porque "quarta está livre" é
+uma resposta.
+
+A regra de apresentação valendo nas duas vistas: **cor marca a camada, peso marca
+a natureza.** Rotina é filete na cor do pilar; prazo é preenchimento sólido; sono
+é tinta ao fundo. Antes tudo era bloco cheio, e uma prova pesava igual à terceira
+aula da semana.
+
+A grade de mês continua ali, atrás do botão "Mês" — e agora só é baixada por quem
+a abre. Isso tirou 63 kB gzip do carregamento da página.
+
+Detalhes em [`plano.md`, resolução 10.20](./plano.md).
+
 ## Estrutura
 
 ```

@@ -6,6 +6,7 @@ import type {
   FonteMarco,
   FontePlanejamentoSono,
 } from './eventos'
+import type { FonteSonoRealizado } from './carga'
 
 /**
  * Leitura das fontes do calendário (plano 6.1).
@@ -92,6 +93,43 @@ export async function marcosComData(): Promise<FonteMarco[]> {
     projeto_id: linha.projeto_id,
     projeto_nome: linha.projetos.nome,
   }))
+}
+
+/**
+ * Sono realizado no intervalo, para a faixa de carga cruzar carga com
+ * recuperação. `horas_calculadas` é coluna gerada — o cálculo que atravessa a
+ * meia-noite já está no banco.
+ */
+export async function sonoRealizado(
+  de: string,
+  ate: string,
+): Promise<FonteSonoRealizado[]> {
+  const { data, error } = await supabase
+    .from('registro_sono')
+    .select('data, horas_calculadas')
+    .gte('data', de)
+    .lte('data', ate)
+  if (error) throw new Error(error.message)
+  return data ?? []
+}
+
+/**
+ * Pares `fluxograma_id@data` concluídos no intervalo.
+ *
+ * Presença = concluído (resolução 10.15). A faixa usa para marcar o dia em que a
+ * rotina estava prevista e o check não saiu.
+ */
+export async function conclusoesNoIntervalo(
+  de: string,
+  ate: string,
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('conclusoes_fluxograma')
+    .select('fluxograma_id, data')
+    .gte('data', de)
+    .lte('data', ate)
+  if (error) throw new Error(error.message)
+  return (data ?? []).map((linha) => `${linha.fluxograma_id}@${linha.data}`)
 }
 
 export async function nomesMaterias(): Promise<Map<string, string>> {

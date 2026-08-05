@@ -14,11 +14,27 @@ export const chaves = {
     ['calendario', 'excecoes', de, ate] as const,
   contas: () => ['calendario', 'contas'] as const,
   sono: () => ['calendario', 'sono'] as const,
+  sonoRealizado: (de: string, ate: string) =>
+    ['calendario', 'sono-realizado', de, ate] as const,
+  conclusoes: (de: string, ate: string) =>
+    ['calendario', 'conclusoes', de, ate] as const,
   marcos: () => ['calendario', 'marcos'] as const,
   nomes: () => ['calendario', 'nomes'] as const,
 }
 
-export function useFontesCalendario(de: string, ate: string) {
+/**
+ * `comCarga` liga as duas consultas que só a faixa de carga usa.
+ *
+ * Desligado por padrão porque a Home também chama este hook, e lá elas seriam
+ * duas requisições por nada. Ficam fora de `consultas` quando desligadas: uma
+ * query desabilitada permanece com status `pending` no React Query, e contá-la
+ * deixaria `carregando` verdadeiro para sempre.
+ */
+export function useFontesCalendario(
+  de: string,
+  ate: string,
+  { comCarga = false }: { comCarga?: boolean } = {},
+) {
   const avaliacoes = useQuery({
     queryKey: chaves.avaliacoes(),
     queryFn: api.avaliacoesComData,
@@ -43,6 +59,17 @@ export function useFontesCalendario(de: string, ate: string) {
     queryKey: chaves.marcos(),
     queryFn: api.marcosComData,
   })
+  // Alimentam a faixa de carga: sono contra a meta, e check que não saiu
+  const sonoFeito = useQuery({
+    queryKey: chaves.sonoRealizado(de, ate),
+    queryFn: () => api.sonoRealizado(de, ate),
+    enabled: comCarga,
+  })
+  const conclusoes = useQuery({
+    queryKey: chaves.conclusoes(de, ate),
+    queryFn: () => api.conclusoesNoIntervalo(de, ate),
+    enabled: comCarga,
+  })
   const materias = useQuery({
     queryKey: [...chaves.nomes(), 'materias'],
     queryFn: api.nomesMaterias,
@@ -61,6 +88,7 @@ export function useFontesCalendario(de: string, ate: string) {
     marcos,
     materias,
     treinos,
+    ...(comCarga ? [sonoFeito, conclusoes] : []),
   ]
 
   return {
@@ -73,6 +101,14 @@ export function useFontesCalendario(de: string, ate: string) {
       marcos: marcos.data ?? [],
       nomePorMateria: materias.data ?? new Map<string, string>(),
       nomePorTreino: treinos.data ?? new Map<string, string>(),
+    },
+    /*
+     * Fora de `fontes` de propósito: `construirEventos` não usa nenhum dos dois.
+     * Só a faixa de carga usa, e misturar aqui faria parecer que viram evento.
+     */
+    carga: {
+      sonoRealizado: sonoFeito.data ?? [],
+      conclusoes: conclusoes.data ?? [],
     },
     carregando: consultas.some((consulta) => consulta.isPending),
     erro: consultas.find((consulta) => consulta.isError)?.error ?? null,
