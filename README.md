@@ -245,6 +245,30 @@ mudar o padrão depois continua valendo para ela.
 Detalhes e o que mudou na expansão da recorrência em
 [`plano.md`, resolução 10.19](./plano.md).
 
+## Registro de treino
+
+Cada série é salva no banco quando você confirma, não no fim da sessão. Antes tudo
+ficava na memória da tela até um botão final — anotar duas séries e sair do app,
+que é o que acontece com o celular na mão na academia, perdia tudo.
+
+A sessão nasce na primeira série gravada. Você pode fechar o app no meio do treino
+e voltar: a Home mostra **"Treino B em andamento · 4 séries salvas · Continuar"**, e
+o diálogo reabre com o que já estava lá. Só existe uma sessão aberta por vez — o
+banco garante isso com um índice único.
+
+Enquanto não estiver finalizada, a sessão **não conta** na frequência da semana.
+Treino abandonado no meio não é treino feito.
+
+Dois ganhos que vieram junto: o recorde é gravado no instante em que a série é
+salva, e a sessão passou a ter **duração** — do primeiro registro ao encerramento.
+
+O card "Treinos realizados" lista as sessões da semana e abre cada uma para ver
+exercício por exercício, com carga, reps, RPE e 1RM de cada série, além de volume
+total e quais recordes caíram ali. Também dá para apagar uma sessão registrada
+errado.
+
+Detalhes em [`plano.md`, resolução 10.21](./plano.md).
+
 ## Calendário
 
 A grade de mês respondia a pergunta errada. Grade serve para **agendar** — achar

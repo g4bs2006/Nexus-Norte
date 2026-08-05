@@ -81,6 +81,7 @@ import {
 } from '@/features/calendario/eventos'
 import { useFontesCalendario } from '@/features/calendario/hooks'
 import { MiniCard } from '@/features/home/componentes/MiniCard'
+import { AvisoTreinoAberto } from '@/features/treino/componentes/AvisoTreinoAberto'
 import { IndicadorSono } from '@/features/home/componentes/IndicadorSono'
 
 const EVENTOS_NA_HOME = 5
@@ -208,7 +209,10 @@ export default function HomePage() {
       listaExcecoes,
     ).length
     const frequencia = frequenciaSemana(
-      execucoesSemana.data?.length ?? 0,
+      // Só finalizadas: a sessão nasce na primeira série e pode ser abandonada
+      (execucoesSemana.data ?? []).filter(
+        (execucao) => execucao.finalizado_em !== null,
+      ).length,
       previstos,
     )
 
@@ -287,14 +291,18 @@ export default function HomePage() {
   }, [sonoOntem.data, planoSonoOntem.data])
 
   /** Checks do dia: financeiro + aulas + treinos, em lista única (plano 7.1). */
+  /** Nomes de treino, usados pelos checks e pelo aviso de sessão em andamento. */
+  const nomePorTreinoHome = useMemo(
+    () => new Map((treinos.data ?? []).map((item) => [item.id, item.nome])),
+    [treinos.data],
+  )
+
   const checksFluxograma = useMemo(() => {
     const concluidos = new Set(conclusoes.data ?? [])
     const nomeMateria = new Map(
       (materias.data ?? []).map((materia) => [materia.id, materia.nome]),
     )
-    const nomeTreino = new Map(
-      (treinos.data ?? []).map((item) => [item.id, item.nome]),
-    )
+    const nomeTreino = nomePorTreinoHome
 
     const aulas: ItemCheckFluxograma[] = ocorrenciasDoDia(
       fluxogramaEstudos.data ?? [],
@@ -329,7 +337,7 @@ export default function HomePage() {
   }, [
     conclusoes.data,
     materias.data,
-    treinos.data,
+    nomePorTreinoHome,
     fluxogramaEstudos.data,
     fluxogramaTreino.data,
     listaExcecoes,
@@ -423,6 +431,9 @@ export default function HomePage() {
       <PageHeader titulo="Home" descricao={format(hoje, "EEEE, d 'de' MMMM")} />
 
       <div className="space-y-6">
+        {/* Só aparece se houver treino em andamento (resolução 10.21) */}
+        <AvisoTreinoAberto nomePorTreino={nomePorTreinoHome} />
+
         {/*
           O dia — assinatura da Home (Bloco C do brief).
           Promovido a bloco de destaque: é a tese do plano ("checks são ação,

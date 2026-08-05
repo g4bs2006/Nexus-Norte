@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import {
+  formatarDuracao,
   frequenciaSemana,
   progressaoCarga,
   recordesPorExercicio,
   sessoesPorData,
+  sessoesRealizadas,
   sinalEstagnacao,
   umRmEstimado,
   volumeGrupoMuscular,
+  type SerieDeSessao,
 } from './calculos'
 
 describe('umRmEstimado', () => {
@@ -207,5 +210,164 @@ describe('recordesPorExercicio', () => {
 
   it('devolve lista vazia sem recordes', () => {
     expect(recordesPorExercicio([])).toEqual([])
+  })
+})
+
+describe('sessoesRealizadas', () => {
+  function serie(
+    parcial: Partial<SerieDeSessao> & { execucao_treino_id: string },
+  ): SerieDeSessao {
+    return {
+      id: `s-${Math.abs(parcial.carga_real ?? 0)}-${parcial.reps_reais ?? 0}`,
+      exercicio_id: 'ex-treino-1',
+      exercicio_base_id: 'supino',
+      carga_real: 100,
+      reps_reais: 5,
+      rpe: null,
+      data: '2026-08-05',
+      treino_id: 'treino-push',
+      execucao_criada_em: '2026-08-05T18:00:00.000Z',
+      execucao_finalizada_em: '2026-08-05T19:35:00.000Z',
+      grupo_muscular: 'peito',
+      exercicio_nome: 'Supino Reto',
+      ...parcial,
+    }
+  }
+
+  it('agrupa por sessão, não por data', () => {
+    // Dois treinos no mesmo dia: sem unique em (treino_id, data) isso é legítimo,
+    // e antes virava uma massa indistinguível
+    const sessoes = sessoesRealizadas([
+      serie({ execucao_treino_id: 'manha', treino_id: 'push' }),
+      serie({ execucao_treino_id: 'noite', treino_id: 'pull' }),
+    ])
+
+    expect(sessoes).toHaveLength(2)
+    expect(sessoes.map((s) => s.treino_id).sort()).toEqual(['pull', 'push'])
+  })
+
+  it('soma volume e conta as séries', () => {
+    const sessoes = sessoesRealizadas([
+      serie({ execucao_treino_id: 'a', carga_real: 100, reps_reais: 5 }),
+      serie({ execucao_treino_id: 'a', carga_real: 100, reps_reais: 4 }),
+      serie({ execucao_treino_id: 'a', carga_real: 80, reps_reais: 8 }),
+    ])
+
+    expect(sessoes[0]?.totalSeries).toBe(3)
+    expect(sessoes[0]?.volume).toBe(500 + 400 + 640)
+  })
+
+  it('agrupa as séries por exercício, na ordem em que apareceram', () => {
+    const sessoes = sessoesRealizadas([
+      serie({
+        execucao_treino_id: 'a',
+        exercicio_base_id: 'supino',
+        exercicio_nome: 'Supino',
+        reps_reais: 5,
+      }),
+      serie({
+        execucao_treino_id: 'a',
+        exercicio_base_id: 'remada',
+        exercicio_nome: 'Remada',
+        reps_reais: 10,
+      }),
+      serie({
+        execucao_treino_id: 'a',
+        exercicio_base_id: 'supino',
+        exercicio_nome: 'Supino',
+        reps_reais: 4,
+      }),
+    ])
+
+    const exercicios = sessoes[0]?.exercicios ?? []
+    expect(exercicios.map((e) => e.nome)).toEqual(['Supino', 'Remada'])
+    expect(exercicios[0]?.series).toHaveLength(2)
+    expect(exercicios[1]?.series).toHaveLength(1)
+  })
+
+  it('calcula a duração entre a primeira série e o encerramento', () => {
+    const sessoes = sessoesRealizadas([
+      serie({
+        execucao_treino_id: 'a',
+        execucao_criada_em: '2026-08-05T18:00:00.000Z',
+        execucao_finalizada_em: '2026-08-05T19:35:00.000Z',
+      }),
+    ])
+
+    expect(sessoes[0]?.duracaoMinutos).toBe(95)
+  })
+
+  it('deixa a duração nula enquanto está em andamento', () => {
+    const sessoes = sessoesRealizadas([
+      serie({ execucao_treino_id: 'a', execucao_finalizada_em: null }),
+    ])
+
+    expect(sessoes[0]?.emAndamento).toBe(true)
+    expect(sessoes[0]?.duracaoMinutos).toBe(null)
+  })
+
+  it('põe a sessão em andamento no topo, depois as mais recentes', () => {
+    const sessoes = sessoesRealizadas([
+      serie({ execucao_treino_id: 'antiga', data: '2026-08-01' }),
+      serie({ execucao_treino_id: 'recente', data: '2026-08-04' }),
+      serie({
+        execucao_treino_id: 'aberta',
+        data: '2026-08-02',
+        execucao_finalizada_em: null,
+      }),
+    ])
+
+    expect(sessoes.map((s) => s.id)).toEqual(['aberta', 'recente', 'antiga'])
+  })
+
+  it('atribui o recorde à sessão que tem aquele exercício', () => {
+    const sessoes = sessoesRealizadas(
+      [
+        serie({
+          execucao_treino_id: 'push',
+          exercicio_base_id: 'supino',
+          data: '2026-08-05',
+        }),
+        serie({
+          execucao_treino_id: 'pull',
+          exercicio_base_id: 'remada',
+          data: '2026-08-05',
+        }),
+      ],
+      [
+        { exercicio_base_id: 'supino', data: '2026-08-05', um_rm_estimado: 125 },
+      ],
+    )
+
+    const push = sessoes.find((s) => s.id === 'push')
+    const pull = sessoes.find((s) => s.id === 'pull')
+    expect(push?.recordes).toHaveLength(1)
+    expect(pull?.recordes).toHaveLength(0)
+  })
+
+  it('não atribui recorde de outra data', () => {
+    const sessoes = sessoesRealizadas(
+      [serie({ execucao_treino_id: 'a', data: '2026-08-05' })],
+      [
+        { exercicio_base_id: 'supino', data: '2026-08-04', um_rm_estimado: 125 },
+      ],
+    )
+
+    expect(sessoes[0]?.recordes).toEqual([])
+  })
+
+  it('devolve vazio sem séries', () => {
+    expect(sessoesRealizadas([])).toEqual([])
+  })
+})
+
+describe('formatarDuracao', () => {
+  it('usa minutos abaixo de uma hora', () => {
+    expect(formatarDuracao(48)).toBe('48min')
+  })
+
+  it('usa horas e minutos', () => {
+    expect(formatarDuracao(95)).toBe('1h35')
+    expect(formatarDuracao(120)).toBe('2h')
   })
 })

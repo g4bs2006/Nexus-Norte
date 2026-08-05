@@ -25,6 +25,7 @@ import { MenuOcorrencia } from '@/features/fluxograma/componentes/MenuOcorrencia
 import { addDays } from 'date-fns'
 import {
   frequenciaSemana,
+  sessoesRealizadas,
   volumeGrupoMuscular,
 } from '@/features/treino/calculos'
 import {
@@ -48,6 +49,7 @@ import { DialogTreino } from '@/features/treino/componentes/DialogTreino'
 import { SecaoCorporal } from '@/features/treino/componentes/SecaoCorporal'
 import { SecaoLesoes } from '@/features/treino/componentes/SecaoLesoes'
 import { SecaoPRs } from '@/features/treino/componentes/SecaoPRs'
+import { SecaoSessoes } from '@/features/treino/componentes/SecaoSessoes'
 
 export default function TreinoPage() {
   const hoje = useMemo(() => new Date(), [])
@@ -127,12 +129,23 @@ export default function TreinoPage() {
       semana,
       listaExcecoes,
     ).length
-    return frequenciaSemana(execucoesSemana.data?.length ?? 0, previstos)
+    // Só sessões finalizadas contam: a linha nasce na primeira série gravada, e
+    // um treino abandonado no meio não é um treino feito (resolução 10.21)
+    const realizados = (execucoesSemana.data ?? []).filter(
+      (execucao) => execucao.finalizado_em !== null,
+    ).length
+    return frequenciaSemana(realizados, previstos)
   }, [listaFluxograma, semana, listaExcecoes, execucoesSemana.data])
 
   const volume = useMemo(
     () => volumeGrupoMuscular(seriesSemana.data ?? []),
     [seriesSemana.data],
+  )
+
+  /** Sessões da semana, agrupadas a partir das séries (resolução 10.21). */
+  const sessoes = useMemo(
+    () => sessoesRealizadas(seriesSemana.data ?? [], prs.data ?? []),
+    [seriesSemana.data, prs.data],
   )
 
   const itensGrade: ItemFluxograma[] = useMemo(
@@ -302,6 +315,8 @@ export default function TreinoPage() {
               )}
             </CardContent>
           </Card>
+
+          <SecaoSessoes sessoes={sessoes} nomePorTreino={nomePorTreino} />
 
           <SecaoPRs prs={prs.data ?? []} />
 

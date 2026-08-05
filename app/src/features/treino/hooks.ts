@@ -16,6 +16,7 @@ export const chaves = {
   fluxograma: () => ['treino', 'fluxograma'] as const,
   biblioteca: () => ['treino', 'biblioteca'] as const,
   tiposTreino: () => ['treino', 'tipos'] as const,
+  execucaoAberta: () => ['treino', 'execucao-aberta'] as const,
 }
 
 // --- Leitura ----------------------------------------------------------------
@@ -101,6 +102,97 @@ function useMutationTreino<TVariaveis, TResultado = void>(
     },
     onError: (erro: Error) => toast.error(erro.message),
   })
+}
+
+// --- Sessão em andamento (resolução 10.21) ----------------------------------
+
+/**
+ * A sessão aberta, se houver.
+ *
+ * Consultada por toda a aplicação, então tem chave própria e é invalidada junto
+ * com a raiz de treino — é o que permite o aviso de "continuar" aparecer na Home
+ * sem que a Home precise saber nada sobre execução.
+ */
+export function useExecucaoAberta() {
+  return useQuery({
+    queryKey: chaves.execucaoAberta(),
+    queryFn: api.execucaoAberta,
+  })
+}
+
+/**
+ * Grava uma série, criando a sessão se ainda não existir.
+ *
+ * A criação preguiçosa é deliberada: abrir o diálogo e fechar sem anotar nada não
+ * deixa lixo no banco, e "em andamento" passa a significar "tem pelo menos uma
+ * série gravada" — que é o único estado em que retomar faz sentido. Como o banco
+ * só admite uma sessão aberta, um registro à toa também bloquearia o próximo
+ * treino.
+ *
+ * Sem toast de sucesso: são muitas escritas seguidas durante um treino, e um
+ * aviso por série viraria ruído. O erro continua avisando.
+ */
+export function useSalvarSerie() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      execucaoId,
+      treinoId,
+      data,
+      serie,
+    }: {
+      execucaoId: string | null
+      treinoId: string
+      data: string
+      serie: Omit<api.NovaSerie, 'execucao_treino_id'>
+    }) => {
+      const id = execucaoId ?? (await api.iniciarExecucao(treinoId, data))
+      const serieId = await api.salvarSerie({
+        ...serie,
+        execucao_treino_id: id,
+      })
+      return { execucaoId: id, serieId }
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: chaves.raiz })
+    },
+    onError: (erro: Error) => toast.error(erro.message),
+  })
+}
+
+export function useAtualizarSerie() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      dados,
+    }: {
+      id: string
+      dados: Parameters<typeof api.atualizarSerie>[1]
+    }) => api.atualizarSerie(id, dados),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: chaves.raiz })
+    },
+    onError: (erro: Error) => toast.error(erro.message),
+  })
+}
+
+export function useExcluirSerie() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: api.excluirSerie,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: chaves.raiz })
+    },
+    onError: (erro: Error) => toast.error(erro.message),
+  })
+}
+
+export function useFinalizarExecucao() {
+  return useMutationTreino(api.finalizarExecucao, 'Treino registrado')
 }
 
 // --- Biblioteca de exercícios e tipos (resolução 10.18) ---------------------
@@ -194,37 +286,6 @@ export function useExcluirExercicio() {
 
 export function useExcluirExecucao() {
   return useMutationTreino(api.excluirExecucao, 'Execução removida')
-}
-
-/**
- * Registra uma sessão inteira: cria a execução e anexa as séries.
- *
- * Se o registro das séries falhar, a execução criada é removida — evita
- * execuções vazias que contariam como treino feito na frequência da semana.
- */
-export function useRegistrarSessao() {
-  return useMutationTreino(
-    async ({
-      treinoId,
-      data,
-      series,
-    }: {
-      treinoId: string
-      data: string
-      series: readonly Omit<api.NovaSerie, 'execucao_treino_id'>[]
-    }) => {
-      const execucaoId = await api.iniciarExecucao(treinoId, data)
-      try {
-        await api.registrarSeries(
-          series.map((serie) => ({ ...serie, execucao_treino_id: execucaoId })),
-        )
-      } catch (erro) {
-        await api.excluirExecucao(execucaoId)
-        throw erro
-      }
-    },
-    'Treino registrado',
-  )
 }
 
 export function useSalvarRegistroCorporal() {

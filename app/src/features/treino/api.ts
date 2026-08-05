@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import type { TablesInsert, TablesUpdate } from '@/types/database'
 import type {
+  ExecucaoAberta,
   ExecucaoTreino,
   ExercicioBaseComUso,
   ExercicioComBase,
@@ -251,15 +252,73 @@ export interface NovaSerie {
   rpe: number | null
 }
 
-/** Registra as séries. O PR é gravado pelo trigger no banco (plano 4.2). */
-export async function registrarSeries(
-  series: readonly NovaSerie[],
+/**
+ * Grava uma série e devolve o id, para a UI marcá-la como salva.
+ *
+ * Uma série por escrita é o que permite sair do app no meio do treino sem perder
+ * nada (resolução 10.21). O trigger de PR dispara aqui, então o recorde fica
+ * registrado no instante em que aconteceu, não no fim da sessão.
+ */
+export async function salvarSerie(serie: NovaSerie): Promise<string> {
+  const { data, error } = await supabase
+    .from('execucoes_exercicio')
+    .insert(serie)
+    .select('id')
+    .single()
+  if (error) throw new Error(error.message)
+  return data.id
+}
+
+export async function atualizarSerie(
+  id: string,
+  dados: Omit<NovaSerie, 'execucao_treino_id' | 'exercicio_id'>,
 ): Promise<void> {
-  if (series.length === 0) return
-  // Cópia mutável: o insert do supabase-js não aceita array readonly
   const { error } = await supabase
     .from('execucoes_exercicio')
-    .insert([...series])
+    .update(dados)
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+export async function excluirSerie(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('execucoes_exercicio')
+    .delete()
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+/**
+ * A sessão aberta, se houver, com as séries já gravadas.
+ *
+ * O índice único do banco garante no máximo uma — então `maybeSingle` aqui é
+ * afirmação, não otimismo.
+ */
+export async function execucaoAberta(): Promise<ExecucaoAberta | null> {
+  const { data, error } = await supabase
+    .from('execucoes_treino')
+    .select(
+      'id, treino_id, data, created_at, execucoes_exercicio(id, exercicio_id, carga_real, reps_reais, rpe)',
+    )
+    .is('finalizado_em', null)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  if (!data) return null
+
+  return {
+    id: data.id,
+    treino_id: data.treino_id,
+    data: data.data,
+    created_at: data.created_at,
+    series: data.execucoes_exercicio,
+  }
+}
+
+export async function finalizarExecucao(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('execucoes_treino')
+    .update({ finalizado_em: new Date().toISOString() })
+    .eq('id', id)
   if (error) throw new Error(error.message)
 }
 
@@ -277,8 +336,11 @@ export async function listarSeries(
   // para o exercício base — de onde vêm nome e grupo (resolução 10.18)
   let consulta = supabase
     .from('execucoes_exercicio')
+    // `execucao_treino_id` é o que permite agrupar as séries por sessão. Sem ele
+    // as séries chegavam soltas com a data, e dois treinos no mesmo dia viravam
+    // uma massa indistinguível — não há unique em (treino_id, data).
     .select(
-      'id, exercicio_id, carga_real, reps_reais, rpe, execucoes_treino!inner(data), exercicios_treino!inner(exercicio_base_id, biblioteca_exercicios!inner(nome, grupo_muscular))',
+      'id, execucao_treino_id, exercicio_id, carga_real, reps_reais, rpe, execucoes_treino!inner(data, treino_id, created_at, finalizado_em), exercicios_treino!inner(exercicio_base_id, biblioteca_exercicios!inner(nome, grupo_muscular))',
     )
   if (de) consulta = consulta.gte('execucoes_treino.data', de)
   if (ate) consulta = consulta.lte('execucoes_treino.data', ate)
@@ -288,12 +350,16 @@ export async function listarSeries(
 
   return (data ?? []).map((linha) => ({
     id: linha.id,
+    execucao_treino_id: linha.execucao_treino_id,
     exercicio_id: linha.exercicio_id,
     exercicio_base_id: linha.exercicios_treino.exercicio_base_id,
     carga_real: linha.carga_real,
     reps_reais: linha.reps_reais,
     rpe: linha.rpe,
     data: linha.execucoes_treino.data,
+    treino_id: linha.execucoes_treino.treino_id,
+    execucao_criada_em: linha.execucoes_treino.created_at,
+    execucao_finalizada_em: linha.execucoes_treino.finalizado_em,
     grupo_muscular:
       linha.exercicios_treino.biblioteca_exercicios.grupo_muscular,
     exercicio_nome: linha.exercicios_treino.biblioteca_exercicios.nome,

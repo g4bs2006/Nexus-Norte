@@ -67,6 +67,12 @@ export type FluxogramaTreino = Omit<
  */
 export interface SerieExecutada {
   id: string
+  /**
+   * Id da sessão. É o que permite agrupar as séries por treino realizado — sem
+   * ele, duas sessões no mesmo dia (não há unique em `treino_id, data`) viravam
+   * uma massa indistinguível.
+   */
+  execucao_treino_id: string
   /** Id em `exercicios_treino` — a série aconteceu num treino específico. */
   exercicio_id: string
   /** Id na biblioteca — é por aqui que progressão e PR se agrupam. */
@@ -76,6 +82,31 @@ export interface SerieExecutada {
   rpe: number | null
   /** Data da execução do treino a que a série pertence. */
   data: string
+  treino_id: string
+  /** Instante da primeira série gravada — início efetivo da sessão. */
+  execucao_criada_em: string
+  /** Nulo enquanto a sessão está em andamento (resolução 10.21). */
+  execucao_finalizada_em: string | null
   grupo_muscular: string | null
   exercicio_nome: string
+}
+
+/**
+ * A sessão em andamento, com o que já foi gravado.
+ *
+ * É o que o app carrega ao reabrir para retomar o treino de onde parou — as
+ * séries vêm cruas porque o diálogo só precisa casar cada uma com sua linha.
+ */
+export interface ExecucaoAberta {
+  id: string
+  treino_id: string
+  data: string
+  created_at: string
+  series: readonly {
+    id: string
+    exercicio_id: string
+    carga_real: number
+    reps_reais: number
+    rpe: number | null
+  }[]
 }

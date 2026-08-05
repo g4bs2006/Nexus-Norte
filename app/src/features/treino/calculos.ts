@@ -195,3 +195,151 @@ export function volumeGrupoMuscular(
 
   return volume
 }
+
+// --- Sessões realizadas (resolução 10.21) -----------------------------------
+
+/** Campos de `SerieExecutada` de que o agrupamento depende. */
+export interface SerieDeSessao {
+  id: string
+  execucao_treino_id: string
+  exercicio_id: string
+  exercicio_base_id: string
+  carga_real: number
+  reps_reais: number
+  rpe: number | null
+  data: string
+  treino_id: string
+  execucao_criada_em: string
+  execucao_finalizada_em: string | null
+  grupo_muscular: string | null
+  exercicio_nome: string
+}
+
+/** PR mínimo para cruzar com a sessão. */
+export interface RecordeParaCruzar {
+  exercicio_base_id: string
+  data: string
+  um_rm_estimado: number
+}
+
+export interface ExercicioDaSessao {
+  exercicio_base_id: string
+  nome: string
+  grupo_muscular: string | null
+  series: SerieDeSessao[]
+}
+
+export interface SessaoRealizada {
+  /** Id em `execucoes_treino`. */
+  id: string
+  treino_id: string
+  data: string
+  emAndamento: boolean
+  /**
+   * Minutos entre a primeira série gravada e o encerramento.
+   *
+   * Nulo enquanto em andamento. Subestima de propósito: conta do primeiro
+   * registro, não do aquecimento — é o único instante que o banco conhece, e
+   * inventar um início seria pior que informar menos.
+   */
+  duracaoMinutos: number | null
+  totalSeries: number
+  /** Σ(reps × carga) da sessão inteira. */
+  volume: number
+  exercicios: ExercicioDaSessao[]
+  /** Recordes que caíram nesta sessão. */
+  recordes: RecordeParaCruzar[]
+}
+
+/**
+ * Agrupa séries soltas nas sessões a que pertencem.
+ *
+ * Agrupa por `execucao_treino_id` e não por data: não há unique em
+ * `(treino_id, data)`, então dois treinos no mesmo dia são duas sessões
+ * distintas e precisam ser lidas como tais.
+ *
+ * Os recordes são atribuídos por data **e** por exercício presente na sessão. Só
+ * a data seria ambíguo com duas sessões no mesmo dia; exigir que o exercício
+ * esteja na sessão resolve todos os casos menos o de repetir o mesmo movimento
+ * nos dois treinos do dia — aí o recorde aparece nos dois, e preferimos mostrar
+ * duas vezes a esconder.
+ *
+ * Ordem: mais recente primeiro, com a sessão em andamento no topo.
+ */
+export function sessoesRealizadas(
+  series: readonly SerieDeSessao[],
+  recordes: readonly RecordeParaCruzar[] = [],
+): SessaoRealizada[] {
+  const porSessao = new Map<string, SerieDeSessao[]>()
+  for (const serie of series) {
+    const lista = porSessao.get(serie.execucao_treino_id)
+    if (lista) lista.push(serie)
+    else porSessao.set(serie.execucao_treino_id, [serie])
+  }
+
+  const sessoes = [...porSessao.entries()].map(([id, doSessao]) => {
+    // A primeira série define os campos da sessão: todas carregam os mesmos
+    const primeira = doSessao[0] as SerieDeSessao
+
+    const porExercicio = new Map<string, ExercicioDaSessao>()
+    for (const serie of doSessao) {
+      const atual = porExercicio.get(serie.exercicio_base_id)
+      if (atual) atual.series.push(serie)
+      else {
+        porExercicio.set(serie.exercicio_base_id, {
+          exercicio_base_id: serie.exercicio_base_id,
+          nome: serie.exercicio_nome,
+          grupo_muscular: serie.grupo_muscular,
+          series: [serie],
+        })
+      }
+    }
+
+    const basesDaSessao = new Set(doSessao.map((s) => s.exercicio_base_id))
+
+    return {
+      id,
+      treino_id: primeira.treino_id,
+      data: primeira.data,
+      emAndamento: primeira.execucao_finalizada_em === null,
+      duracaoMinutos: duracaoDaSessao(
+        primeira.execucao_criada_em,
+        primeira.execucao_finalizada_em,
+      ),
+      totalSeries: doSessao.length,
+      volume: doSessao.reduce(
+        (soma, s) => soma + s.carga_real * s.reps_reais,
+        0,
+      ),
+      exercicios: [...porExercicio.values()],
+      recordes: recordes.filter(
+        (pr) =>
+          pr.data === primeira.data && basesDaSessao.has(pr.exercicio_base_id),
+      ),
+    }
+  })
+
+  return sessoes.sort(
+    (a, b) =>
+      Number(b.emAndamento) - Number(a.emAndamento) ||
+      b.data.localeCompare(a.data),
+  )
+}
+
+function duracaoDaSessao(
+  criadaEm: string,
+  finalizadaEm: string | null,
+): number | null {
+  if (finalizadaEm === null) return null
+  const minutos =
+    (new Date(finalizadaEm).getTime() - new Date(criadaEm).getTime()) / 60_000
+  return minutos > 0 ? Math.round(minutos) : null
+}
+
+/** `95` → `1h35`; `48` → `48min` */
+export function formatarDuracao(minutos: number): string {
+  if (minutos < 60) return `${minutos}min`
+  const h = Math.floor(minutos / 60)
+  const m = minutos % 60
+  return m === 0 ? `${h}h` : `${h}h${String(m).padStart(2, '0')}`
+}

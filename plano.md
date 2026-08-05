@@ -692,3 +692,59 @@ padrão: a Home usa o mesmo hook e as duas consultas da faixa seriam requisiçõ
 por nada. Ficam fora da lista de `carregando` quando desligadas — query
 desabilitada permanece `pending` no React Query, e contá-la deixaria a página
 carregando para sempre.
+
+### 10.21 Sessão de treino: gravação série a série e histórico (completa 4.3) — descoberta em uso
+Dois problemas relatados no uso real, com a mesma raiz.
+
+**1. O progresso se perdia.** A sessão inteira ficava em estado do React até um
+botão final. Anotar duas séries e sair do app — o que acontece com o celular na
+mão, na academia — perdia tudo. Pior: ao voltar, o app abre na Home e não havia
+sinal nenhum de que ficara algo pela metade.
+
+**2. Não havia como ver os treinos da semana.** A frequência dizia "3 de 4" e
+mais nada: nem qual treino foi feito, nem com que carga. As séries estavam no
+banco desde a Fase 3, mas `listarSeries` não devolvia `execucao_treino_id`, então
+agrupá-las por sessão era literalmente impossível — chegavam soltas com a data, e
+como não há unique em `(treino_id, data)`, dois treinos no mesmo dia viravam uma
+massa indistinguível.
+
+**A gravação virou série a série.** Cada série vai para o banco quando você
+confirma. A sessão nasce na **primeira** série gravada, não ao abrir o diálogo:
+criação preguiçosa evita lixo no banco quando alguém abre e fecha, e faz "em
+andamento" significar "tem pelo menos uma série" — o único estado em que retomar
+faz sentido.
+
+**`finalizado_em` era obrigatório.** Com a linha nascendo no começo, ela passa a
+significar "comecei" e não "terminei". Sem a coluna, um treino abandonado no meio
+contaria como treino feito na frequência da semana. Nulo = em andamento, e só as
+finalizadas contam. As execuções que já existiam foram preenchidas com
+`created_at` no backfill — sem isso apareceriam todas como em andamento e sairiam
+da contagem.
+
+**Índice único garante uma sessão aberta por vez:**
+`create unique index on execucoes_treino ((finalizado_em is null)) where
+finalizado_em is null` — índice sobre uma expressão que é sempre `true` nas linhas
+do predicado é o idioma para "no máximo uma linha assim". Duas sessões abertas não
+significam nada: você treina uma coisa de cada vez, e duas tornariam ambíguo qual
+o aviso de "continuar" deve retomar.
+
+**Ganhos de brinde.** O gatilho de PR dispara a cada série inserida, então o
+recorde fica gravado no instante em que aconteceu. E `created_at` até
+`finalizado_em` dá a **duração do treino**, que antes não existia. A duração
+subestima de propósito: conta da primeira série, não do aquecimento — é o único
+instante que o banco conhece, e inventar um início seria pior que informar menos.
+
+**Aviso em vez de restaurar rota.** A Home mostra "Treino B em andamento · N
+séries salvas · Continuar" quando há sessão aberta, e nada quando não há.
+Restaurar a última rota desorienta — você abre o app e está numa tela que não
+pediu; o aviso diz o que ficou pendente e deixa a decisão com o usuário.
+
+**Bug que a mudança quase introduziu.** O efeito que monta as linhas do diálogo
+dependia da sessão carregada, e cada série gravada invalida a query — o efeito
+rodaria de novo e reconstruiria todas as linhas, apagando o que estivesse sendo
+digitado na série seguinte. O estado do banco passou a ser carregado **uma vez por
+abertura**, e depois só `gravar` e `desfazer` mexem nas linhas, que já sabem qual
+mudou.
+
+**Código morto removido.** `useRegistrarSessao` e `api.registrarSeries`
+implementavam o fluxo de submeter tudo de uma vez, que deixou de existir.

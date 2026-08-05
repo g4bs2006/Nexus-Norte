@@ -640,18 +640,21 @@ export type Database = {
         Row: {
           created_at: string
           data: string
+          finalizado_em: string | null
           id: string
           treino_id: string
         }
         Insert: {
           created_at?: string
           data: string
+          finalizado_em?: string | null
           id?: string
           treino_id: string
         }
         Update: {
           created_at?: string
           data?: string
+          finalizado_em?: string | null
           id?: string
           treino_id?: string
         }
