@@ -13,12 +13,12 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
 import {
   useAtualizarExercicio,
   useBiblioteca,
@@ -62,6 +62,13 @@ export function DialogExercicio({
   const [carga, setCarga] = useState('')
   const [descanso, setDescanso] = useState('')
 
+  /**
+   * Busca aberta. Fica aberta enquanto não houver escolha, e o botão "Trocar"
+   * reabre — assim a lista não ocupa espaço depois que o exercício já está
+   * definido.
+   */
+  const [buscando, setBuscando] = useState(false)
+
   // Criação rápida sem sair do diálogo
   const [criandoNovo, setCriandoNovo] = useState(false)
   const [novoNome, setNovoNome] = useState('')
@@ -74,6 +81,7 @@ export function DialogExercicio({
     if (!aberto) return
 
     setCriandoNovo(false)
+    setBuscando(false)
     setNovoNome('')
     setNovoGrupo('')
 
@@ -115,6 +123,7 @@ export function DialogExercicio({
     })
     setBaseId(novo.id)
     setCriandoNovo(false)
+    setBuscando(false)
     setNovoNome('')
     setNovoGrupo('')
   }
@@ -229,42 +238,98 @@ export function DialogExercicio({
             <div className="space-y-1.5">
               <div className="flex items-center justify-between gap-2">
                 <Label>Exercício</Label>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-auto py-0.5 text-xs"
-                  onClick={() => setCriandoNovo(true)}
-                >
-                  <Plus className="size-3" />
-                  Novo na biblioteca
-                </Button>
+                <div className="flex items-center gap-1">
+                  {/* Saída de "Trocar" sem escolher outro */}
+                  {buscando && selecionado && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-auto py-0.5 text-xs"
+                      onClick={() => setBuscando(false)}
+                    >
+                      Manter atual
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-auto py-0.5 text-xs"
+                    onClick={() => setCriandoNovo(true)}
+                  >
+                    <Plus className="size-3" />
+                    Novo na biblioteca
+                  </Button>
+                </div>
               </div>
-              <Select value={baseId} onValueChange={setBaseId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue
+
+              {/*
+                Já escolhido: mostra a escolha e recolhe a busca. Manter a lista
+                aberta empurraria os alvos (séries, reps, carga) para fora da
+                tela no celular.
+              */}
+              {selecionado && !buscando ? (
+                <div className="border-border flex items-center gap-2 rounded-md border p-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">
+                      {selecionado.nome}
+                    </p>
+                    <p className="text-muted-foreground text-xs">
+                      {selecionado.grupo_muscular ?? 'grupo não definido'} ·
+                      edite na Biblioteca para mudar em todos os treinos
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="shrink-0 text-xs"
+                    onClick={() => setBuscando(true)}
+                  >
+                    Trocar
+                  </Button>
+                </div>
+              ) : (
+                <Command className="border-border rounded-md border p-0" loop>
+                  <CommandInput
+                    autoFocus
                     placeholder={
-                      biblioteca.isPending ? 'Carregando…' : 'Selecione'
+                      biblioteca.isPending
+                        ? 'Carregando…'
+                        : 'Escreva para filtrar…'
                     }
                   />
-                </SelectTrigger>
-                <SelectContent>
-                  {lista.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.nome}
-                      {item.grupo_muscular && (
-                        <span className="text-muted-foreground ml-1 text-xs">
-                          {item.grupo_muscular}
+                  <CommandList className="max-h-56">
+                    <CommandEmpty>
+                      <span className="text-muted-foreground text-sm">
+                        Nenhum exercício com esse nome.
+                      </span>
+                    </CommandEmpty>
+                    {lista.map((item) => (
+                      <CommandItem
+                        key={item.id}
+                        // O valor é o nome porque é o que o cmdk filtra; o id
+                        // vai pelo closure do onSelect
+                        value={item.nome}
+                        keywords={
+                          item.grupo_muscular ? [item.grupo_muscular] : []
+                        }
+                        data-checked={item.id === baseId}
+                        onSelect={() => {
+                          setBaseId(item.id)
+                          setBuscando(false)
+                        }}
+                      >
+                        <span className="min-w-0 flex-1 truncate">
+                          {item.nome}
                         </span>
-                      )}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selecionado && (
-                <p className="text-muted-foreground text-xs">
-                  Grupo: {selecionado.grupo_muscular ?? 'não definido'} · edite
-                  na Biblioteca para mudar em todos os treinos
-                </p>
+                        {item.grupo_muscular && (
+                          <span className="text-muted-foreground shrink-0 text-xs capitalize">
+                            {item.grupo_muscular}
+                          </span>
+                        )}
+                      </CommandItem>
+                    ))}
+                  </CommandList>
+                </Command>
               )}
             </div>
           )}
