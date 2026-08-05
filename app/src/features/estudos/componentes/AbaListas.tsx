@@ -7,7 +7,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { deISO, paraISO } from '@/lib/datas'
 import { cn } from '@/lib/utils'
-import { useCriarRegistroLista, useAtualizarRegistroLista, useExcluirRegistroLista } from '../hooks'
+import {
+  useCriarRegistroLista,
+  useAtualizarRegistroLista,
+  useExcluirRegistroLista,
+} from '../hooks'
 import { percentualAcerto } from '../calculos'
 import { parsearQuestoesErradas } from '../schemas'
 import type { RegistroLista } from '../types'
@@ -61,7 +65,11 @@ export function AbaListas({ materiaId, registros, hoje }: AbaListasProps) {
   }
 
   async function salvar() {
-    if (nome.trim() === '' || !Number.isInteger(totalNumero) || totalNumero <= 0) {
+    if (
+      nome.trim() === '' ||
+      !Number.isInteger(totalNumero) ||
+      totalNumero <= 0
+    ) {
       return
     }
     if (acimaDoTotal) return
@@ -167,7 +175,11 @@ export function AbaListas({ materiaId, registros, hoje }: AbaListasProps) {
               onClick={() => void salvar()}
               disabled={pendente || acimaDoTotal}
             >
-              {idEditando ? <Pencil className="size-4" /> : <Plus className="size-4" />}
+              {idEditando ? (
+                <Pencil className="size-4" />
+              ) : (
+                <Plus className="size-4" />
+              )}
               {idEditando ? 'Salvar' : 'Registrar'}
             </Button>
             {idEditando && (

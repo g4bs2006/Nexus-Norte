@@ -31,7 +31,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useCriarCategoria, useAtualizarCategoria } from '../hooks'
-import { schemaCategoria, textoOuNulo, type FormularioCategoria } from '../schemas'
+import {
+  schemaCategoria,
+  textoOuNulo,
+  type FormularioCategoria,
+} from '../schemas'
 import type { Categoria } from '../types'
 
 const VAZIO: FormularioCategoria = {
@@ -86,7 +90,9 @@ export function DialogCategoria({ categoria }: DialogCategoriaProps = {}) {
       natureza: valores.natureza,
       // Constraint categorias_tipo_por_natureza: receita não tem tipo.
       tipo: ehReceita ? null : valores.tipo === '' ? null : valores.tipo,
-      meta_mensal: Number.isNaN(valores.meta_mensal) ? null : valores.meta_mensal,
+      meta_mensal: Number.isNaN(valores.meta_mensal)
+        ? null
+        : valores.meta_mensal,
       meta_tipo: valores.meta_tipo === '' ? null : valores.meta_tipo,
       cor: textoOuNulo(valores.cor),
     }
@@ -188,7 +194,10 @@ export function DialogCategoria({ categoria }: DialogCategoriaProps = {}) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Tipo</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
                         <FormControl>
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Selecione" />
@@ -238,7 +247,10 @@ export function DialogCategoria({ categoria }: DialogCategoriaProps = {}) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Tipo de meta</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
                         <FormControl>
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder="Sem meta" />

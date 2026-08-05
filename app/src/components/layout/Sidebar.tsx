@@ -67,7 +67,9 @@ export function Sidebar({ onAbrirBusca }: SidebarProps) {
       // ícones sem rótulo.
       onFocus={abrirAgora}
       onBlur={(evento) => {
-        if (!evento.currentTarget.contains(evento.relatedTarget as Node | null)) {
+        if (
+          !evento.currentTarget.contains(evento.relatedTarget as Node | null)
+        ) {
           agendarRecolher()
         }
       }}

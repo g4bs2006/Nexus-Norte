@@ -29,7 +29,11 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { DIAS_SEMANA } from '@/lib/constants'
-import { useCriarFluxograma, useAtualizarFluxograma, useExcluirFluxograma } from '../hooks'
+import {
+  useCriarFluxograma,
+  useAtualizarFluxograma,
+  useExcluirFluxograma,
+} from '../hooks'
 import { schemaFluxograma, type FormularioFluxograma } from '../schemas'
 import type { FluxogramaAula, Materia } from '../types'
 
@@ -43,7 +47,10 @@ interface DialogFluxogramaProps {
 }
 
 /** Adiciona ou edita uma aula recorrente ao fluxograma semanal (plano 3.3). */
-export function DialogFluxograma({ materias, fluxograma }: DialogFluxogramaProps) {
+export function DialogFluxograma({
+  materias,
+  fluxograma,
+}: DialogFluxogramaProps) {
   const modoEdicao = Boolean(fluxograma)
   const [aberto, setAberto] = useState(false)
   const criar = useCriarFluxograma()
@@ -102,7 +109,11 @@ export function DialogFluxograma({ materias, fluxograma }: DialogFluxogramaProps
             <Pencil className="size-3" />
           </Button>
         ) : (
-          <Button size="sm" variant="secondary" disabled={materias.length === 0}>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={materias.length === 0}
+          >
             <Plus className="size-4" />
             Horário
           </Button>

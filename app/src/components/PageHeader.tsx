@@ -7,7 +7,10 @@ import type { PilarId } from '@/lib/pilares'
  * Classes literais por pilar — o Tailwind precisa das strings estáticas na
  * varredura do código, então não dá para montar `bg-${pilar}` em runtime.
  */
-const ACENTO: Record<PilarId | 'sono', { regua: string; chip: string; icone: string }> = {
+const ACENTO: Record<
+  PilarId | 'sono',
+  { regua: string; chip: string; icone: string }
+> = {
   financeiro: {
     regua: 'bg-financeiro',
     chip: 'bg-financeiro-soft',

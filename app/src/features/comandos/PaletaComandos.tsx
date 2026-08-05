@@ -44,7 +44,10 @@ interface PaletaComandosProps {
  * categoria, matéria, treino, exercício, projeto. Digitar "Cálculo" e cair na
  * matéria é o ganho real; a navegação por si já existe na sidebar.
  */
-export function PaletaComandos({ aberta, onAbertaChange }: PaletaComandosProps) {
+export function PaletaComandos({
+  aberta,
+  onAbertaChange,
+}: PaletaComandosProps) {
   const navegar = useNavigate()
   const setTema = useUIStore((estado) => estado.setTema)
   const temaAtual = useUIStore((estado) => estado.tema)
@@ -68,20 +71,22 @@ export function PaletaComandos({ aberta, onAbertaChange }: PaletaComandosProps) 
         <CommandEmpty>Nada encontrado.</CommandEmpty>
 
         <CommandGroup heading="Ir para">
-          {ITENS_NAVEGACAO.map(({ id, nome, rota, icone: Icone, classeTexto }) => (
-            <CommandItem
-              key={id}
-              // `value` alimenta o filtro do cmdk; sem o nome ele não casaria
-              value={`ir ${nome}`}
-              onSelect={() => irPara(rota)}
-            >
-              <Icone className={cn('size-4', classeTexto)} />
-              {nome}
-              {TECLA_ROTA[id] && (
-                <CommandShortcut>G {TECLA_ROTA[id]}</CommandShortcut>
-              )}
-            </CommandItem>
-          ))}
+          {ITENS_NAVEGACAO.map(
+            ({ id, nome, rota, icone: Icone, classeTexto }) => (
+              <CommandItem
+                key={id}
+                // `value` alimenta o filtro do cmdk; sem o nome ele não casaria
+                value={`ir ${nome}`}
+                onSelect={() => irPara(rota)}
+              >
+                <Icone className={cn('size-4', classeTexto)} />
+                {nome}
+                {TECLA_ROTA[id] && (
+                  <CommandShortcut>G {TECLA_ROTA[id]}</CommandShortcut>
+                )}
+              </CommandItem>
+            ),
+          )}
         </CommandGroup>
 
         {(indice.data ?? []).length > 0 && (

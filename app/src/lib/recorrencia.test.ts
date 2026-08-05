@@ -11,10 +11,10 @@ const AULA_DOMINGO = { id: 'aula-dom', dia_semana: 0 }
 
 describe('expandirRecorrencia', () => {
   it('gera uma ocorrência por dia da semana correspondente', () => {
-    const ocorrencias = expandirRecorrencia(
-      [AULA_SEGUNDA, AULA_QUARTA],
-      { de: SEGUNDA, ate: DOMINGO },
-    )
+    const ocorrencias = expandirRecorrencia([AULA_SEGUNDA, AULA_QUARTA], {
+      de: SEGUNDA,
+      ate: DOMINGO,
+    })
 
     expect(ocorrencias.map((o) => [o.regra.id, o.data])).toEqual([
       ['aula-seg', '2026-08-03'],

@@ -39,7 +39,9 @@ export function EstadoVazio({
             classeFundo ?? 'bg-muted',
           )}
         >
-          <Icone className={cn('size-5', classeCor ?? 'text-muted-foreground')} />
+          <Icone
+            className={cn('size-5', classeCor ?? 'text-muted-foreground')}
+          />
         </span>
 
         <div className="max-w-sm space-y-1">

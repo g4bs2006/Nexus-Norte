@@ -57,7 +57,12 @@ export function SecaoInvestimentos({
           <div className="space-y-1">
             <p className="text-muted-foreground text-xs">Rendimento no mês</p>
             {/* Só prejuízo ganha cor — rendimento positivo é o esperado */}
-            <p className={cn('metric-md', rendimentos < 0 && 'text-status-risco')}>
+            <p
+              className={cn(
+                'metric-md',
+                rendimentos < 0 && 'text-status-risco',
+              )}
+            >
               {formatarMoeda(rendimentos)}
             </p>
           </div>
@@ -87,7 +92,9 @@ export function SecaoInvestimentos({
                   <span
                     className={cn(
                       'text-sm tabular-nums',
-                      item.tipo === 'rendimento' && item.valor < 0 && 'text-status-risco',
+                      item.tipo === 'rendimento' &&
+                        item.valor < 0 &&
+                        'text-status-risco',
                     )}
                   >
                     {formatarMoeda(item.valor)}

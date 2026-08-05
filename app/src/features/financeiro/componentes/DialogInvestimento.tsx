@@ -49,7 +49,10 @@ interface DialogInvestimentoProps {
 }
 
 /** Aporte ou rendimento — uma linha por evento (resolução 10.4). */
-export function DialogInvestimento({ hoje, investimento }: DialogInvestimentoProps) {
+export function DialogInvestimento({
+  hoje,
+  investimento,
+}: DialogInvestimentoProps) {
   const modoEdicao = Boolean(investimento)
   const [aberto, setAberto] = useState(false)
   const criar = useCriarInvestimento()
@@ -112,7 +115,12 @@ export function DialogInvestimento({ hoje, investimento }: DialogInvestimentoPro
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild>
         {modoEdicao ? (
-          <Button size="sm" variant="ghost" className="size-7" aria-label="Editar investimento">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="size-7"
+            aria-label="Editar investimento"
+          >
             <Pencil className="size-3.5" />
           </Button>
         ) : (

@@ -67,7 +67,10 @@ export function CardMateria({
           </div>
           <Badge
             variant="secondary"
-            className={cn('shrink-0 gap-1.5 font-normal', CLASSE_STATUS[status])}
+            className={cn(
+              'shrink-0 gap-1.5 font-normal',
+              CLASSE_STATUS[status],
+            )}
           >
             <span
               aria-hidden
@@ -85,12 +88,11 @@ export function CardMateria({
             </p>
           </div>
           <div>
-            <p className="text-muted-foreground text-[11px]">Faltas restantes</p>
+            <p className="text-muted-foreground text-[11px]">
+              Faltas restantes
+            </p>
             <p
-              className={cn(
-                'metric-md',
-                faltasCriticas && 'text-status-risco',
-              )}
+              className={cn('metric-md', faltasCriticas && 'text-status-risco')}
             >
               {limiteFaltas === 0 ? '—' : faltasRestantes}
               {limiteFaltas > 0 && (

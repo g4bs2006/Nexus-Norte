@@ -3,10 +3,7 @@ import type { Tables } from '@/types/database'
 /** Tipos de domínio de Projetos. */
 
 export type StatusProjeto =
-  | 'planejamento'
-  | 'em_andamento'
-  | 'pausado'
-  | 'concluido'
+  'planejamento' | 'em_andamento' | 'pausado' | 'concluido'
 
 export type StatusMarco = 'a_fazer' | 'fazendo' | 'feito'
 

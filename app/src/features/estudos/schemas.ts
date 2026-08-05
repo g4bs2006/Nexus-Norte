@@ -50,7 +50,9 @@ export type FormularioMateria = z.infer<typeof schemaMateria>
 
 export const schemaAvaliacao = z.object({
   nome: z.string().trim().min(1, 'Informe o nome da avaliação'),
-  peso: z.number({ message: 'Informe o peso' }).positive('O peso deve ser maior que zero'),
+  peso: z
+    .number({ message: 'Informe o peso' })
+    .positive('O peso deve ser maior que zero'),
   /** Vazio = ainda sem nota lançada. */
   nota: z.union([z.number().min(0, 'A nota não pode ser negativa'), z.nan()]),
   /** Vazio = data ainda não marcada (resolução 10.14). */

@@ -67,10 +67,7 @@ export function SkeletonLista({ linhas = 4 }: { linhas?: number }) {
         {Array.from({ length: linhas }, (_, i) => (
           <div key={i} className="flex items-center gap-2.5">
             <Skeleton className="size-4 shrink-0 rounded" />
-            <Skeleton
-              className="h-3.5"
-              style={{ width: `${65 - i * 8}%` }}
-            />
+            <Skeleton className="h-3.5" style={{ width: `${65 - i * 8}%` }} />
           </div>
         ))}
       </CardContent>

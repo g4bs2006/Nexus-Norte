@@ -30,7 +30,9 @@ function categoria(parcial: Partial<Categoria>): Categoria {
 
 describe('metaEfetiva', () => {
   it('devolve o valor absoluto quando meta_tipo é valor', () => {
-    expect(metaEfetiva({ meta_mensal: 500, meta_tipo: 'valor' }, 5000)).toBe(500)
+    expect(metaEfetiva({ meta_mensal: 500, meta_tipo: 'valor' }, 5000)).toBe(
+      500,
+    )
   })
 
   it('resolve percentual da renda contra a receita do mês', () => {

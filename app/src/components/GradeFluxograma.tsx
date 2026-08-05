@@ -70,7 +70,9 @@ export function GradeFluxograma({
                         'mt-1 size-1.5 shrink-0 rounded-full',
                         !item.cor && (classeCorPadrao ?? 'bg-foreground/40'),
                       )}
-                      style={item.cor ? { backgroundColor: item.cor } : undefined}
+                      style={
+                        item.cor ? { backgroundColor: item.cor } : undefined
+                      }
                     />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs">{item.rotulo}</p>

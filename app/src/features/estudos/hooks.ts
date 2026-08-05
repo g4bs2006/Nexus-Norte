@@ -167,8 +167,13 @@ export function useCriarFalta() {
 
 export function useAtualizarFalta() {
   return useMutationEstudos(
-    ({ id, dados }: { id: string; dados: Parameters<typeof api.atualizarFalta>[1] }) =>
-      api.atualizarFalta(id, dados),
+    ({
+      id,
+      dados,
+    }: {
+      id: string
+      dados: Parameters<typeof api.atualizarFalta>[1]
+    }) => api.atualizarFalta(id, dados),
     'Falta atualizada',
   )
 }
@@ -183,8 +188,13 @@ export function useCriarSessao() {
 
 export function useAtualizarSessao() {
   return useMutationEstudos(
-    ({ id, dados }: { id: string; dados: Parameters<typeof api.atualizarSessao>[1] }) =>
-      api.atualizarSessao(id, dados),
+    ({
+      id,
+      dados,
+    }: {
+      id: string
+      dados: Parameters<typeof api.atualizarSessao>[1]
+    }) => api.atualizarSessao(id, dados),
     'Sessão atualizada',
   )
 }
@@ -199,8 +209,13 @@ export function useCriarRegistroLista() {
 
 export function useAtualizarRegistroLista() {
   return useMutationEstudos(
-    ({ id, dados }: { id: string; dados: Parameters<typeof api.atualizarRegistroLista>[1] }) =>
-      api.atualizarRegistroLista(id, dados),
+    ({
+      id,
+      dados,
+    }: {
+      id: string
+      dados: Parameters<typeof api.atualizarRegistroLista>[1]
+    }) => api.atualizarRegistroLista(id, dados),
     'Lista atualizada',
   )
 }
@@ -258,8 +273,13 @@ export function useCriarFluxograma() {
 
 export function useAtualizarFluxograma() {
   return useMutationEstudos(
-    ({ id, dados }: { id: string; dados: Parameters<typeof api.atualizarFluxograma>[1] }) =>
-      api.atualizarFluxograma(id, dados),
+    ({
+      id,
+      dados,
+    }: {
+      id: string
+      dados: Parameters<typeof api.atualizarFluxograma>[1]
+    }) => api.atualizarFluxograma(id, dados),
     'Horário atualizado',
   )
 }

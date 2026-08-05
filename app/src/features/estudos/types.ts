@@ -4,11 +4,7 @@ import type { Status } from '@/features/financeiro/types'
 /** Tipos de domínio de Estudos — estreitam as colunas `text` com CHECK. */
 
 export type TipoDocumento =
-  | 'lista'
-  | 'livro'
-  | 'anotacao'
-  | 'ementa'
-  | 'prova_anterior'
+  'lista' | 'livro' | 'anotacao' | 'ementa' | 'prova_anterior'
 
 export type TipoCalculoMedia = 'ponderada' | 'manual'
 export type StatusExcecao = 'cancelado' | 'remarcado'
@@ -43,7 +39,10 @@ export type ConfigCalculoMedia = Omit<
   tipo: TipoCalculoMedia
 }
 
-export type ExcecaoFluxograma = Omit<Tables<'excecoes_fluxograma'>, 'status'> & {
+export type ExcecaoFluxograma = Omit<
+  Tables<'excecoes_fluxograma'>,
+  'status'
+> & {
   status: StatusExcecao
 }
 

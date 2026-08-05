@@ -119,8 +119,13 @@ export function useCriarCategoria() {
 
 export function useAtualizarCategoria() {
   return useMutationFinanceiro(
-    ({ id, dados }: { id: string; dados: Parameters<typeof api.atualizarCategoria>[1] }) =>
-      api.atualizarCategoria(id, dados),
+    ({
+      id,
+      dados,
+    }: {
+      id: string
+      dados: Parameters<typeof api.atualizarCategoria>[1]
+    }) => api.atualizarCategoria(id, dados),
     'Categoria atualizada',
   )
 }
@@ -135,8 +140,13 @@ export function useCriarLancamento() {
 
 export function useAtualizarLancamento() {
   return useMutationFinanceiro(
-    ({ id, dados }: { id: string; dados: Parameters<typeof api.atualizarLancamento>[1] }) =>
-      api.atualizarLancamento(id, dados),
+    ({
+      id,
+      dados,
+    }: {
+      id: string
+      dados: Parameters<typeof api.atualizarLancamento>[1]
+    }) => api.atualizarLancamento(id, dados),
     'Lançamento atualizado',
   )
 }
@@ -151,8 +161,13 @@ export function useCriarInvestimento() {
 
 export function useAtualizarInvestimento() {
   return useMutationFinanceiro(
-    ({ id, dados }: { id: string; dados: Parameters<typeof api.atualizarInvestimento>[1] }) =>
-      api.atualizarInvestimento(id, dados),
+    ({
+      id,
+      dados,
+    }: {
+      id: string
+      dados: Parameters<typeof api.atualizarInvestimento>[1]
+    }) => api.atualizarInvestimento(id, dados),
     'Investimento atualizado',
   )
 }

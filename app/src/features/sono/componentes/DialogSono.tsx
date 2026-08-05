@@ -159,7 +159,9 @@ export function DialogSono({ hoje }: DialogSonoProps) {
                 disabled={excluirRegistro.isPending}
                 className="sm:mr-auto"
               >
-                {excluirRegistro.isPending ? 'Excluindo…' : 'Excluir registro da data'}
+                {excluirRegistro.isPending
+                  ? 'Excluindo…'
+                  : 'Excluir registro da data'}
               </Button>
               <Button
                 onClick={() => void submeterRegistro()}

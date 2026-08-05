@@ -85,7 +85,11 @@ export function expandirRecorrencia<T extends RegraRecorrente>(
     for (const regra of regrasDoDia) {
       const status = porStatus.get(chaveExcecao(regra.id, dataISO))
       if (status === 'cancelado') continue
-      ocorrencias.push({ regra, data: dataISO, remarcada: status === 'remarcado' })
+      ocorrencias.push({
+        regra,
+        data: dataISO,
+        remarcada: status === 'remarcado',
+      })
     }
   }
 

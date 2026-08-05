@@ -416,9 +416,14 @@ export default function ProjetoDetalhePage() {
                           <Input
                             className="h-8 text-sm"
                             value={textoLogEditando}
-                            onChange={(e) => setTextoLogEditando(e.target.value)}
+                            onChange={(e) =>
+                              setTextoLogEditando(e.target.value)
+                            }
                             onKeyDown={(e) => {
-                              if (e.key === 'Enter' && textoLogEditando.trim()) {
+                              if (
+                                e.key === 'Enter' &&
+                                textoLogEditando.trim()
+                              ) {
                                 void atualizarLog.mutateAsync({
                                   id: log.id,
                                   dados: { conteudo: textoLogEditando.trim() },

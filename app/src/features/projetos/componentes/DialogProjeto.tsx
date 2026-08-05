@@ -21,7 +21,11 @@ import {
 } from '@/components/ui/select'
 import { paraISO } from '@/lib/datas'
 import { useCriarProjeto, useAtualizarProjeto } from '../hooks'
-import { ROTULOS_STATUS_PROJETO, type Projeto, type StatusProjeto } from '../types'
+import {
+  ROTULOS_STATUS_PROJETO,
+  type Projeto,
+  type StatusProjeto,
+} from '../types'
 
 const STATUS = Object.keys(ROTULOS_STATUS_PROJETO) as StatusProjeto[]
 

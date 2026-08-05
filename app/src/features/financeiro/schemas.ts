@@ -25,7 +25,10 @@ export const schemaCategoria = z
     natureza: z.enum(['receita', 'despesa']),
     tipo: z.union([z.enum(['fixo', 'variavel']), z.literal('')]),
     /** Vazio significa "sem meta". */
-    meta_mensal: z.union([z.number().positive('A meta deve ser maior que zero'), z.nan()]),
+    meta_mensal: z.union([
+      z.number().positive('A meta deve ser maior que zero'),
+      z.nan(),
+    ]),
     meta_tipo: z.union([z.enum(['valor', 'percentual_renda']), z.literal('')]),
     // Restrita à paleta do design system: a cor vem de um seletor de swatches,
     // não de entrada livre. `''` = sem cor (cai na cor do pilar).
@@ -50,15 +53,17 @@ export const schemaCategoria = z
     message: 'Defina a meta e o tipo de meta juntos',
     path: ['meta_tipo'],
   })
-  .refine(
-    (v) => v.meta_tipo !== 'percentual_renda' || v.meta_mensal <= 100,
-    { message: 'Percentual da renda deve ser até 100', path: ['meta_mensal'] },
-  )
+  .refine((v) => v.meta_tipo !== 'percentual_renda' || v.meta_mensal <= 100, {
+    message: 'Percentual da renda deve ser até 100',
+    path: ['meta_mensal'],
+  })
 
 export type FormularioCategoria = z.infer<typeof schemaCategoria>
 
 export const schemaLancamento = z.object({
-  valor: z.number({ message: 'Informe um valor' }).positive('O valor deve ser maior que zero'),
+  valor: z
+    .number({ message: 'Informe um valor' })
+    .positive('O valor deve ser maior que zero'),
   categoria_id: z.string().uuid('Selecione uma categoria'),
   data: z.string().min(1, 'Informe a data'),
   descricao: z.string(),

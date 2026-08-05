@@ -37,7 +37,11 @@ describe('diasDesdeUltimaAtualizacao', () => {
   it('usa o log mais recente, independente da ordem', () => {
     expect(
       diasDesdeUltimaAtualizacao(
-        [{ data: '2026-07-20' }, { data: '2026-08-01' }, { data: '2026-07-25' }],
+        [
+          { data: '2026-07-20' },
+          { data: '2026-08-01' },
+          { data: '2026-07-25' },
+        ],
         HOJE,
       ),
     ).toBe(3)

@@ -45,7 +45,10 @@ export async function salvarRegistroSono(
 }
 
 export async function excluirRegistroSono(data: string): Promise<void> {
-  const { error } = await supabase.from('registro_sono').delete().eq('data', data)
+  const { error } = await supabase
+    .from('registro_sono')
+    .delete()
+    .eq('data', data)
   if (error) throw new Error(error.message)
 }
 
@@ -68,7 +71,9 @@ export async function salvarPlanejamentoSono(
   if (error) throw new Error(error.message)
 }
 
-export async function excluirPlanejamentoSono(diaSemana: number): Promise<void> {
+export async function excluirPlanejamentoSono(
+  diaSemana: number,
+): Promise<void> {
   const { error } = await supabase
     .from('planejamento_sono')
     .delete()

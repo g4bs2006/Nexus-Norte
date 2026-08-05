@@ -5,7 +5,12 @@ import {
   NOTA_MINIMA_APROVACAO,
 } from '@/lib/constants'
 import { deISO } from '@/lib/datas'
-import type { Avaliacao, ConfigCalculoMedia, SessaoEstudo, Status } from './types'
+import type {
+  Avaliacao,
+  ConfigCalculoMedia,
+  SessaoEstudo,
+  Status,
+} from './types'
 
 /**
  * Cálculos de Estudos (plano, seção 3.2 + resolução 10.3).
@@ -129,7 +134,10 @@ export interface FrequenciaEstudo {
  * referência histórica do dia — multiplicada pelos dias do intervalo.
  */
 export function frequenciaEstudoSemana(
-  sessoes: readonly Pick<SessaoEstudo, 'duracao_minutos' | 'meta_diaria_minutos'>[],
+  sessoes: readonly Pick<
+    SessaoEstudo,
+    'duracao_minutos' | 'meta_diaria_minutos'
+  >[],
   diasNoIntervalo: number,
 ): FrequenciaEstudo {
   let minutosEstudados = 0

@@ -78,12 +78,7 @@ export function AbaFaltas({
           <div className="flex items-baseline justify-between">
             <div>
               <p className="text-muted-foreground text-xs">Faltas restantes</p>
-              <p
-                className={cn(
-                  'metric-lg',
-                  critico && 'text-status-risco',
-                )}
-              >
+              <p className={cn('metric-lg', critico && 'text-status-risco')}>
                 {limiteFaltas === 0 ? '—' : restantes}
               </p>
             </div>
@@ -95,7 +90,7 @@ export function AbaFaltas({
           {limiteFaltas > 0 && (
             <BarraProgresso
               valor={percentualUsado}
-              classeCor={critico ? "bg-status-risco" : "bg-estudos"}
+              classeCor={critico ? 'bg-status-risco' : 'bg-estudos'}
               rotulo="Faltas usadas"
             />
           )}
@@ -133,12 +128,12 @@ export function AbaFaltas({
               onChange={(evento) => setMotivo(evento.target.value)}
             />
           </div>
-          <Button
-            size="sm"
-            onClick={() => void salvar()}
-            disabled={pendente}
-          >
-            {idEditando ? <Pencil className="size-4" /> : <Plus className="size-4" />}
+          <Button size="sm" onClick={() => void salvar()} disabled={pendente}>
+            {idEditando ? (
+              <Pencil className="size-4" />
+            ) : (
+              <Plus className="size-4" />
+            )}
             {idEditando ? 'Salvar' : 'Registrar falta'}
           </Button>
           {idEditando && (

@@ -68,7 +68,9 @@ export function AbaSessoes({ materiaId, sessoes, hoje }: AbaSessoesProps) {
     setIdEditando(sessao.id)
     setData(sessao.data)
     setDuracao(String(sessao.duracao_minutos))
-    setMeta(sessao.meta_diaria_minutos ? String(sessao.meta_diaria_minutos) : '')
+    setMeta(
+      sessao.meta_diaria_minutos ? String(sessao.meta_diaria_minutos) : '',
+    )
   }
 
   function cancelarEdicao() {
@@ -182,12 +184,12 @@ export function AbaSessoes({ materiaId, sessoes, hoje }: AbaSessoesProps) {
               onChange={(evento) => setMeta(evento.target.value)}
             />
           </div>
-          <Button
-            size="sm"
-            onClick={() => void salvar()}
-            disabled={pendente}
-          >
-            {idEditando ? <Pencil className="size-4" /> : <Plus className="size-4" />}
+          <Button size="sm" onClick={() => void salvar()} disabled={pendente}>
+            {idEditando ? (
+              <Pencil className="size-4" />
+            ) : (
+              <Plus className="size-4" />
+            )}
             {idEditando ? 'Salvar' : 'Registrar'}
           </Button>
           {idEditando && (
@@ -225,7 +227,11 @@ export function AbaSessoes({ materiaId, sessoes, hoje }: AbaSessoesProps) {
                   formatter={(valor) => `${valor} min`}
                   contentStyle={ESTILO_TOOLTIP}
                 />
-                <Bar dataKey="minutos" fill="var(--chart-2)" radius={[3, 3, 0, 0]} />
+                <Bar
+                  dataKey="minutos"
+                  fill="var(--chart-2)"
+                  radius={[3, 3, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>

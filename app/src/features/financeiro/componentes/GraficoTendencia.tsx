@@ -83,7 +83,10 @@ export function GraficoTendencia({
       selecionada === TODAS
         ? despesas
         : despesas.filter((c) => c.id === selecionada)
-    const soma = alvo.reduce((t, c) => t + (metaEfetiva(c, receitaDoMes) ?? 0), 0)
+    const soma = alvo.reduce(
+      (t, c) => t + (metaEfetiva(c, receitaDoMes) ?? 0),
+      0,
+    )
     return soma > 0 ? soma : null
   }, [despesas, selecionada, receitaDoMes])
 
@@ -110,12 +113,23 @@ export function GraficoTendencia({
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={220}>
-          <AreaChart data={dados} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
+          <AreaChart
+            data={dados}
+            margin={{ top: 8, right: 8, bottom: 0, left: 8 }}
+          >
             {/* Área de preenchimento: dá massa à linha sem competir com ela */}
             <defs>
               <linearGradient id="areaTendencia" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--chart-1)" stopOpacity={0.22} />
-                <stop offset="100%" stopColor="var(--chart-1)" stopOpacity={0} />
+                <stop
+                  offset="0%"
+                  stopColor="var(--chart-1)"
+                  stopOpacity={0.22}
+                />
+                <stop
+                  offset="100%"
+                  stopColor="var(--chart-1)"
+                  stopOpacity={0}
+                />
               </linearGradient>
             </defs>
             <CartesianGrid

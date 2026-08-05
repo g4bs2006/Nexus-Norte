@@ -35,12 +35,7 @@ export function IndicadorSono({
             Sono de ontem
           </span>
           <span className="flex items-center gap-2">
-            <span
-              className={cn(
-                'metric-md',
-                abaixo && 'text-status-atencao',
-              )}
-            >
+            <span className={cn('metric-md', abaixo && 'text-status-atencao')}>
               {horasDormidas === null ? '—' : formatarHoras(horasDormidas)}
             </span>
             {acao}

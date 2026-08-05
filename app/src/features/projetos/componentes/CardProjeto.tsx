@@ -57,7 +57,9 @@ export function CardProjeto({
           <div className="text-muted-foreground flex justify-between text-xs">
             <span>Marcos concluídos</span>
             <span className="tabular-nums">
-              {percentual === null ? 'sem marcos' : `${Math.round(percentual)}%`}
+              {percentual === null
+                ? 'sem marcos'
+                : `${Math.round(percentual)}%`}
             </span>
           </div>
           <BarraProgresso

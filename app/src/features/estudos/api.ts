@@ -27,9 +27,7 @@ function lancarSeErro<T>(resultado: {
 // --- Matérias ---------------------------------------------------------------
 
 export async function listarMaterias(): Promise<Materia[]> {
-  return lancarSeErro(
-    await supabase.from('materias').select('*').order('nome'),
-  )
+  return lancarSeErro(await supabase.from('materias').select('*').order('nome'))
 }
 
 export async function criarMateria(
@@ -104,7 +102,11 @@ export async function obterConfigMedia(
  */
 export async function salvarConfigMedia(
   materiaId: string,
-  config: { tipo: 'ponderada' | 'manual'; nota_manual: number | null; observacao: string | null },
+  config: {
+    tipo: 'ponderada' | 'manual'
+    nota_manual: number | null
+    observacao: string | null
+  },
 ): Promise<void> {
   if (config.tipo === 'ponderada') {
     const { error } = await supabase
@@ -131,7 +133,10 @@ export async function salvarConfigMedia(
 
 export async function listarFaltas(): Promise<Falta[]> {
   return lancarSeErro(
-    await supabase.from('faltas').select('*').order('data', { ascending: false }),
+    await supabase
+      .from('faltas')
+      .select('*')
+      .order('data', { ascending: false }),
   )
 }
 
@@ -176,7 +181,10 @@ export async function atualizarSessao(
   id: string,
   dados: TablesUpdate<'sessoes_estudo'>,
 ): Promise<void> {
-  const { error } = await supabase.from('sessoes_estudo').update(dados).eq('id', id)
+  const { error } = await supabase
+    .from('sessoes_estudo')
+    .update(dados)
+    .eq('id', id)
   if (error) throw new Error(error.message)
 }
 
@@ -210,7 +218,10 @@ export async function atualizarRegistroLista(
   id: string,
   dados: TablesUpdate<'registro_listas'>,
 ): Promise<void> {
-  const { error } = await supabase.from('registro_listas').update(dados).eq('id', id)
+  const { error } = await supabase
+    .from('registro_listas')
+    .update(dados)
+    .eq('id', id)
   if (error) throw new Error(error.message)
 }
 
@@ -321,7 +332,10 @@ export async function atualizarFluxograma(
   id: string,
   dados: TablesUpdate<'fluxograma_semanal'>,
 ): Promise<void> {
-  const { error } = await supabase.from('fluxograma_semanal').update(dados).eq('id', id)
+  const { error } = await supabase
+    .from('fluxograma_semanal')
+    .update(dados)
+    .eq('id', id)
   if (error) throw new Error(error.message)
 }
 

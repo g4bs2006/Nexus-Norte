@@ -30,7 +30,11 @@ import {
 } from '@/components/ui/select'
 import { paraISO } from '@/lib/datas'
 import { useCriarLancamento, useAtualizarLancamento } from '../hooks'
-import { schemaLancamento, textoOuNulo, type FormularioLancamento } from '../schemas'
+import {
+  schemaLancamento,
+  textoOuNulo,
+  type FormularioLancamento,
+} from '../schemas'
 import type { Categoria, Lancamento } from '../types'
 
 interface DialogLancamentoProps {
@@ -44,7 +48,11 @@ interface DialogLancamentoProps {
  * Formulário de novo/edição de lançamento — o mais usado no dia a dia, então
  * abre com data já preenchida e foco direto no valor (plano 8: reduzir fricção).
  */
-export function DialogLancamento({ categorias, hoje, lancamento }: DialogLancamentoProps) {
+export function DialogLancamento({
+  categorias,
+  hoje,
+  lancamento,
+}: DialogLancamentoProps) {
   const modoEdicao = Boolean(lancamento)
   const [aberto, setAberto] = useState(false)
   const criar = useCriarLancamento()

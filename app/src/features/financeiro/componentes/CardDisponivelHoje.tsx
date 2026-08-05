@@ -81,7 +81,7 @@ export function CardDisponivelHoje({
           </div>
           <BarraProgresso
             valor={progressoMes}
-            classeCor={progressoMes > 100 ? "bg-status-risco" : "bg-financeiro"}
+            classeCor={progressoMes > 100 ? 'bg-status-risco' : 'bg-financeiro'}
             rotulo="Progresso do mês"
           />
         </div>
