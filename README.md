@@ -259,8 +259,16 @@ banco garante isso com um índice único.
 Enquanto não estiver finalizada, a sessão **não conta** na frequência da semana.
 Treino abandonado no meio não é treino feito.
 
-Dois ganhos que vieram junto: o recorde é gravado no instante em que a série é
-salva, e a sessão passou a ter **duração** — do primeiro registro ao encerramento.
+O recorde é gravado no instante em que a série é salva.
+
+A **duração** é um campo seu, não um cálculo. Já foi derivada dos timestamps do
+sistema, e errava: aqueles medem quanto tempo você passou *registrando*, não
+treinando — um treino lançado depois do fato marcava 0 min. Quando não informada, a
+tela mostra "—" e, ao lado, o tempo de registro rotulado como tal.
+
+Cada sessão do histórico abre no **mesmo diálogo** da execução, em modo de edição:
+data, horário, duração e as séries, com corrigir carga, apagar série e marcar
+pulado. Um editor só, para os dois não divergirem.
 
 Dá para **pular** um exercício — máquina ocupada, ombro doendo, tempo curto. O pulo
 fica registrado: as linhas somem do formulário, o exercício sai do contador de

@@ -323,7 +323,13 @@ export default function TreinoPage() {
             </CardContent>
           </Card>
 
-          <SecaoSessoes sessoes={sessoes} nomePorTreino={nomePorTreino} />
+          <SecaoSessoes
+            sessoes={sessoes}
+            nomePorTreino={nomePorTreino}
+            treinos={listaTreinos}
+            exercicios={listaExercicios}
+            hoje={hoje}
+          />
 
           <SecaoPRs prs={prs.data ?? []} />
 

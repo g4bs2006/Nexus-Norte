@@ -17,14 +17,18 @@ import {
   umRmEstimado,
   type SessaoRealizada,
 } from '../calculos'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { useAtualizarHoraSessao, useExcluirExecucao } from '../hooks'
+import { useExcluirExecucao } from '../hooks'
+import type { ExercicioComBase, TreinoComTipo } from '../types'
+import { DialogExecucao } from './DialogExecucao'
 
 interface SecaoSessoesProps {
   sessoes: readonly SessaoRealizada[]
   /** Nome do treino por id, para o título de cada sessão. */
   nomePorTreino: ReadonlyMap<string, string>
+  /** Treinos e exercícios: o editor é o mesmo diálogo da execução (10.24). */
+  treinos: readonly TreinoComTipo[]
+  exercicios: readonly ExercicioComBase[]
+  hoje: Date
 }
 
 /**
@@ -38,7 +42,13 @@ interface SecaoSessoesProps {
  * Fechada por padrão: o resumo responde "o que eu fiz" e a expansão responde
  * "com quanto", que é a pergunta menos frequente.
  */
-export function SecaoSessoes({ sessoes, nomePorTreino }: SecaoSessoesProps) {
+export function SecaoSessoes({
+  sessoes,
+  nomePorTreino,
+  treinos,
+  exercicios,
+  hoje,
+}: SecaoSessoesProps) {
   const [abertas, setAbertas] = useState<ReadonlySet<string>>(new Set())
   const excluir = useExcluirExecucao()
 
@@ -69,6 +79,12 @@ export function SecaoSessoes({ sessoes, nomePorTreino }: SecaoSessoesProps) {
             {sessoes.map((sessao) => {
               const expandida = abertas.has(sessao.id)
               const nome = nomePorTreino.get(sessao.treino_id) ?? 'Treino'
+              const treinoDaSessao = treinos.find(
+                (item) => item.id === sessao.treino_id,
+              )
+              const exerciciosDoTreino = exercicios.filter(
+                (item) => item.treino_id === sessao.treino_id,
+              )
 
               return (
                 <li key={sessao.id} className="py-3 first:pt-0 last:pb-0">
@@ -117,15 +133,37 @@ export function SecaoSessoes({ sessoes, nomePorTreino }: SecaoSessoesProps) {
                             {Math.round(sessao.volume).toLocaleString('pt-BR')}{' '}
                             kg
                           </span>
-                          {sessao.duracaoMinutos !== null && (
+                          {/*
+                            Duração informada (10.24). Quando vazia mostra o tempo
+                            de REGISTRO como contexto, rotulado como tal — antes o
+                            span era exibido como se fosse a duração do treino, e
+                            errava em toda sessão lançada depois do fato.
+                          */}
+                          {sessao.duracaoMinutos !== null ? (
                             <span className="inline-flex items-center gap-1 tabular-nums">
                               <Timer aria-hidden className="size-3" />
                               {formatarDuracao(sessao.duracaoMinutos)}
                             </span>
+                          ) : (
+                            sessao.spanRegistroMinutos !== null && (
+                              <span className="tabular-nums">
+                                registrado em{' '}
+                                {formatarDuracao(sessao.spanRegistroMinutos)}
+                              </span>
+                            )
                           )}
                         </p>
                       </div>
                     </button>
+
+                    {treinoDaSessao && (
+                      <DialogExecucao
+                        treino={treinoDaSessao}
+                        exercicios={exerciciosDoTreino}
+                        hoje={hoje}
+                        execucaoIdEdicao={sessao.id}
+                      />
+                    )}
 
                     <DialogConfirmarExclusao
                       titulo={`Excluir sessão de ${nome}`}
@@ -136,12 +174,6 @@ export function SecaoSessoes({ sessoes, nomePorTreino }: SecaoSessoesProps) {
                       pendente={excluir.isPending}
                     />
                   </div>
-
-                  {expandida && (
-                    <div className="mt-2 pl-6">
-                      <CampoHorario sessao={sessao} />
-                    </div>
-                  )}
 
                   {expandida && (
                     <ul className="mt-2 space-y-2.5 pl-6">
@@ -209,49 +241,5 @@ export function SecaoSessoes({ sessoes, nomePorTreino }: SecaoSessoesProps) {
         )}
       </CardContent>
     </Card>
-  )
-}
-
-/**
- * Horário real da sessão, editável (resolução 10.23).
- *
- * Fica na expansão e não na linha de resumo: informar horário é exceção, e um
- * campo por sessão na lista fechada competiria com o que se lê de relance.
- *
- * Grava no blur — um update por tecla digitada seria absurdo.
- */
-function CampoHorario({ sessao }: { sessao: SessaoRealizada }) {
-  const atualizar = useAtualizarHoraSessao()
-  const [hora, setHora] = useState(sessao.horaInicio ?? '')
-
-  async function salvar() {
-    if (hora === (sessao.horaInicio ?? '')) return
-    await atualizar.mutateAsync({
-      id: sessao.id,
-      hora: hora === '' ? null : hora,
-    })
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      <Label
-        htmlFor={`hora-${sessao.id}`}
-        className="text-muted-foreground text-xs"
-      >
-        Horário
-      </Label>
-      <Input
-        id={`hora-${sessao.id}`}
-        type="time"
-        className="h-8 w-28"
-        value={hora}
-        disabled={atualizar.isPending}
-        onChange={(evento) => setHora(evento.target.value)}
-        onBlur={() => void salvar()}
-      />
-      {!sessao.horaInicio && (
-        <span className="text-muted-foreground text-xs">não informado</span>
-      )}
-    </div>
   )
 }

@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Check, Play, RotateCcw, SkipForward, Trash2 } from 'lucide-react'
+import {
+  Check,
+  Pencil,
+  Play,
+  RotateCcw,
+  SkipForward,
+  Trash2,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -16,12 +23,13 @@ import { paraISO } from '@/lib/datas'
 import { cn } from '@/lib/utils'
 import { umRmEstimado } from '../calculos'
 import {
-  useAtualizarHoraSessao,
   useAtualizarSerie,
+  useAtualizarSessao,
   useDescartarExecucao,
   useDesfazerPulo,
   useExcluirSerie,
   useExecucaoAberta,
+  useExecucaoPorId,
   useFinalizarExecucao,
   usePularExercicio,
   useSalvarSerie,
@@ -46,6 +54,14 @@ interface DialogExecucaoProps {
   larguraTotal?: boolean
   /** Abre já aberto — usado pelo aviso de "continuar" (resolução 10.21). */
   abrirAoMontar?: boolean
+  /**
+   * Id de uma sessão JÁ FINALIZADA para editar (resolução 10.24).
+   *
+   * O mesmo diálogo edita a sessão em andamento e a do histórico. Um segundo
+   * editor divergiria do primeiro na primeira mudança — e as duas telas precisam
+   * das mesmas ações: corrigir carga, apagar série, marcar pulado.
+   */
+  execucaoIdEdicao?: string
 }
 
 /**
@@ -71,10 +87,13 @@ export function DialogExecucao({
   variante = 'default',
   larguraTotal = false,
   abrirAoMontar = false,
+  execucaoIdEdicao,
 }: DialogExecucaoProps) {
   const [aberto, setAberto] = useState(abrirAoMontar)
+  const emEdicao = execucaoIdEdicao !== undefined
 
   const aberta = useExecucaoAberta()
+  const doHistorico = useExecucaoPorId(execucaoIdEdicao)
   const salvar = useSalvarSerie()
   const atualizar = useAtualizarSerie()
   const excluir = useExcluirSerie()
@@ -82,11 +101,21 @@ export function DialogExecucao({
   const pular = usePularExercicio()
   const desfazerPulo = useDesfazerPulo()
   const descartar = useDescartarExecucao()
-  const atualizarHora = useAtualizarHoraSessao()
+  const atualizarSessao = useAtualizarSessao()
 
-  const sessao =
-    aberta.data?.treino_id === treino.id ? (aberta.data ?? null) : null
+  /** Em edição, a sessão vem do histórico; senão, é a aberta deste treino. */
+  const sessao = emEdicao
+    ? (doHistorico.data ?? null)
+    : aberta.data?.treino_id === treino.id
+      ? (aberta.data ?? null)
+      : null
+
+  const consultaSessao = emEdicao ? doHistorico : aberta
+  const duracaoAtual = sessao?.duracao_minutos ?? null
+
+  // Editar uma sessão do passado não conflita com a sessão aberta de outro treino
   const outroTreinoAberto =
+    !emEdicao &&
     aberta.data !== null &&
     aberta.data !== undefined &&
     aberta.data.treino_id !== treino.id
@@ -101,6 +130,13 @@ export function DialogExecucao({
    * um valor faria o registro parecer informado quando não é.
    */
   const [hora, setHora] = useState('')
+  /**
+   * Duração informada, em minutos (resolução 10.24).
+   *
+   * Campo do usuário e não valor derivado: `created_at` e `finalizado_em` medem o
+   * tempo de REGISTRO, não o de treino.
+   */
+  const [duracao, setDuracao] = useState('')
   const [linhas, setLinhas] = useState<LinhaSerie[]>([])
 
   /**
@@ -165,16 +201,21 @@ export function DialogExecucao({
       setCarregado(false)
       return
     }
-    if (carregado || aberta.isPending) return
+    if (carregado || consultaSessao.isPending) return
 
     setExecucaoId(sessao?.id ?? null)
     setData(sessao?.data ?? paraISO(hoje))
     setHora(sessao?.hora_inicio?.slice(0, 5) ?? '')
+    setDuracao(
+      duracaoAtual === null || duracaoAtual === undefined
+        ? ''
+        : String(duracaoAtual),
+    )
     setLinhas(montarLinhas())
     setCarregado(true)
     // `montarLinhas` lê `sessao` e `exercicios`, que só importam nesta carga
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aberto, carregado, aberta.isPending])
+  }, [aberto, carregado, consultaSessao.isPending])
 
   function alterar(indice: number, campo: keyof LinhaSerie, valor: string) {
     setLinhas((atual) =>
@@ -236,15 +277,41 @@ export function DialogExecucao({
     )
   }
 
-  /** Grava no blur: um insert por tecla digitada seria absurdo. */
+  /** Grava no blur: um update por tecla digitada seria absurdo. */
   async function salvarHora() {
     if (!execucaoId) return
     const atual = sessao?.hora_inicio?.slice(0, 5) ?? ''
     if (hora === atual) return
-    await atualizarHora.mutateAsync({
+    await atualizarSessao.mutateAsync({
       id: execucaoId,
-      hora: hora === '' ? null : hora,
+      dados: { hora_inicio: hora === '' ? null : hora },
     })
+  }
+
+  async function salvarDuracao() {
+    if (!execucaoId) return
+    const atual =
+      duracaoAtual === null || duracaoAtual === undefined
+        ? ''
+        : String(duracaoAtual)
+    if (duracao === atual) return
+
+    const minutos = Number(duracao)
+    // O CHECK do banco exige > 0; vazio limpa o campo
+    const valido = duracao === '' || (Number.isInteger(minutos) && minutos > 0)
+    if (!valido) return
+
+    await atualizarSessao.mutateAsync({
+      id: execucaoId,
+      dados: { duracao_minutos: duracao === '' ? null : minutos },
+    })
+  }
+
+  /** Mover a sessão de dia — só faz sentido editando o histórico. */
+  async function salvarData(nova: string) {
+    setData(nova)
+    if (!execucaoId || !emEdicao || nova === '') return
+    await atualizarSessao.mutateAsync({ id: execucaoId, dados: { data: nova } })
   }
 
   async function pularAqui(exercicioId: string) {
@@ -301,34 +368,48 @@ export function DialogExecucao({
     finalizar.isPending ||
     pular.isPending ||
     desfazerPulo.isPending ||
-    descartar.isPending
+    descartar.isPending ||
+    atualizarSessao.isPending
 
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild>
-        <Button
-          size="sm"
-          variant={sessao ? 'default' : variante}
-          disabled={exercicios.length === 0 || outroTreinoAberto}
-          className={larguraTotal ? 'w-full sm:w-auto' : undefined}
-          title={
-            outroTreinoAberto
-              ? 'Há outro treino em andamento. Finalize-o primeiro.'
-              : undefined
-          }
-        >
-          <Play className="size-4" />
-          {sessao ? 'Continuar treino' : rotulo}
-        </Button>
+        {emEdicao ? (
+          <Button
+            size="icon"
+            variant="ghost"
+            className="text-muted-foreground size-9 shrink-0 sm:size-7"
+            aria-label={`Editar sessão de ${treino.nome}`}
+          >
+            <Pencil className="size-3.5" />
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            variant={sessao ? 'default' : variante}
+            disabled={exercicios.length === 0 || outroTreinoAberto}
+            className={larguraTotal ? 'w-full sm:w-auto' : undefined}
+            title={
+              outroTreinoAberto
+                ? 'Há outro treino em andamento. Finalize-o primeiro.'
+                : undefined
+            }
+          >
+            <Play className="size-4" />
+            {sessao ? 'Continuar treino' : rotulo}
+          </Button>
+        )}
       </DialogTrigger>
 
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{treino.nome}</DialogTitle>
           <DialogDescription>
-            {sessao
-              ? 'Sessão em andamento. Cada série confirmada já está salva.'
-              : 'Confirme cada série ao terminá-la — ela é salva na hora.'}
+            {emEdicao
+              ? 'Corrija data, horário, duração e as séries. Tudo salva na hora.'
+              : sessao
+                ? 'Sessão em andamento. Cada série confirmada já está salva.'
+                : 'Confirme cada série ao terminá-la — ela é salva na hora.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -344,10 +425,14 @@ export function DialogExecucao({
                   type="date"
                   className="h-8 w-36"
                   value={data}
-                  // A data trava depois da primeira série: mudá-la moveria séries
-                  // já gravadas para outro dia
-                  disabled={execucaoId !== null}
-                  onChange={(evento) => setData(evento.target.value)}
+                  /*
+                   * Trava durante a sessão em andamento — mudar ali moveria séries
+                   * que estão sendo gravadas para outro dia. Editando o histórico
+                   * é o contrário: mover a sessão de dia é justamente o conserto
+                   * de quem lançou na data errada.
+                   */
+                  disabled={(!emEdicao && execucaoId !== null) || pendente}
+                  onChange={(evento) => void salvarData(evento.target.value)}
                 />
               </div>
               <div className="space-y-1.5">
@@ -363,6 +448,23 @@ export function DialogExecucao({
                   value={hora}
                   onChange={(evento) => setHora(evento.target.value)}
                   onBlur={() => void salvarHora()}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs" htmlFor="execucao-duracao">
+                  Duração
+                </Label>
+                <Input
+                  id="execucao-duracao"
+                  type="number"
+                  min="1"
+                  step="5"
+                  placeholder="min"
+                  className="h-8 w-24 tabular-nums"
+                  disabled={!execucaoId || pendente}
+                  value={duracao}
+                  onChange={(evento) => setDuracao(evento.target.value)}
+                  onBlur={() => void salvarDuracao()}
                 />
               </div>
             </div>
@@ -564,12 +666,14 @@ export function DialogExecucao({
 
         <DialogFooter className="sm:justify-between">
           <p className="text-muted-foreground text-xs">
-            {gravadas === 0
-              ? 'Nada salvo ainda.'
-              : 'Pode fechar e voltar depois — o progresso fica salvo.'}
+            {emEdicao
+              ? 'Toda alteração já está salva.'
+              : gravadas === 0
+                ? 'Nada salvo ainda.'
+                : 'Pode fechar e voltar depois — o progresso fica salvo.'}
           </p>
           <div className="flex items-center gap-2">
-            {/* Só faz sentido descartar o que já existe no banco */}
+            {/* Descartar existe nos dois modos, mas apaga coisas diferentes */}
             {execucaoId && (
               <Button
                 variant="ghost"
@@ -579,15 +683,22 @@ export function DialogExecucao({
                 onClick={() => void descartarTudo()}
               >
                 <Trash2 className="size-3.5" />
-                Descartar
+                {emEdicao ? 'Excluir sessão' : 'Descartar'}
               </Button>
             )}
-            <Button
-              onClick={() => void encerrar()}
-              disabled={pendente || gravadas === 0}
-            >
-              {finalizar.isPending ? 'Finalizando…' : 'Finalizar treino'}
-            </Button>
+            {emEdicao ? (
+              // Já finalizada: não há o que finalizar de novo
+              <Button variant="secondary" onClick={() => setAberto(false)}>
+                Fechar
+              </Button>
+            ) : (
+              <Button
+                onClick={() => void encerrar()}
+                disabled={pendente || gravadas === 0}
+              >
+                {finalizar.isPending ? 'Finalizando…' : 'Finalizar treino'}
+              </Button>
+            )}
           </div>
         </DialogFooter>
       </DialogContent>

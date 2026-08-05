@@ -17,6 +17,8 @@ export const chaves = {
   biblioteca: () => ['treino', 'biblioteca'] as const,
   tiposTreino: () => ['treino', 'tipos'] as const,
   execucaoAberta: () => ['treino', 'execucao-aberta'] as const,
+  execucaoPorId: (id?: string) =>
+    ['treino', 'execucao', id ?? 'nenhuma'] as const,
   pulados: (de?: string, ate?: string) =>
     ['treino', 'pulados', de ?? 'todas', ate ?? 'todas'] as const,
 }
@@ -209,12 +211,32 @@ export function useExcluirSerie() {
   })
 }
 
-export function useAtualizarHoraSessao() {
+/** Data, horário e duração da sessão (resolução 10.24). */
+export function useAtualizarSessao() {
   return useMutationTreino(
-    ({ id, hora }: { id: string; hora: string | null }) =>
-      api.atualizarHoraSessao(id, hora),
-    'Horário atualizado',
+    ({
+      id,
+      dados,
+    }: {
+      id: string
+      dados: Parameters<typeof api.atualizarSessao>[1]
+    }) => api.atualizarSessao(id, dados),
+    'Sessão atualizada',
   )
+}
+
+/**
+ * Uma sessão específica, para o editor do histórico.
+ *
+ * `enabled` desligado sem id: o mesmo diálogo serve a sessão em andamento (que vem
+ * de `useExecucaoAberta`) e a finalizada, e sem id não há nada a buscar.
+ */
+export function useExecucaoPorId(id: string | undefined) {
+  return useQuery({
+    queryKey: chaves.execucaoPorId(id),
+    queryFn: () => api.execucaoPorId(id as string),
+    enabled: id !== undefined,
+  })
 }
 
 export function useFinalizarExecucao() {

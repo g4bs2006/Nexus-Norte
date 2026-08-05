@@ -89,6 +89,8 @@ export interface SerieExecutada {
   execucao_finalizada_em: string | null
   /** Horário real informado pelo usuário. Nulo = não informado (10.23). */
   execucao_hora_inicio: string | null
+  /** Duração informada, em minutos. Nulo = não informada (10.24). */
+  execucao_duracao_minutos: number | null
   grupo_muscular: string | null
   exercicio_nome: string
 }
@@ -105,6 +107,8 @@ export interface ExecucaoAberta {
   data: string
   created_at: string
   hora_inicio: string | null
+  /** Duração informada, em minutos. Nulo = não informada (10.24). */
+  duracao_minutos: number | null
   series: readonly {
     id: string
     exercicio_id: string

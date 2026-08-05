@@ -212,6 +212,7 @@ export interface SerieDeSessao {
   execucao_criada_em: string
   execucao_finalizada_em: string | null
   execucao_hora_inicio: string | null
+  execucao_duracao_minutos: number | null
   grupo_muscular: string | null
   exercicio_nome: string
 }
@@ -249,13 +250,22 @@ export interface SessaoRealizada {
   /** Horário informado pelo usuário, em `HH:MM`. Nulo = não informado. */
   horaInicio: string | null
   /**
-   * Minutos entre a primeira série gravada e o encerramento.
+   * Duração do treino, informada pelo usuário. Nulo = não informada.
    *
-   * Nulo enquanto em andamento. Subestima de propósito: conta do primeiro
-   * registro, não do aquecimento — é o único instante que o banco conhece, e
-   * inventar um início seria pior que informar menos.
+   * NÃO é derivada dos timestamps (resolução 10.24): `created_at` e
+   * `finalizado_em` medem quanto tempo se passou REGISTRANDO, não treinando, e só
+   * coincidem quando a sessão é anotada série a série do começo ao fim. Nas duas
+   * sessões reais que existiam o número derivado estava errado — 0 min num
+   * registro em lote e 18 min num treino feito horas antes.
    */
   duracaoMinutos: number | null
+  /**
+   * Minutos entre a primeira série gravada e o encerramento.
+   *
+   * Exibido como contexto ("registrado ao longo de X"), nunca como duração do
+   * treino. Nulo enquanto em andamento.
+   */
+  spanRegistroMinutos: number | null
   totalSeries: number
   /** Σ(reps × carga) da sessão inteira. */
   volume: number
@@ -339,7 +349,8 @@ export function sessoesRealizadas(
       data: primeira.data,
       emAndamento: primeira.execucao_finalizada_em === null,
       horaInicio: primeira.execucao_hora_inicio?.slice(0, 5) ?? null,
-      duracaoMinutos: duracaoDaSessao(
+      duracaoMinutos: primeira.execucao_duracao_minutos,
+      spanRegistroMinutos: duracaoDaSessao(
         primeira.execucao_criada_em,
         primeira.execucao_finalizada_em,
       ),
@@ -363,6 +374,7 @@ export function sessoesRealizadas(
   )
 }
 
+/** Intervalo entre a primeira série e o encerramento — tempo de REGISTRO. */
 function duracaoDaSessao(
   criadaEm: string,
   finalizadaEm: string | null,

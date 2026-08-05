@@ -828,3 +828,40 @@ nenhum além do nome, e ninguém precisa cadastrar uma quinta forma. Tabela aqui
 cerimônia sem ganho — o oposto de `biblioteca_exercicios`, onde o cadastro é do
 usuário e cresce. Os valores gravados são slugs sem acento; o rótulo existe só para
 a tela. O dado existente (`Débito`) foi normalizado no migration.
+
+### 10.24 Editor da sessão e duração informada (corrige 10.21 / 10.23) — descoberta em uso
+
+**A duração estava errada nas duas sessões reais.** Ela era derivada de
+`finalizado_em - created_at`, e esses timestamps medem quanto tempo se passou
+**registrando**, não treinando. Só coincidem quando a sessão é anotada série a
+série, ao vivo, do começo ao fim. No banco: a sessão de Push marcava **0 min** (é
+registro em lote pré-10.21, onde o backfill fez `finalizado_em = created_at`) e a
+de Pull marcava **18 min** para um treino feito horas antes. Número errado é pior
+que nenhum.
+
+Virou coluna `duracao_minutos int`, informada pelo usuário, com CHECK `> 0`. Nulo =
+não informada, e a tela mostra **"—"**. O intervalo de registro continua calculado
+e exibido, mas rotulado como o que é: *"registrado em 18 min"*, nunca como duração
+do treino. `SessaoRealizada` carrega os dois campos separados de propósito —
+`duracaoMinutos` e `spanRegistroMinutos` — para que nenhum código futuro confunda
+os dois de novo.
+
+**Um editor, não dois.** O `DialogExecucao` ganhou `execucaoIdEdicao`: com esse id
+ele carrega uma sessão já finalizada em vez da aberta, e passa a editar data,
+horário, duração e as séries — corrigir carga, apagar série, marcar pulado. As duas
+telas precisam exatamente das mesmas ações, e um segundo editor divergiria do
+primeiro na primeira mudança.
+
+Consequências de virar editor:
+
+- **A data destrava em modo edição.** Durante a sessão em andamento ela fica travada
+  (mudá-la moveria séries que estão sendo gravadas para outro dia); editando o
+  histórico, mover a sessão de dia é justamente o conserto de quem lançou errado.
+- **"Finalizar treino" vira "Fechar".** Não há o que finalizar numa sessão
+  finalizada.
+- **"Descartar" vira "Excluir sessão".** Mesma ação, mas apagar um rascunho e apagar
+  um treino do histórico não merecem o mesmo rótulo.
+- **`outroTreinoAberto` não bloqueia edição.** Editar uma sessão do passado não
+  conflita com a sessão aberta de outro treino.
+- `atualizarHoraSessao` virou `atualizarSessao`, com data, horário e duração num
+  update só.

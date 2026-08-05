@@ -229,6 +229,7 @@ describe('sessoesRealizadas', () => {
       execucao_criada_em: '2026-08-05T18:00:00.000Z',
       execucao_finalizada_em: '2026-08-05T19:35:00.000Z',
       execucao_hora_inicio: null,
+      execucao_duracao_minutos: null,
       grupo_muscular: 'peito',
       exercicio_nome: 'Supino Reto',
       ...parcial,
@@ -286,25 +287,44 @@ describe('sessoesRealizadas', () => {
     expect(exercicios[1]?.series).toHaveLength(1)
   })
 
-  it('calcula a duração entre a primeira série e o encerramento', () => {
+  it('usa a duração informada, não o intervalo dos timestamps', () => {
+    // O bug da 10.24: os timestamps mediam o tempo de REGISTRO. Aqui a sessão foi
+    // registrada em 95 min mas o treino durou 50 — vale o que o usuário informou.
     const sessoes = sessoesRealizadas([
       serie({
         execucao_treino_id: 'a',
         execucao_criada_em: '2026-08-05T18:00:00.000Z',
         execucao_finalizada_em: '2026-08-05T19:35:00.000Z',
+        execucao_duracao_minutos: 50,
       }),
     ])
 
-    expect(sessoes[0]?.duracaoMinutos).toBe(95)
+    expect(sessoes[0]?.duracaoMinutos).toBe(50)
+    expect(sessoes[0]?.spanRegistroMinutos).toBe(95)
   })
 
-  it('deixa a duração nula enquanto está em andamento', () => {
+  it('deixa a duração nula quando não foi informada', () => {
+    // Nulo em vez de cair no span: um número errado é pior que nenhum
+    const sessoes = sessoesRealizadas([
+      serie({
+        execucao_treino_id: 'a',
+        execucao_criada_em: '2026-08-05T18:00:00.000Z',
+        execucao_finalizada_em: '2026-08-05T18:01:00.000Z',
+        execucao_duracao_minutos: null,
+      }),
+    ])
+
+    expect(sessoes[0]?.duracaoMinutos).toBe(null)
+    expect(sessoes[0]?.spanRegistroMinutos).toBe(1)
+  })
+
+  it('deixa o span nulo enquanto está em andamento', () => {
     const sessoes = sessoesRealizadas([
       serie({ execucao_treino_id: 'a', execucao_finalizada_em: null }),
     ])
 
     expect(sessoes[0]?.emAndamento).toBe(true)
-    expect(sessoes[0]?.duracaoMinutos).toBe(null)
+    expect(sessoes[0]?.spanRegistroMinutos).toBe(null)
   })
 
   it('põe a sessão em andamento no topo, depois as mais recentes', () => {
