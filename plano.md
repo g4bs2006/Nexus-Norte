@@ -1047,3 +1047,48 @@ tinha `size-6` (24px), alvo de mouse posto numa lista de toque.
 coluna de ações ocupar 84px de um card de ~296px, apertando a descrição. É mais um
 argumento para essa tabela virar lista de cards — alvo de dedo não cabe em coluna de
 tabela.
+
+### 10.29 Diálogo vira folha ancorada embaixo no mobile (corrige 10.21) — descoberta em uso
+
+Todo formulário do app é o mesmo `DialogContent`: centralizado, `max-w-sm`, com a
+rolagem no próprio container. No celular isso produzia três sintomas que pareciam
+separados e tinham **uma causa só** — o conteúdo estava preso ao meio da tela:
+
+1. **O X rolava junto com o conteúdo** e desaparecia em formulário longo (era uma
+   limitação registrada). A rolagem estava no mesmo elemento em que o botão de
+   fechar era `absolute`.
+2. **Abrir o teclado fazia o diálogo saltar.** `-translate-y-1/2` recalcula a
+   posição a partir do centro, e o viewport cai para ~400px com o teclado aberto.
+3. **Os botões ficavam no meio da tela**, que é onde a mão que segura o aparelho não
+   alcança.
+
+De `sm:` para cima nada muda — lá o diálogo centralizado está certo, há mouse e a
+tela é grande. No mobile ele virou **folha ancorada na borda de baixo**, largura
+cheia, cantos arredondados só em cima, `max-h-[90dvh]`, entrando de baixo para cima.
+
+O que isso resolve, na ordem dos sintomas:
+
+- A rolagem desceu para um `div` interno (`data-slot="dialog-body"`), então o
+  container ficou fixo e **o X não rola mais** — medido com Playwright: depois de
+  rolar 500px o botão continuou em `y=169`. O `p-4` desceu junto com a rolagem, o
+  que mantém o `-mx-4 -mb-4` do `DialogFooter` funcionando, porque ele continua
+  cancelando o padding do pai direto.
+- Ancorada embaixo, a folha **cresce para cima**: o teclado empurra em vez de
+  reposicionar, e a borda inferior é a borda da tela.
+- O rodapé passou a encostar embaixo, onde o polegar já está, e os botões dele
+  ganharam 44px de altura no toque — o botão padrão tem 32px, que é alvo de mouse.
+  **É isto que fecha o item da ação primária longe do polegar**: a ação repetida do
+  app mora em diálogo, não em `PageHeader`.
+- O X foi para 44px, com `pr` no `DialogHeader` para o título não passar por baixo.
+- `pb` com `env(safe-area-inset-bottom)` no container: a folha encosta na borda, e
+  sem isso a última linha ficava atrás da barra de gesto do sistema.
+
+**Sem gesto de arrastar para fechar.** Fecha por Esc, clique fora e pelo X de 44px.
+Arrastar exigiria dependência de gesto (`vaul`), e não vou acrescentar dependência
+sem combinar. Por isso também **não tem alcinha** no topo da folha: alcinha promete
+um gesto, e prometer um gesto que não existe é pior que não ter o desenho.
+
+**Verificado no navegador**, não por leitura: viewport de iPhone 13 (390×664), folha
+em `y=161` com 390×503, encostando embaixo, largura cheia; e no desktop de 1280 o
+diálogo continua centralizado (`x=448`, largura 384, centro em 640). Foi essa
+verificação que revelou o crash da paleta de comando, corrigido em commit próprio.

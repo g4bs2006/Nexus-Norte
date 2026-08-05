@@ -45,7 +45,13 @@ function CommandDialog({
     <Dialog {...props}>
       <DialogContent
         className={cn(
-          'top-1/3 translate-y-0 overflow-hidden rounded-xl! p-0',
+          // O padding do diálogo mora no corpo rolável, não no container, então
+          // zerá-lo aqui exige alcançar o slot — a lista de comando desenha o
+          // próprio espaçamento e um `p-4` em volta desalinharia tudo.
+          '[&_[data-slot=dialog-body]]:p-0',
+          // No mobile herda a folha ancorada embaixo: busca perto do teclado, que
+          // é de onde ela é usada. De `sm:` para cima volta ao terço superior.
+          'overflow-hidden sm:top-1/3 sm:translate-y-0 sm:rounded-xl!',
           className,
         )}
         showCloseButton={showCloseButton}

@@ -378,6 +378,22 @@ que no celular significa invisível e clicável ao mesmo tempo.
 
 Detalhes em [`plano.md`, resolução 10.28](./plano.md).
 
+## Formulários no celular
+
+No celular todo diálogo é uma **folha ancorada na borda de baixo**, largura cheia,
+que cresce para cima. No desktop segue centralizado, que é o certo lá.
+
+Ancorar embaixo resolveu três incômodos que tinham a mesma causa — o conteúdo estava
+preso ao meio da tela: o X sumia ao rolar formulário longo, abrir o teclado fazia o
+diálogo saltar, e os botões ficavam no meio da tela, onde a mão que segura o aparelho
+não alcança. Agora o rodapé encosta embaixo, e os botões dele têm 44px de altura no
+toque.
+
+Fecha por Esc, toque fora ou pelo X. **Não tem gesto de arrastar** — e por isso não
+tem alcinha no topo, porque alcinha promete um gesto que não existiria.
+
+Detalhes em [`plano.md`, resolução 10.29](./plano.md).
+
 ## Estrutura
 
 ```
