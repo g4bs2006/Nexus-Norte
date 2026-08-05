@@ -138,6 +138,22 @@ export function cargaPorDia(
       // barra de tempo comprometido
       if (evento.tipo === 'sono') continue
 
+      /*
+       * A barra mede tempo que a ROTINA compromete — projeção do fluxograma.
+       * Evento com `estado` é desfecho, não previsão, e contá-lo aqui produzia
+       * dois erros observados na tela (resolução 10.31):
+       *
+       * - `cancelado` carrega o horário do padrão, então somava 1h de "tempo
+       *   comprometido" num dia em que justamente nada foi comprometido;
+       * - `feito` ligava `temRotina` e, como o `origemId` dele é o `treino_id` e
+       *   não o id da regra, nunca casava com `conclusoes` — o dia em que o
+       *   treino ACONTECEU ganhava o anel de "rotina sem check".
+       *
+       * A duração do realizado também não sairia daqui: ela é `duracao_minutos`,
+       * informada pelo usuário, e não a diferença entre início e fim (10.24).
+       */
+      if (evento.estado !== undefined) continue
+
       temRotina = true
       const minutos = duracaoMinutos(evento.inicio, evento.fim)
       minutosPorCamada.set(

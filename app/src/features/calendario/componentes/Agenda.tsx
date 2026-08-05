@@ -1,4 +1,5 @@
 import { format } from 'date-fns'
+import { Check } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { deISO } from '@/lib/datas'
 import { cn } from '@/lib/utils'
@@ -119,9 +120,23 @@ function LinhaEvento({
   const prazo = ehImportante(evento)
   const cor = COR_CAMADA[evento.camada]
   const hora = evento.diaInteiro ? null : evento.inicio.slice(11, 16)
+  const feito = evento.estado === 'feito'
+  const cancelado = evento.estado === 'cancelado'
 
   const conteudo = (
     <>
+      {/*
+        Marca de feito ANTES do filete: é a primeira coisa a ler na linha, porque
+        responde "isto aconteceu" — que era justamente o que a agenda não dizia.
+        Ícone e não só cor: nenhuma informação passa por cor sozinha.
+      */}
+      {feito && (
+        <Check
+          aria-hidden
+          className="size-3.5 shrink-0"
+          style={{ color: cor }}
+        />
+      )}
       {prazo ? (
         // Prazo: pastilha sólida com o tipo. É o que precisa ser visto primeiro
         <span
@@ -134,13 +149,22 @@ function LinhaEvento({
         // Rotina: filete. Presente, sem competir
         <span
           aria-hidden
-          className="h-4 w-0.5 shrink-0 rounded-full"
+          className={cn(
+            'h-4 w-0.5 shrink-0 rounded-full',
+            // Cancelado não ganha a cor cheia do pilar: ele não aconteceu
+            cancelado && 'opacity-40',
+          )}
           style={{ backgroundColor: cor }}
         />
       )}
 
       {hora && (
-        <span className="text-muted-foreground shrink-0 font-mono text-xs tabular-nums">
+        <span
+          className={cn(
+            'text-muted-foreground shrink-0 font-mono text-xs tabular-nums',
+            cancelado && 'line-through',
+          )}
+        >
           {hora}
         </span>
       )}
@@ -150,10 +174,23 @@ function LinhaEvento({
           'min-w-0 flex-1 truncate text-sm',
           prazo && 'font-medium',
           evento.tipo === 'sono' && 'text-muted-foreground',
+          // Riscado e apagado: estava previsto e não aconteceu
+          cancelado && 'text-muted-foreground line-through',
         )}
       >
         {evento.titulo}
       </span>
+
+      {/*
+        Rótulo em texto, não só o risco: "cancelado" precisa ser legível por leitor
+        de tela e por quem não percebe o `line-through`. Fica no fim da linha para
+        não empurrar o nome do compromisso.
+      */}
+      {cancelado && (
+        <span className="text-muted-foreground shrink-0 text-[10px] tracking-wide uppercase">
+          cancelado
+        </span>
+      )}
     </>
   )
 

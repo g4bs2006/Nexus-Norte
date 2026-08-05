@@ -2,9 +2,11 @@ import { supabase } from '@/lib/supabase'
 import type {
   FonteAvaliacao,
   FonteConta,
+  FonteExecucaoTreino,
   FonteFluxograma,
   FonteMarco,
   FontePlanejamentoSono,
+  FonteSessaoEstudo,
 } from './eventos'
 import type { FonteSonoRealizado } from './carga'
 
@@ -130,6 +132,40 @@ export async function conclusoesNoIntervalo(
     .lte('data', ate)
   if (error) throw new Error(error.message)
   return (data ?? []).map((linha) => `${linha.fluxograma_id}@${linha.data}`)
+}
+
+/**
+ * Treinos realizados no intervalo (resolução 10.31).
+ *
+ * `hora_inicio` e `duracao_minutos` vêm porque são informados pelo usuário;
+ * `finalizado_em` vem só para distinguir sessão concluída de abandonada. O filtro
+ * de finalizada fica no construtor de eventos, junto da regra que a explica.
+ */
+export async function execucoesTreinoNoIntervalo(
+  de: string,
+  ate: string,
+): Promise<FonteExecucaoTreino[]> {
+  const { data, error } = await supabase
+    .from('execucoes_treino')
+    .select('id, treino_id, data, finalizado_em, hora_inicio, duracao_minutos')
+    .gte('data', de)
+    .lte('data', ate)
+  if (error) throw new Error(error.message)
+  return data ?? []
+}
+
+/** Sessões de estudo registradas no intervalo (resolução 10.31). */
+export async function sessoesEstudoNoIntervalo(
+  de: string,
+  ate: string,
+): Promise<FonteSessaoEstudo[]> {
+  const { data, error } = await supabase
+    .from('sessoes_estudo')
+    .select('id, materia_id, data, duracao_minutos')
+    .gte('data', de)
+    .lte('data', ate)
+  if (error) throw new Error(error.message)
+  return data ?? []
 }
 
 export async function nomesMaterias(): Promise<Map<string, string>> {

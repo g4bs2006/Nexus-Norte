@@ -358,7 +358,21 @@ aula da semana.
 A grade de mês continua ali, atrás do botão "Mês" — e agora só é baixada por quem
 a abre. Isso tirou 63 kB gzip do carregamento da página.
 
-Detalhes em [`plano.md`, resolução 10.20](./plano.md).
+A agenda mostra **o que aconteceu, não só o que estava previsto**. Treino registrado
+e sessão de estudo aparecem com ✓ na linha do dia; o que foi desmarcado aparece
+riscado, mas só em dias que já chegaram — no futuro, desmarcado é simplesmente fora
+do plano.
+
+Antes a agenda era uma projeção do fluxograma e nada mais, e isso dava um resultado
+ruim: registrar um treino fora do previsto e desmarcar o previsto deixava o dia **sem
+nenhuma linha de treino**, como se você não tivesse treinado. Quando o previsto e o
+realizado são o mesmo treino no mesmo dia, sai uma linha só — a realizada, que é o
+fato e traz a hora que você informou.
+
+A hora do treino vem de `hora_inicio`, informada por você. Sessão sem hora aparece sem
+horário em vez de ganhar um número derivado de quando o registro terminou.
+
+Detalhes em [`plano.md`, resoluções 10.20 e 10.31](./plano.md).
 
 ## Apagar dado pede confirmação
 

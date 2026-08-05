@@ -1139,3 +1139,71 @@ e **zero** de rolagem horizontal no documento.
 **Consequência:** `components/ui/table.tsx` ficou sem nenhum uso. Não apaguei — é
 primitivo do design system, e removê-lo é decisão de quem mantém o sistema, não efeito
 colateral desta mudança.
+
+### 10.31 A agenda mostrava o plano e nunca o fato (corrige 6.1 / 10.20) — descoberta em uso
+
+Ele registrou um treino, desmarcou o previsto, e a agenda ficou sem nenhuma linha de
+treino no dia: **parecia que ele não tinha treinado.** O dado estava íntegro; o
+calendário é que não tinha como contá-lo.
+
+`construirEventos` tinha cinco fontes — avaliações, fluxograma, contas, sono e
+marcos. **Nenhuma lia `execucoes_treino`.** A agenda era uma projeção do fluxograma,
+então:
+
+- cancelar a ocorrência prevista removia a **única** linha de treino da quarta, e
+  cancelar estava certo (ele não fez Legs);
+- o Pull que ele fez, com 14 exercícios gravados, **não tinha por onde entrar**.
+
+No banco, em 05/08: previsto Legs 18:00–19:00, exceção `cancelado` para Legs, e
+execução de Pull finalizada com `hora_inicio` 11:00. A agenda mostrava zero.
+
+Não é bug de dado, e dois números continuavam certos: a **frequência da semana**
+conta execuções finalizadas (10.21), então o pilar Treino sabia do treino; e
+`conclusoes_fluxograma` está vazia e só é escrita pelo Estudos, então "treinei" tem
+**uma** fonte só — não havia armadilha de fonte dupla a desfazer, só uma fonte de
+evento a acrescentar.
+
+**Três fontes novas**, mais uma regra de reconciliação:
+
+- `eventosExecucoesTreino` — só sessões **finalizadas**, porque treino abandonado no
+  meio não é treino feito (mesma regra da frequência). A hora vem de `hora_inicio`,
+  **informada pelo usuário**; quando é nula o evento é de dia inteiro. Derivar hora de
+  `finalizado_em` seria repetir o erro da 10.24: no banco real, o Push de 04/08 teria
+  ganhado um falso "08:09" que é quando o *registro* terminou.
+- `eventosSessoesEstudo` — sempre dia inteiro, porque `sessoes_estudo` não guarda
+  hora nenhuma. A duração vai no título ("Cálculo II · 90 min").
+- `eventosCancelados` — o que foi desmarcado, **só em dias que já chegaram**. No
+  futuro, desmarcado é fora do plano, e riscar o que não vai acontecer é ruído.
+  Não reaproveita `expandirRecorrencia`: aquela função **omite** a cancelada de
+  propósito, e é disso que a frequência (10.17) e a faixa de carga dependem. As
+  exceções são lidas direto aqui.
+- **Reconciliação:** previsto e realizado do mesmo treino no mesmo dia dão **uma**
+  linha, a realizada — ela é o fato e carrega a hora informada. Sem isso, todo dia
+  normal mostraria o treino duplicado.
+
+`EventoCalendario` ganhou `estado?: 'feito' | 'cancelado'`. Ausente segue sendo o
+padrão: rotina prevista, sem informação de desfecho.
+
+Na agenda: feito ganha **✓** antes do filete; cancelado fica riscado, com o filete a
+40% e o rótulo **"cancelado"** em texto — o risco sozinho não serve para leitor de
+tela, e nada é transmitido só por cor.
+
+**Regressão que eu mesmo criei e só apareceu na tela.** `cargaPorDia` calcula a barra
+a partir da lista de eventos, então os novos entraram nela e produziram dois erros:
+
+- o `cancelado` carrega o horário do padrão, e passou a somar **1h de "tempo
+  comprometido"** num dia em que nada foi comprometido;
+- o `feito` ligava `temRotina` e, como o `origemId` dele é o `treino_id` e não o id da
+  regra, nunca casava com `conclusoes` — a terça, dia em que o treino **aconteceu**,
+  ganhou o anel de "rotina sem check".
+
+A barra mede tempo que a **rotina** compromete, uma projeção; desfecho não entra.
+Evento com `estado` é ignorado em `cargaPorDia`, com teste para os dois casos.
+
+**Consequência aceita:** a barra de carga não mostra o tempo do treino realizado (são
+45 min informados na quarta). Misturar plano e fato na mesma barra é outra decisão, e
+não foi pedida — a barra continua respondendo "quanto a rotina compromete".
+
+**Verificado no navegador** contra o dado real: a quarta passou a ler
+`✓ 11:00 Pull` + `18:00 Legs (cancelado)`, a terça mostra `Push` sem hora em vez de
+uma hora inventada, o anel saiu da terça e a quarta deixou de somar 1h.

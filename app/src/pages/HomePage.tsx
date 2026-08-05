@@ -419,11 +419,11 @@ export default function HomePage() {
    */
   const proximosEventos = useMemo(
     () =>
-      eventosComPrazo(construirEventos(fontes, proximos), hoje).slice(
+      eventosComPrazo(construirEventos(fontes, proximos, hojeISO), hoje).slice(
         0,
         EVENTOS_NA_HOME,
       ),
-    [fontes, proximos, hoje],
+    [fontes, proximos, hoje, hojeISO],
   )
 
   return (

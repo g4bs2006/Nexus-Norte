@@ -353,3 +353,66 @@ describe('ordenarDoDia', () => {
     expect(ordenado.map((e) => e.tipo)).toEqual(['aula', 'sono'])
   })
 })
+
+// --- desfecho não é carga planejada (resolução 10.31) ------------------------
+
+describe('eventos com estado ficam fora da barra de carga', () => {
+  /** Cancelado carrega o horário do padrão que deixou de valer. */
+  function cancelado(data: string): EventoCalendario {
+    return {
+      id: `cancelado:regra-treino:${data}`,
+      origemId: 'regra-treino',
+      titulo: 'Legs',
+      inicio: `${data}T18:00:00`,
+      fim: `${data}T19:00:00`,
+      diaInteiro: false,
+      camada: 'treino',
+      tipo: 'treino',
+      estado: 'cancelado',
+    }
+  }
+
+  /** Realizado: `origemId` é o treino, não a regra do fluxograma. */
+  function feito(data: string): EventoCalendario {
+    return {
+      id: `execucao:e1`,
+      origemId: 'treino-pull',
+      titulo: 'Pull',
+      inicio: `${data}T11:00:00`,
+      diaInteiro: false,
+      camada: 'treino',
+      tipo: 'treino',
+      estado: 'feito',
+    }
+  }
+
+  it('cancelado não soma tempo comprometido', () => {
+    const dias = cargaPorDia([cancelado('2026-08-05')], SEMANA, QUARTA)
+    const quarta = dias.find((dia) => dia.data === '2026-08-05')
+
+    expect(quarta?.minutosRotina).toBe(0)
+    expect(quarta?.segmentos).toEqual([])
+  })
+
+  it('realizado não gera anel de "rotina sem check" no dia em que aconteceu', () => {
+    // Terça é passado em relação a QUARTA; sem esta regra o dia em que o treino
+    // ACONTECEU aparecia como rotina prevista cujo check não saiu
+    const dias = cargaPorDia([feito('2026-08-04')], SEMANA, QUARTA)
+    const terca = dias.find((dia) => dia.data === '2026-08-04')
+
+    expect(terca?.checkPendente).toBe(false)
+    expect(terca?.minutosRotina).toBe(0)
+  })
+
+  it('a rotina prevista continua contando normalmente', () => {
+    const dias = cargaPorDia(
+      [treino('2026-08-05', '18:00', '19:30'), cancelado('2026-08-05')],
+      SEMANA,
+      QUARTA,
+    )
+    const quarta = dias.find((dia) => dia.data === '2026-08-05')
+
+    // 90 min da rotina prevista, zero do cancelado
+    expect(quarta?.minutosRotina).toBe(90)
+  })
+})

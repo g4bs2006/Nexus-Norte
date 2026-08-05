@@ -19,6 +19,10 @@ export const chaves = {
   conclusoes: (de: string, ate: string) =>
     ['calendario', 'conclusoes', de, ate] as const,
   marcos: () => ['calendario', 'marcos'] as const,
+  execucoesTreino: (de: string, ate: string) =>
+    ['calendario', 'execucoes-treino', de, ate] as const,
+  sessoesEstudo: (de: string, ate: string) =>
+    ['calendario', 'sessoes-estudo', de, ate] as const,
   nomes: () => ['calendario', 'nomes'] as const,
 }
 
@@ -70,6 +74,24 @@ export function useFontesCalendario(
     queryFn: () => api.conclusoesNoIntervalo(de, ate),
     enabled: comCarga,
   })
+  /*
+   * O que ACONTECEU, não o que estava previsto (resolução 10.31). Sem estas duas,
+   * a agenda era só uma projeção do fluxograma: treino registrado fora do plano
+   * não tinha por onde aparecer.
+   *
+   * Ficam ligadas sempre, inclusive na Home: `eventosComPrazo` filtra por
+   * `ehImportante`, então elas não poluem os próximos eventos, mas a Home usa a
+   * mesma lista e não deve divergir do calendário.
+   */
+  const execucoesTreino = useQuery({
+    queryKey: chaves.execucoesTreino(de, ate),
+    queryFn: () => api.execucoesTreinoNoIntervalo(de, ate),
+  })
+  const sessoesEstudo = useQuery({
+    queryKey: chaves.sessoesEstudo(de, ate),
+    queryFn: () => api.sessoesEstudoNoIntervalo(de, ate),
+  })
+
   const materias = useQuery({
     queryKey: [...chaves.nomes(), 'materias'],
     queryFn: api.nomesMaterias,
@@ -86,6 +108,8 @@ export function useFontesCalendario(
     contas,
     sono,
     marcos,
+    execucoesTreino,
+    sessoesEstudo,
     materias,
     treinos,
     ...(comCarga ? [sonoFeito, conclusoes] : []),
@@ -99,6 +123,8 @@ export function useFontesCalendario(
       contas: contas.data ?? [],
       planejamentoSono: sono.data ?? [],
       marcos: marcos.data ?? [],
+      execucoesTreino: execucoesTreino.data ?? [],
+      sessoesEstudo: sessoesEstudo.data ?? [],
       nomePorMateria: materias.data ?? new Map<string, string>(),
       nomePorTreino: treinos.data ?? new Map<string, string>(),
     },

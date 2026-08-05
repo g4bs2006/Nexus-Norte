@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest'
 import {
   construirEventos,
   eventosAvaliacoes,
+  eventosCancelados,
   eventosContas,
+  eventosExecucoesTreino,
   eventosFluxograma,
   eventosMarcos,
+  eventosSessoesEstudo,
   eventosSono,
   eventosComPrazo,
   type FontesCalendario,
@@ -12,6 +15,8 @@ import {
 
 // 2026-08-03 (segunda) a 2026-08-09 (domingo)
 const SEMANA = { de: '2026-08-03', ate: '2026-08-09' }
+/** Quarta da SEMANA. Dia 3 e 4 são passado; 6 em diante, futuro. */
+const HOJE = '2026-08-05'
 
 const MATERIAS = new Map([['m1', 'Cálculo II']])
 const TREINOS = new Map([['t1', 'Treino A']])
@@ -365,11 +370,13 @@ describe('construirEventos', () => {
           projeto_nome: 'Nexus',
         },
       ],
+      execucoesTreino: [],
+      sessoesEstudo: [],
       nomePorMateria: MATERIAS,
       nomePorTreino: TREINOS,
     }
 
-    const eventos = construirEventos(fontes, SEMANA)
+    const eventos = construirEventos(fontes, SEMANA, HOJE)
     const camadas = new Set(eventos.map((e) => e.camada))
 
     expect(camadas).toEqual(
@@ -386,11 +393,13 @@ describe('construirEventos', () => {
       contas: [],
       planejamentoSono: [],
       marcos: [],
+      execucoesTreino: [],
+      sessoesEstudo: [],
       nomePorMateria: new Map(),
       nomePorTreino: new Map(),
     }
 
-    expect(construirEventos(vazio, SEMANA)).toEqual([])
+    expect(construirEventos(vazio, SEMANA, HOJE)).toEqual([])
   })
 })
 
@@ -547,5 +556,272 @@ describe('eventosComPrazo', () => {
 
   it('devolve vazio quando só há rotina', () => {
     expect(eventosComPrazo([aula], HOJE)).toEqual([])
+  })
+})
+
+// --- o que ACONTECEU, não o que estava previsto (resolução 10.31) ------------
+
+describe('eventosExecucoesTreino', () => {
+  const base = { id: 'e1', treino_id: 't1', data: '2026-08-05' }
+
+  it('usa a hora informada pelo usuário, não o finalizado_em', () => {
+    const [evento] = eventosExecucoesTreino(
+      [
+        {
+          ...base,
+          // 16:05 é quando o REGISTRO terminou; 11:00 é quando o treino foi
+          finalizado_em: '2026-08-05T16:05:34Z',
+          hora_inicio: '11:00:00',
+          duracao_minutos: 45,
+        },
+      ],
+      SEMANA,
+      TREINOS,
+    )
+
+    expect(evento?.inicio).toBe('2026-08-05T11:00:00')
+    expect(evento?.diaInteiro).toBe(false)
+    expect(evento?.estado).toBe('feito')
+    expect(evento?.titulo).toBe('Treino A')
+  })
+
+  it('sem hora informada vira dia inteiro em vez de inventar uma', () => {
+    const [evento] = eventosExecucoesTreino(
+      [
+        {
+          ...base,
+          finalizado_em: '2026-08-05T16:05:34Z',
+          hora_inicio: null,
+          duracao_minutos: null,
+        },
+      ],
+      SEMANA,
+      TREINOS,
+    )
+
+    expect(evento?.diaInteiro).toBe(true)
+    expect(evento?.inicio).toBe('2026-08-05')
+  })
+
+  it('ignora sessão não finalizada — treino abandonado no meio não é treino feito', () => {
+    expect(
+      eventosExecucoesTreino(
+        [{ ...base, finalizado_em: null, hora_inicio: '11:00:00', duracao_minutos: null }],
+        SEMANA,
+        TREINOS,
+      ),
+    ).toEqual([])
+  })
+
+  it('ignora execução fora do intervalo', () => {
+    expect(
+      eventosExecucoesTreino(
+        [
+          {
+            ...base,
+            data: '2026-07-30',
+            finalizado_em: '2026-07-30T20:00:00Z',
+            hora_inicio: '18:00:00',
+            duracao_minutos: 60,
+          },
+        ],
+        SEMANA,
+        TREINOS,
+      ),
+    ).toEqual([])
+  })
+})
+
+describe('eventosSessoesEstudo', () => {
+  it('é dia inteiro e leva a duração no título', () => {
+    const [evento] = eventosSessoesEstudo(
+      [{ id: 's1', materia_id: 'm1', data: '2026-08-04', duracao_minutos: 90 }],
+      SEMANA,
+      MATERIAS,
+    )
+
+    expect(evento?.titulo).toBe('Cálculo II · 90 min')
+    expect(evento?.diaInteiro).toBe(true)
+    expect(evento?.estado).toBe('feito')
+    expect(evento?.camada).toBe('estudos')
+    expect(evento?.rota).toBe('/estudos/m1')
+  })
+})
+
+describe('eventosCancelados', () => {
+  const regra = {
+    id: 'f1',
+    dia_semana: 3,
+    horario_inicio: '18:00:00',
+    horario_fim: '19:00:00',
+    materia_id: null,
+    treino_id: 't1',
+  }
+
+  it('mostra o cancelado de um dia que já chegou', () => {
+    const [evento] = eventosCancelados(
+      [regra],
+      [{ fluxograma_id: 'f1', data: '2026-08-05', status: 'cancelado' }],
+      SEMANA,
+      HOJE,
+      MATERIAS,
+      TREINOS,
+    )
+
+    expect(evento?.estado).toBe('cancelado')
+    expect(evento?.titulo).toBe('Treino A')
+    expect(evento?.inicio).toBe('2026-08-05T18:00:00')
+  })
+
+  it('não mostra cancelado no futuro — ali é só fora do plano', () => {
+    expect(
+      eventosCancelados(
+        [{ ...regra, dia_semana: 6 }],
+        [{ fluxograma_id: 'f1', data: '2026-08-08', status: 'cancelado' }],
+        SEMANA,
+        HOJE,
+        MATERIAS,
+        TREINOS,
+      ),
+    ).toEqual([])
+  })
+
+  it('ignora remarcado: a ocorrência não deixou de existir, só mudou de dia', () => {
+    expect(
+      eventosCancelados(
+        [regra],
+        [
+          {
+            fluxograma_id: 'f1',
+            data: '2026-08-05',
+            status: 'remarcado',
+            nova_data: '2026-08-06',
+          },
+        ],
+        SEMANA,
+        HOJE,
+        MATERIAS,
+        TREINOS,
+      ),
+    ).toEqual([])
+  })
+})
+
+describe('reconciliação entre previsto e realizado', () => {
+  const regraTreino = {
+    id: 'f1',
+    dia_semana: 3,
+    horario_inicio: '18:00:00',
+    horario_fim: '19:00:00',
+    materia_id: null,
+    treino_id: 't1',
+  }
+
+  const vazias = {
+    avaliacoes: [],
+    contas: [],
+    planejamentoSono: [],
+    marcos: [],
+    sessoesEstudo: [],
+    nomePorMateria: MATERIAS,
+    nomePorTreino: TREINOS,
+  } as const
+
+  it('previu e fez o MESMO treino: uma linha só, a realizada', () => {
+    const eventos = construirEventos(
+      {
+        ...vazias,
+        fluxograma: [regraTreino],
+        excecoes: [],
+        execucoesTreino: [
+          {
+            id: 'e1',
+            treino_id: 't1',
+            data: '2026-08-05',
+            finalizado_em: '2026-08-05T20:00:00Z',
+            hora_inicio: '18:00:00',
+            duracao_minutos: 60,
+          },
+        ],
+      },
+      SEMANA,
+      HOJE,
+    )
+
+    const doTreino = eventos.filter((e) => e.camada === 'treino')
+    expect(doTreino).toHaveLength(1)
+    expect(doTreino[0]?.estado).toBe('feito')
+  })
+
+  it('previu um treino e fez OUTRO: as duas linhas aparecem', () => {
+    const eventos = construirEventos(
+      {
+        ...vazias,
+        nomePorTreino: new Map([
+          ['t1', 'Legs'],
+          ['t2', 'Pull'],
+        ]),
+        fluxograma: [regraTreino],
+        excecoes: [],
+        execucoesTreino: [
+          {
+            id: 'e1',
+            treino_id: 't2',
+            data: '2026-08-05',
+            finalizado_em: '2026-08-05T16:05:00Z',
+            hora_inicio: '11:00:00',
+            duracao_minutos: 45,
+          },
+        ],
+      },
+      SEMANA,
+      HOJE,
+    )
+
+    const doTreino = eventos.filter((e) => e.camada === 'treino')
+    expect(doTreino.map((e) => [e.titulo, e.estado])).toEqual(
+      expect.arrayContaining([
+        ['Legs', undefined],
+        ['Pull', 'feito'],
+      ]),
+    )
+  })
+
+  /*
+   * O caso real que motivou a 10.31: quarta prevista com Legs, Legs cancelado,
+   * Pull registrado. Antes a agenda mostrava ZERO linhas de treino no dia.
+   */
+  it('cancelou o previsto e fez outro: mostra o feito E o cancelado', () => {
+    const eventos = construirEventos(
+      {
+        ...vazias,
+        nomePorTreino: new Map([
+          ['t1', 'Legs'],
+          ['t2', 'Pull'],
+        ]),
+        fluxograma: [regraTreino],
+        excecoes: [
+          { fluxograma_id: 'f1', data: '2026-08-05', status: 'cancelado' },
+        ],
+        execucoesTreino: [
+          {
+            id: 'e1',
+            treino_id: 't2',
+            data: '2026-08-05',
+            finalizado_em: '2026-08-05T16:05:00Z',
+            hora_inicio: '11:00:00',
+            duracao_minutos: 45,
+          },
+        ],
+      },
+      SEMANA,
+      HOJE,
+    )
+
+    const doDia = eventos.filter((e) => e.inicio.startsWith('2026-08-05'))
+    expect(doDia.map((e) => [e.titulo, e.estado])).toEqual([
+      ['Pull', 'feito'],
+      ['Legs', 'cancelado'],
+    ])
   })
 })
