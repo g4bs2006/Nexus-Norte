@@ -17,7 +17,9 @@ import {
   umRmEstimado,
   type SessaoRealizada,
 } from '../calculos'
-import { useExcluirExecucao } from '../hooks'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { useAtualizarHoraSessao, useExcluirExecucao } from '../hooks'
 
 interface SecaoSessoesProps {
   sessoes: readonly SessaoRealizada[]
@@ -89,6 +91,7 @@ export function SecaoSessoes({ sessoes, nomePorTreino }: SecaoSessoesProps) {
                           {nome}
                           <span className="text-muted-foreground font-mono text-xs font-normal tabular-nums">
                             {format(deISO(sessao.data), 'dd/MM')}
+                            {sessao.horaInicio && ` · ${sessao.horaInicio}`}
                           </span>
                           {sessao.emAndamento && (
                             <span className="text-status-atencao text-xs font-normal">
@@ -133,6 +136,12 @@ export function SecaoSessoes({ sessoes, nomePorTreino }: SecaoSessoesProps) {
                       pendente={excluir.isPending}
                     />
                   </div>
+
+                  {expandida && (
+                    <div className="mt-2 pl-6">
+                      <CampoHorario sessao={sessao} />
+                    </div>
+                  )}
 
                   {expandida && (
                     <ul className="mt-2 space-y-2.5 pl-6">
@@ -200,5 +209,49 @@ export function SecaoSessoes({ sessoes, nomePorTreino }: SecaoSessoesProps) {
         )}
       </CardContent>
     </Card>
+  )
+}
+
+/**
+ * Horário real da sessão, editável (resolução 10.23).
+ *
+ * Fica na expansão e não na linha de resumo: informar horário é exceção, e um
+ * campo por sessão na lista fechada competiria com o que se lê de relance.
+ *
+ * Grava no blur — um update por tecla digitada seria absurdo.
+ */
+function CampoHorario({ sessao }: { sessao: SessaoRealizada }) {
+  const atualizar = useAtualizarHoraSessao()
+  const [hora, setHora] = useState(sessao.horaInicio ?? '')
+
+  async function salvar() {
+    if (hora === (sessao.horaInicio ?? '')) return
+    await atualizar.mutateAsync({
+      id: sessao.id,
+      hora: hora === '' ? null : hora,
+    })
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <Label
+        htmlFor={`hora-${sessao.id}`}
+        className="text-muted-foreground text-xs"
+      >
+        Horário
+      </Label>
+      <Input
+        id={`hora-${sessao.id}`}
+        type="time"
+        className="h-8 w-28"
+        value={hora}
+        disabled={atualizar.isPending}
+        onChange={(evento) => setHora(evento.target.value)}
+        onBlur={() => void salvar()}
+      />
+      {!sessao.horaInicio && (
+        <span className="text-muted-foreground text-xs">não informado</span>
+      )}
+    </div>
   )
 }

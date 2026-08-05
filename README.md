@@ -277,6 +277,24 @@ errado — **a exclusão é definitiva e leva as séries junto.**
 
 Detalhes em [`plano.md`, resolução 10.21](./plano.md).
 
+## Lançamentos
+
+O total do mês e o anel por categoria existiam, mas ver os lançamentos exigia entrar
+numa categoria por vez. `/financeiro/lancamentos` responde o que faltava: o que
+gastei esta semana, quanto gastei com uma categoria num período, e onde está aquele
+lançamento.
+
+Agrupada por dia, com saldo do dia. Filtros de período (com atalhos de hoje, semana,
+mês, mês passado e últimos 30 dias), categoria, entrada ou saída, forma de pagamento
+e busca na descrição. No painel do Financeiro fica um resumo com os cinco últimos
+apontando para a lista.
+
+A **forma de pagamento** deixou de ser texto livre e virou escolha entre débito,
+crédito, dinheiro e pix — digitar produzia "Débito", "debito" e "Débito " como três
+formas distintas, e nenhum filtro agrupava direito.
+
+Detalhes em [`plano.md`, resolução 10.23](./plano.md).
+
 ## Calendário
 
 A grade de mês respondia a pergunta errada. Grade serve para **agendar** — achar

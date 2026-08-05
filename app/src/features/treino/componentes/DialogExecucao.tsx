@@ -16,6 +16,7 @@ import { paraISO } from '@/lib/datas'
 import { cn } from '@/lib/utils'
 import { umRmEstimado } from '../calculos'
 import {
+  useAtualizarHoraSessao,
   useAtualizarSerie,
   useDescartarExecucao,
   useDesfazerPulo,
@@ -81,6 +82,7 @@ export function DialogExecucao({
   const pular = usePularExercicio()
   const desfazerPulo = useDesfazerPulo()
   const descartar = useDescartarExecucao()
+  const atualizarHora = useAtualizarHoraSessao()
 
   const sessao =
     aberta.data?.treino_id === treino.id ? (aberta.data ?? null) : null
@@ -91,6 +93,14 @@ export function DialogExecucao({
 
   const [execucaoId, setExecucaoId] = useState<string | null>(null)
   const [data, setData] = useState(paraISO(hoje))
+  /**
+   * Horário real da sessão (resolução 10.23).
+   *
+   * Vazio por padrão, e NÃO pré-preenchido com a hora atual: o campo existe
+   * justamente para os casos em que o treino não saiu na hora prevista, e chutar
+   * um valor faria o registro parecer informado quando não é.
+   */
+  const [hora, setHora] = useState('')
   const [linhas, setLinhas] = useState<LinhaSerie[]>([])
 
   /**
@@ -159,6 +169,7 @@ export function DialogExecucao({
 
     setExecucaoId(sessao?.id ?? null)
     setData(sessao?.data ?? paraISO(hoje))
+    setHora(sessao?.hora_inicio?.slice(0, 5) ?? '')
     setLinhas(montarLinhas())
     setCarregado(true)
     // `montarLinhas` lê `sessao` e `exercicios`, que só importam nesta carga
@@ -223,6 +234,17 @@ export function DialogExecucao({
         i === indice ? { ...item, serieId: null } : item,
       ),
     )
+  }
+
+  /** Grava no blur: um insert por tecla digitada seria absurdo. */
+  async function salvarHora() {
+    if (!execucaoId) return
+    const atual = sessao?.hora_inicio?.slice(0, 5) ?? ''
+    if (hora === atual) return
+    await atualizarHora.mutateAsync({
+      id: execucaoId,
+      hora: hora === '' ? null : hora,
+    })
   }
 
   async function pularAqui(exercicioId: string) {
@@ -311,24 +333,41 @@ export function DialogExecucao({
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="flex items-end justify-between gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs" htmlFor="execucao-data">
-                Data
-              </Label>
-              <Input
-                id="execucao-data"
-                type="date"
-                className="h-8 w-40"
-                value={data}
-                // A data trava depois da primeira série: mudá-la moveria séries
-                // já gravadas para outro dia
-                disabled={execucaoId !== null}
-                onChange={(evento) => setData(evento.target.value)}
-              />
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="flex items-end gap-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs" htmlFor="execucao-data">
+                  Data
+                </Label>
+                <Input
+                  id="execucao-data"
+                  type="date"
+                  className="h-8 w-36"
+                  value={data}
+                  // A data trava depois da primeira série: mudá-la moveria séries
+                  // já gravadas para outro dia
+                  disabled={execucaoId !== null}
+                  onChange={(evento) => setData(evento.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs" htmlFor="execucao-hora">
+                  Horário
+                </Label>
+                <Input
+                  id="execucao-hora"
+                  type="time"
+                  className="h-8 w-28"
+                  // Só grava com sessão criada: sem ela não há linha para gravar
+                  disabled={!execucaoId || pendente}
+                  value={hora}
+                  onChange={(evento) => setHora(evento.target.value)}
+                  onBlur={() => void salvarHora()}
+                />
+              </div>
             </div>
             <p className="text-muted-foreground text-xs tabular-nums">
-              {gravadas} de {linhas.length} séries
+              {gravadas} de {linhasContadas.length} séries
             </p>
           </div>
 

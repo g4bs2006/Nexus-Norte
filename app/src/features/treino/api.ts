@@ -299,7 +299,7 @@ export async function execucaoAberta(): Promise<ExecucaoAberta | null> {
   const { data, error } = await supabase
     .from('execucoes_treino')
     .select(
-      'id, treino_id, data, created_at, execucoes_exercicio(id, exercicio_id, carga_real, reps_reais, rpe), execucoes_pulados(exercicio_id)',
+      'id, treino_id, data, created_at, hora_inicio, execucoes_exercicio(id, exercicio_id, carga_real, reps_reais, rpe), execucoes_pulados(exercicio_id)',
     )
     .is('finalizado_em', null)
     .maybeSingle()
@@ -311,6 +311,7 @@ export async function execucaoAberta(): Promise<ExecucaoAberta | null> {
     treino_id: data.treino_id,
     data: data.data,
     created_at: data.created_at,
+    hora_inicio: data.hora_inicio,
     series: data.execucoes_exercicio,
     pulados: data.execucoes_pulados.map((linha) => linha.exercicio_id),
   }
@@ -373,6 +374,23 @@ export async function listarPulados(
   }))
 }
 
+/**
+ * Grava o horário real em que a sessão aconteceu (resolução 10.23).
+ *
+ * Independe do horário planejado no fluxograma: planejar às 18h e treinar às 11h
+ * são dois fatos, e este registra o segundo. `null` limpa o campo.
+ */
+export async function atualizarHoraSessao(
+  id: string,
+  hora: string | null,
+): Promise<void> {
+  const { error } = await supabase
+    .from('execucoes_treino')
+    .update({ hora_inicio: hora })
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
 export async function finalizarExecucao(id: string): Promise<void> {
   const { error } = await supabase
     .from('execucoes_treino')
@@ -399,7 +417,7 @@ export async function listarSeries(
     // as séries chegavam soltas com a data, e dois treinos no mesmo dia viravam
     // uma massa indistinguível — não há unique em (treino_id, data).
     .select(
-      'id, execucao_treino_id, exercicio_id, carga_real, reps_reais, rpe, execucoes_treino!inner(data, treino_id, created_at, finalizado_em), exercicios_treino!inner(exercicio_base_id, biblioteca_exercicios!inner(nome, grupo_muscular))',
+      'id, execucao_treino_id, exercicio_id, carga_real, reps_reais, rpe, execucoes_treino!inner(data, treino_id, created_at, finalizado_em, hora_inicio), exercicios_treino!inner(exercicio_base_id, biblioteca_exercicios!inner(nome, grupo_muscular))',
     )
   if (de) consulta = consulta.gte('execucoes_treino.data', de)
   if (ate) consulta = consulta.lte('execucoes_treino.data', ate)
@@ -419,6 +437,7 @@ export async function listarSeries(
     treino_id: linha.execucoes_treino.treino_id,
     execucao_criada_em: linha.execucoes_treino.created_at,
     execucao_finalizada_em: linha.execucoes_treino.finalizado_em,
+    execucao_hora_inicio: linha.execucoes_treino.hora_inicio,
     grupo_muscular:
       linha.exercicios_treino.biblioteca_exercicios.grupo_muscular,
     exercicio_nome: linha.exercicios_treino.biblioteca_exercicios.nome,

@@ -26,6 +26,18 @@ export type Categoria = Omit<
 
 export type Lancamento = Tables<'lancamentos'>
 
+/**
+ * Lançamento com os dados da categoria resolvidos.
+ *
+ * A natureza é o que permite separar entrada de saída na lista — sem ela o total
+ * do período misturaria salário com mercado.
+ */
+export interface LancamentoDetalhado extends Lancamento {
+  categoria_nome: string
+  categoria_natureza: string
+  categoria_cor: string | null
+}
+
 export type Investimento = Omit<Tables<'investimentos'>, 'tipo'> & {
   tipo: TipoInvestimento
 }

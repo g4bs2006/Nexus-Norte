@@ -13,6 +13,17 @@ import * as api from './api'
 export const chaves = {
   raiz: ['financeiro'] as const,
   categorias: () => ['financeiro', 'categorias'] as const,
+  detalhados: (filtro: api.FiltroLancamentos) =>
+    [
+      'financeiro',
+      'lancamentos-detalhados',
+      filtro.de,
+      filtro.ate,
+      filtro.categoriaId ?? 'todas',
+      filtro.natureza ?? 'ambas',
+      filtro.formaPagamento ?? 'todas',
+      filtro.busca ?? '',
+    ] as const,
   lancamentos: (de: string, ate: string) =>
     ['financeiro', 'lancamentos', de, ate] as const,
   lancamentosCategoria: (categoriaId: string) =>
@@ -41,6 +52,20 @@ export function useLancamentos(de: string, ate: string) {
   return useQuery({
     queryKey: chaves.lancamentos(de, ate),
     queryFn: () => api.listarLancamentos({ de, ate }),
+  })
+}
+
+/**
+ * Lista filtrável de lançamentos (resolução 10.23).
+ *
+ * O filtro inteiro entra na chave de cache: trocar de período ou de categoria é
+ * uma consulta diferente, e o React Query já guarda cada combinação — voltar para
+ * "este mês" depois de olhar julho não refaz a requisição.
+ */
+export function useLancamentosDetalhados(filtro: api.FiltroLancamentos) {
+  return useQuery({
+    queryKey: chaves.detalhados(filtro),
+    queryFn: () => api.listarLancamentosDetalhados(filtro),
   })
 }
 

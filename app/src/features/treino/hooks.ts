@@ -209,6 +209,14 @@ export function useExcluirSerie() {
   })
 }
 
+export function useAtualizarHoraSessao() {
+  return useMutationTreino(
+    ({ id, hora }: { id: string; hora: string | null }) =>
+      api.atualizarHoraSessao(id, hora),
+    'Horário atualizado',
+  )
+}
+
 export function useFinalizarExecucao() {
   return useMutationTreino(api.finalizarExecucao, 'Treino registrado')
 }

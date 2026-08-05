@@ -211,6 +211,7 @@ export interface SerieDeSessao {
   treino_id: string
   execucao_criada_em: string
   execucao_finalizada_em: string | null
+  execucao_hora_inicio: string | null
   grupo_muscular: string | null
   exercicio_nome: string
 }
@@ -245,6 +246,8 @@ export interface SessaoRealizada {
   treino_id: string
   data: string
   emAndamento: boolean
+  /** Horário informado pelo usuário, em `HH:MM`. Nulo = não informado. */
+  horaInicio: string | null
   /**
    * Minutos entre a primeira série gravada e o encerramento.
    *
@@ -335,6 +338,7 @@ export function sessoesRealizadas(
       treino_id: primeira.treino_id,
       data: primeira.data,
       emAndamento: primeira.execucao_finalizada_em === null,
+      horaInicio: primeira.execucao_hora_inicio?.slice(0, 5) ?? null,
       duracaoMinutos: duracaoDaSessao(
         primeira.execucao_criada_em,
         primeira.execucao_finalizada_em,

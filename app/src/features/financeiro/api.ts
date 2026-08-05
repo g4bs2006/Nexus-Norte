@@ -5,6 +5,7 @@ import type {
   Categoria,
   Investimento,
   Lancamento,
+  LancamentoDetalhado,
   PlanejamentoSemanal,
 } from './types'
 
@@ -76,15 +77,72 @@ export async function listarLancamentos({
 
 export async function listarLancamentosDaCategoria(
   categoriaId: string,
-  limite = 50,
 ): Promise<Lancamento[]> {
+  // Sem `limite`: havia um teto de 50 fixo, e com um ano de uso a página da
+  // categoria mostraria os últimos 50 e sumiria com o resto sem avisar — um
+  // histórico truncado que parece completo (resolução 10.23).
   const resultado = await supabase
     .from('lancamentos')
     .select('*')
     .eq('categoria_id', categoriaId)
     .order('data', { ascending: false })
-    .limit(limite)
   return lancarSeErro(resultado)
+}
+
+export interface FiltroLancamentos extends FiltroPeriodo {
+  /** Vazio = todas as categorias. */
+  categoriaId?: string
+  /** Vazio = entradas e saídas. */
+  natureza?: 'receita' | 'despesa'
+  /** Vazio = todas as formas. */
+  formaPagamento?: string
+  /** Busca por trecho da descrição, sem diferenciar maiúsculas. */
+  busca?: string
+}
+
+/**
+ * Lançamentos do período com o nome e a natureza da categoria resolvidos.
+ *
+ * O join acontece aqui para que a lista consiga separar entrada de saída e
+ * mostrar a categoria sem uma segunda consulta. Os filtros vão para o Postgres em
+ * vez do cliente porque a tabela cresce todo dia — filtrar no cliente obrigaria a
+ * baixar o ano inteiro para exibir uma semana.
+ */
+export async function listarLancamentosDetalhados({
+  de,
+  ate,
+  categoriaId,
+  natureza,
+  formaPagamento,
+  busca,
+}: FiltroLancamentos): Promise<LancamentoDetalhado[]> {
+  let consulta = supabase
+    .from('lancamentos')
+    .select('*, categorias!inner(nome, natureza, cor)')
+    .gte('data', de)
+    .lte('data', ate)
+
+  if (categoriaId) consulta = consulta.eq('categoria_id', categoriaId)
+  if (natureza) consulta = consulta.eq('categorias.natureza', natureza)
+  if (formaPagamento) consulta = consulta.eq('forma_pagamento', formaPagamento)
+  if (busca && busca.trim() !== '') {
+    // `%` do usuário quebraria o padrão do LIKE; escapar é mais previsível que
+    // recusar a busca
+    const termo = busca.trim().replace(/[%_]/g, '')
+    consulta = consulta.ilike('descricao', `%${termo}%`)
+  }
+
+  const { data, error } = await consulta
+    .order('data', { ascending: false })
+    .order('created_at', { ascending: false })
+  if (error) throw new Error(error.message)
+
+  return (data ?? []).map(({ categorias, ...lancamento }) => ({
+    ...lancamento,
+    categoria_nome: categorias.nome,
+    categoria_natureza: categorias.natureza,
+    categoria_cor: categorias.cor,
+  }))
 }
 
 export async function criarLancamento(

@@ -46,6 +46,7 @@ import { DialogCategoria } from '@/features/financeiro/componentes/DialogCategor
 import { DialogInvestimento } from '@/features/financeiro/componentes/DialogInvestimento'
 import { DialogLancamento } from '@/features/financeiro/componentes/DialogLancamento'
 import { LancamentoRapido } from '@/features/financeiro/componentes/LancamentoRapido'
+import { SecaoUltimosLancamentos } from '@/features/financeiro/componentes/SecaoUltimosLancamentos'
 
 const MESES_TENDENCIA = 6
 
@@ -231,6 +232,16 @@ export default function FinanceiroPage() {
             resumo={resumo.data ?? []}
             categorias={listaCategorias}
             receitaDoMes={receitaDoMes}
+          />
+
+          {/*
+            Resumo apontando para a lista completa (resolução 10.23). Os
+            lançamentos do mês já eram buscados aqui para calcular o gasto de hoje
+            e eram descartados — mostrar os últimos não custa consulta nenhuma.
+          */}
+          <SecaoUltimosLancamentos
+            lancamentos={lancamentosMes.data ?? []}
+            categorias={listaCategorias}
           />
 
           <SecaoInvestimentos

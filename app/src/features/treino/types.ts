@@ -87,6 +87,8 @@ export interface SerieExecutada {
   execucao_criada_em: string
   /** Nulo enquanto a sessão está em andamento (resolução 10.21). */
   execucao_finalizada_em: string | null
+  /** Horário real informado pelo usuário. Nulo = não informado (10.23). */
+  execucao_hora_inicio: string | null
   grupo_muscular: string | null
   exercicio_nome: string
 }
@@ -102,6 +104,7 @@ export interface ExecucaoAberta {
   treino_id: string
   data: string
   created_at: string
+  hora_inicio: string | null
   series: readonly {
     id: string
     exercicio_id: string

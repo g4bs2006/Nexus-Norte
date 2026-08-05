@@ -782,3 +782,49 @@ outro treino. `usePularExercicio` nasceu com o mesmo cuidado.
 série gravada, então desfazer a última série deixava a sessão presa: nem finalizava
 nem desaparecia, e bloqueava todos os outros treinos. Agora há "Descartar" no
 diálogo e no aviso da Home.
+
+### 10.23 Horário da sessão, lista de lançamentos e forma de pagamento — descobertas em uso
+
+**Horário real do treino.** O fluxograma dizia 18h; o treino aconteceu às 11h. São
+dois fatos e o segundo não tinha onde morar: `data` guarda só o dia, e `created_at`
+é quando a primeira série foi gravada — não é editável, e nas sessões registradas
+antes da 10.21 era o instante do envio do formulário, não do treino. Coluna
+`hora_inicio time`, editável no diálogo e no histórico, anulável porque a maioria
+dos registros não vai informar e inventar um horário seria pior que não ter.
+
+Não confundir com remarcar a ocorrência (10.19): aquilo muda o **plano** daquela
+data; isto registra a **realidade** da sessão. As duas coisas são úteis e
+independentes.
+
+**Lista de lançamentos.** O Financeiro tinha a mesma assimetria que o Treino tinha:
+o total do mês e o anel por categoria existiam, mas ver os lançamentos exigia entrar
+numa categoria por vez. Faltava responder "o que gastei esta semana", "quanto gastei
+com X em Y período" e "onde está aquele lançamento" — a pergunta "onde foi o dinheiro
+este mês" já era respondida pela grade de categorias, então a lista não a repete.
+
+Página própria (`/financeiro/lancamentos`) e não card no painel: o Financeiro já é a
+tela mais densa do app, e cinco filtros somados a ela ficariam impraticáveis no
+celular. No painel ficou um resumo com os cinco últimos apontando para lá — e ele não
+custa consulta nenhuma, porque os lançamentos do mês **já eram buscados** para
+calcular o gasto de hoje e descartados em seguida.
+
+Agrupada por dia, com saldo por dia. Filtros de período (com presets), categoria,
+entrada/saída, forma de pagamento e busca na descrição — todos no Postgres e não no
+cliente, porque a tabela cresce todo dia e filtrar no cliente obrigaria a baixar o
+ano inteiro para exibir uma semana.
+
+**Truncamento silencioso corrigido.** `listarLancamentosDaCategoria` tinha
+`limite = 50` fixo. Com 8 lançamentos ninguém nota; com um ano de uso a página da
+categoria mostraria os últimos 50 e sumiria com o resto **sem avisar** — histórico
+truncado que parece completo.
+
+**Forma de pagamento fechada.** Era texto livre digitado a cada lançamento, o mesmo
+problema que a biblioteca de exercícios resolveu (10.18): "Débito", "debito" e
+"Débito " viram três formas distintas e nenhum filtro agrupa. Virou conjunto fechado
+— débito, crédito, dinheiro, pix — com CHECK no banco e Select na tela.
+
+CHECK em vez de tabela de referência: são quatro valores que não mudam, sem atributo
+nenhum além do nome, e ninguém precisa cadastrar uma quinta forma. Tabela aqui seria
+cerimônia sem ganho — o oposto de `biblioteca_exercicios`, onde o cadastro é do
+usuário e cresce. Os valores gravados são slugs sem acento; o rótulo existe só para
+a tela. O dado existente (`Débito`) foi normalizado no migration.

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  agruparPorDia,
   gastoDisponivelGeral,
   gastoDisponivelPlanejado,
   metaEfetiva,
@@ -9,6 +10,7 @@ import {
   saldoProjetadoFimMes,
   statusDiario,
   totaisDoMes,
+  totaisDoPeriodo,
 } from './calculos'
 import type { Categoria } from './types'
 
@@ -208,5 +210,84 @@ describe('metaTotalDespesas', () => {
     ]
 
     expect(metaTotalDespesas(categorias, 5000)).toBe(1000)
+  })
+})
+
+describe('totaisDoPeriodo', () => {
+  const lanc = (
+    id: string,
+    valor: number,
+    natureza: string,
+    data = '2026-08-05',
+  ) => ({ id, valor, data, categoria_natureza: natureza })
+
+  it('separa entrada de saída pela natureza da categoria', () => {
+    const totais = totaisDoPeriodo([
+      lanc('1', 4200, 'receita'),
+      lanc('2', 182.4, 'despesa'),
+      lanc('3', 24.9, 'despesa'),
+    ])
+
+    expect(totais.entradas).toBeCloseTo(4200)
+    expect(totais.saidas).toBeCloseTo(207.3)
+    expect(totais.saldo).toBeCloseTo(3992.7)
+    expect(totais.quantidade).toBe(3)
+  })
+
+  it('devolve saldo negativo quando saiu mais do que entrou', () => {
+    const totais = totaisDoPeriodo([lanc('1', 500, 'despesa')])
+    expect(totais.saldo).toBe(-500)
+  })
+
+  it('zera tudo sem lançamentos', () => {
+    expect(totaisDoPeriodo([])).toEqual({
+      entradas: 0,
+      saidas: 0,
+      saldo: 0,
+      quantidade: 0,
+    })
+  })
+})
+
+describe('agruparPorDia', () => {
+  const lanc = (id: string, data: string, valor: number, natureza: string) => ({
+    id,
+    data,
+    valor,
+    categoria_natureza: natureza,
+  })
+
+  it('agrupa por data, do mais recente para o mais antigo', () => {
+    const dias = agruparPorDia([
+      lanc('1', '2026-08-03', 100, 'despesa'),
+      lanc('2', '2026-08-05', 50, 'despesa'),
+      lanc('3', '2026-08-05', 30, 'despesa'),
+    ])
+
+    expect(dias.map((d) => d.data)).toEqual(['2026-08-05', '2026-08-03'])
+    expect(dias[0]?.lancamentos).toHaveLength(2)
+    expect(dias[1]?.lancamentos).toHaveLength(1)
+  })
+
+  it('calcula o saldo do dia misturando entrada e saída', () => {
+    const dias = agruparPorDia([
+      lanc('1', '2026-08-05', 4200, 'receita'),
+      lanc('2', '2026-08-05', 200, 'despesa'),
+    ])
+
+    expect(dias[0]?.saldo).toBeCloseTo(4000)
+  })
+
+  it('não inventa dias vazios entre as datas', () => {
+    const dias = agruparPorDia([
+      lanc('1', '2026-08-01', 10, 'despesa'),
+      lanc('2', '2026-08-31', 10, 'despesa'),
+    ])
+
+    expect(dias).toHaveLength(2)
+  })
+
+  it('devolve vazio sem lançamentos', () => {
+    expect(agruparPorDia([])).toEqual([])
   })
 })

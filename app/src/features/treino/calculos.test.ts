@@ -228,6 +228,7 @@ describe('sessoesRealizadas', () => {
       treino_id: 'treino-push',
       execucao_criada_em: '2026-08-05T18:00:00.000Z',
       execucao_finalizada_em: '2026-08-05T19:35:00.000Z',
+      execucao_hora_inicio: null,
       grupo_muscular: 'peito',
       exercicio_nome: 'Supino Reto',
       ...parcial,

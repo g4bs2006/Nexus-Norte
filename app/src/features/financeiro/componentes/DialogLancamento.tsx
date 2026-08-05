@@ -36,6 +36,7 @@ import {
   type FormularioLancamento,
 } from '../schemas'
 import type { Categoria, Lancamento } from '../types'
+import { FORMAS_PAGAMENTO, type FormaPagamento } from '@/lib/formasPagamento'
 
 interface DialogLancamentoProps {
   categorias: readonly Categoria[]
@@ -48,6 +49,14 @@ interface DialogLancamentoProps {
  * Formulário de novo/edição de lançamento — o mais usado no dia a dia, então
  * abre com data já preenchida e foco direto no valor (plano 8: reduzir fricção).
  */
+/**
+ * Sentinela de "não informada".
+ *
+ * `SelectItem` do Radix recusa valor vazio, então o vazio do formulário precisa
+ * de um representante — o mesmo padrão do tipo de treino em `DialogTreino`.
+ */
+const SEM_FORMA = 'sem-forma'
+
 export function DialogLancamento({
   categorias,
   hoje,
@@ -79,7 +88,9 @@ export function DialogLancamento({
         categoria_id: lancamento.categoria_id,
         data: lancamento.data,
         descricao: lancamento.descricao ?? '',
-        forma_pagamento: lancamento.forma_pagamento ?? '',
+        // O CHECK do banco garante que o valor pertence ao conjunto
+        forma_pagamento: (lancamento.forma_pagamento ?? '') as
+          FormaPagamento | '',
         data_vencimento: lancamento.data_vencimento ?? '',
       })
     } else if (aberto && !lancamento) {
@@ -261,9 +272,36 @@ export function DialogLancamento({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Forma de pagamento</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Opcional" {...field} />
-                  </FormControl>
+                  {/*
+                    Conjunto fechado em vez de texto livre (resolução 10.23):
+                    digitar produzia "Débito", "debito" e "Débito " como três
+                    formas distintas, e nenhum filtro agrupava direito.
+                  */}
+                  <Select
+                    value={field.value === '' ? SEM_FORMA : field.value}
+                    onValueChange={(valor) =>
+                      field.onChange(valor === SEM_FORMA ? '' : valor)
+                    }
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Opcional" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {/* SelectItem recusa valor vazio, daí o sentinela */}
+                      <SelectItem value={SEM_FORMA}>
+                        <span className="text-muted-foreground">
+                          Não informada
+                        </span>
+                      </SelectItem>
+                      {FORMAS_PAGAMENTO.map((forma) => (
+                        <SelectItem key={forma.valor} value={forma.valor}>
+                          {forma.rotulo}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

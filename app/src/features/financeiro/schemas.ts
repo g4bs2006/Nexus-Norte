@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { CORES_DISPONIVEIS } from '@/lib/cores'
+import { FORMAS_PAGAMENTO } from '@/lib/formasPagamento'
 
 /**
  * Schemas de validação dos formulários do Financeiro (plano 2.5).
@@ -67,7 +68,16 @@ export const schemaLancamento = z.object({
   categoria_id: z.string().uuid('Selecione uma categoria'),
   data: z.string().min(1, 'Informe a data'),
   descricao: z.string(),
-  forma_pagamento: z.string(),
+  /**
+   * Slug da forma de pagamento, ou `''` para não informada (resolução 10.23).
+   *
+   * A união vem de `FORMAS_PAGAMENTO` e espelha o CHECK do banco: se alguém
+   * acrescentar uma forma lá sem mexer aqui, o typecheck aponta.
+   */
+  forma_pagamento: z.union([
+    z.literal(''),
+    ...FORMAS_PAGAMENTO.map((forma) => z.literal(forma.valor)),
+  ]),
   /** Resolução 10.2 — só relevante para categorias fixas. */
   data_vencimento: z.string(),
 })

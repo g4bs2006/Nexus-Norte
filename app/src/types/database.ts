@@ -677,6 +677,7 @@ export type Database = {
           created_at: string
           data: string
           finalizado_em: string | null
+          hora_inicio: string | null
           id: string
           treino_id: string
         }
@@ -684,6 +685,7 @@ export type Database = {
           created_at?: string
           data: string
           finalizado_em?: string | null
+          hora_inicio?: string | null
           id?: string
           treino_id: string
         }
@@ -691,6 +693,7 @@ export type Database = {
           created_at?: string
           data?: string
           finalizado_em?: string | null
+          hora_inicio?: string | null
           id?: string
           treino_id?: string
         }

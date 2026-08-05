@@ -164,3 +164,86 @@ export function metaTotalDespesas(
     .filter((c) => c.natureza === 'despesa')
     .reduce((total, c) => total + (metaEfetiva(c, receitaDoMes) ?? 0), 0)
 }
+
+// --- Lista de lançamentos (resolução 10.23) ---------------------------------
+
+/** Campos de que o agrupamento depende. */
+export interface LancamentoParaAgrupar {
+  id: string
+  data: string
+  valor: number
+  categoria_natureza: string
+}
+
+export interface TotaisPeriodo {
+  entradas: number
+  saidas: number
+  /** Entradas menos saídas. Negativo significa que saiu mais do que entrou. */
+  saldo: number
+  quantidade: number
+}
+
+/**
+ * Entradas e saídas do período.
+ *
+ * Somar tudo num total só misturaria salário com mercado e não responderia nada.
+ * A natureza da categoria é o que separa os dois — é por isso que a consulta
+ * resolve o join em vez de devolver só o `categoria_id`.
+ */
+export function totaisDoPeriodo(
+  lancamentos: readonly LancamentoParaAgrupar[],
+): TotaisPeriodo {
+  let entradas = 0
+  let saidas = 0
+
+  for (const lancamento of lancamentos) {
+    if (lancamento.categoria_natureza === 'receita')
+      entradas += lancamento.valor
+    else saidas += lancamento.valor
+  }
+
+  return {
+    entradas,
+    saidas,
+    saldo: entradas - saidas,
+    quantidade: lancamentos.length,
+  }
+}
+
+export interface DiaDeLancamentos<T extends LancamentoParaAgrupar> {
+  /** ISO (`YYYY-MM-DD`). */
+  data: string
+  lancamentos: T[]
+  /** Entradas menos saídas do dia. */
+  saldo: number
+}
+
+/**
+ * Agrupa por dia, do mais recente para o mais antigo.
+ *
+ * Por dia e não por categoria porque a pergunta que a lista responde é "o que eu
+ * gastei", que é cronológica — a visão por categoria já existe na grade de
+ * categorias, e repeti-la aqui seria redundância.
+ *
+ * Dias sem lançamento não entram: aqui a ausência não é resposta, ao contrário da
+ * agenda do calendário, onde "quarta está livre" informa algo.
+ */
+export function agruparPorDia<T extends LancamentoParaAgrupar>(
+  lancamentos: readonly T[],
+): DiaDeLancamentos<T>[] {
+  const porData = new Map<string, T[]>()
+
+  for (const lancamento of lancamentos) {
+    const lista = porData.get(lancamento.data)
+    if (lista) lista.push(lancamento)
+    else porData.set(lancamento.data, [lancamento])
+  }
+
+  return [...porData.entries()]
+    .map(([data, doDia]) => ({
+      data,
+      lancamentos: doDia,
+      saldo: totaisDoPeriodo(doDia).saldo,
+    }))
+    .sort((a, b) => b.data.localeCompare(a.data))
+}
