@@ -328,7 +328,7 @@ export default function TreinoPage() {
                         />
                       </div>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="space-y-3">
                       {doTreino.length === 0 ? (
                         <p className="text-muted-foreground text-sm">
                           Nenhum exercício. Use "Exercício" para adicionar.
@@ -342,7 +342,9 @@ export default function TreinoPage() {
                             >
                               <div className="min-w-0">
                                 <Link
-                                  to={`/treino/${exercicio.id}`}
+                                  // Id do exercício BASE, não da linha do
+                                  // treino: é o que a rota espera (10.18)
+                                  to={`/treino/${exercicio.exercicio_base_id}`}
                                   className="block truncate text-sm hover:underline"
                                 >
                                   {exercicio.nome}
@@ -381,6 +383,22 @@ export default function TreinoPage() {
                             </li>
                           ))}
                         </ul>
+                      )}
+
+                      {/*
+                       * Registrar não depende do fluxograma: dá para lançar um
+                       * treino fora do previsto, ou a sessão de outro dia — a
+                       * data é campo do formulário.
+                       */}
+                      {doTreino.length > 0 && (
+                        <DialogExecucao
+                          treino={treino}
+                          exercicios={doTreino}
+                          hoje={hoje}
+                          rotulo="Registrar sessão"
+                          variante="secondary"
+                          larguraTotal
+                        />
                       )}
                     </CardContent>
                   </Card>

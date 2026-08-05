@@ -28,6 +28,12 @@ interface DialogExecucaoProps {
   treino: TreinoComTipo
   exercicios: readonly ExercicioComBase[]
   hoje: Date
+  /** Rótulo do gatilho. "Registrar" na lista, onde o treino não é o de hoje. */
+  rotulo?: string
+  /** `secondary` na lista de treinos, para não competir com o card de hoje. */
+  variante?: 'default' | 'secondary'
+  /** Ocupa a largura toda — usado no rodapé do card no mobile. */
+  larguraTotal?: boolean
 }
 
 /**
@@ -36,11 +42,18 @@ interface DialogExecucaoProps {
  * Abre com uma linha por série planejada, pré-preenchida com carga e reps alvo
  * — na academia o normal é confirmar o previsto, não digitar tudo de novo
  * (plano 8: reduzir fricção nos formulários do dia a dia).
+ *
+ * Aparece em dois lugares: no card "Treino de hoje" e no card de cada treino.
+ * O segundo é o que permite registrar um treino fora do previsto — trocar o
+ * Push pelo Upper na hora, ou lançar a sessão de ontem que ficou de fora.
  */
 export function DialogExecucao({
   treino,
   exercicios,
   hoje,
+  rotulo = 'Iniciar execução',
+  variante = 'default',
+  larguraTotal = false,
 }: DialogExecucaoProps) {
   const [aberto, setAberto] = useState(false)
   const [data, setData] = useState(paraISO(hoje))
@@ -105,9 +118,14 @@ export function DialogExecucao({
   return (
     <Dialog open={aberto} onOpenChange={abrir}>
       <DialogTrigger asChild>
-        <Button size="sm" disabled={exercicios.length === 0}>
+        <Button
+          size="sm"
+          variant={variante}
+          disabled={exercicios.length === 0}
+          className={larguraTotal ? 'w-full sm:w-auto' : undefined}
+        >
           <Play className="size-4" />
-          Iniciar execução
+          {rotulo}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
