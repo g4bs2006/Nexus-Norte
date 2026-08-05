@@ -334,7 +334,7 @@ export function DialogExercicio({
             </div>
           )}
 
-          {/* 2×2 no mobile: quatro colunas davam ~65px, e "Descanso" não cabia */}
+          {/* 2×2 no mobile: quatro colunas davam ~65px por campo */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="space-y-1.5">
               <Label htmlFor="ex-series">Séries</Label>
@@ -375,13 +375,15 @@ export function DialogExercicio({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="ex-descanso">Descanso (s)</Label>
+              <Label htmlFor="ex-descanso">Descanso</Label>
               <Input
                 id="ex-descanso"
                 type="number"
                 min="0"
                 step="15"
-                placeholder="—"
+                // A unidade sai do rótulo e vem para o placeholder: sem ela,
+                // digitar 2 querendo minutos gravaria 2 segundos
+                placeholder="seg"
                 className="tabular-nums"
                 value={descanso}
                 onChange={(evento) => setDescanso(evento.target.value)}
