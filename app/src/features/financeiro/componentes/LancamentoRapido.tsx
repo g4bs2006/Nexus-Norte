@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { CornerDownLeft } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import {
@@ -23,11 +24,20 @@ interface LancamentoRapidoProps {
  * Lançamento em uma linha (Bloco D do brief).
  *
  * Lançar um gasto é a ação mais repetida do sistema e era a mais custosa: seis
- * interações pelo diálogo completo. Aqui são duas — digitar o valor e apertar
- * Enter. A data é hoje por implicação, e a categoria vem da última usada.
+ * interações pelo diálogo completo. Aqui são duas — digitar o valor e confirmar.
+ * A data é hoje por implicação, e a categoria vem da última usada.
  *
  * O diálogo completo continua existindo para o caso raro que precisa de
  * vencimento, forma de pagamento ou data retroativa.
+ *
+ * **Por que existe um `<form>` e um botão de salvar.** Antes o único jeito de
+ * lançar era apertar Enter, com o input solto numa `<div>` e um `onKeyDown`. No
+ * celular isso não salvava nunca: `inputMode="decimal"` abre o teclado numérico,
+ * que não tem tecla de retorno, então o `Enter` não tinha de onde ser emitido — e
+ * sem `<form>` o navegador também não pode oferecer a tecla de ação ("Ir"), que
+ * depende de submissão implícita. Não havia botão nenhum, então o aparelho onde o
+ * lançamento mais acontece era o único sem saída. O `<form>` restaura a
+ * submissão implícita onde a tecla existe; o botão é a affordance real no mobile.
  */
 export function LancamentoRapido({ categorias, hoje }: LancamentoRapidoProps) {
   const criar = useCriarLancamento()
@@ -52,9 +62,12 @@ export function LancamentoRapido({ categorias, hoje }: LancamentoRapidoProps) {
     setCategoriaId(lembrada?.id ?? despesas[0]?.id ?? '')
   }, [despesas, categoriaId, ultima])
 
+  // Aceita a vírgula do teclado brasileiro. `NaN` quando não dá número.
+  const numero = valor.trim() === '' ? Number.NaN : Number(valor.replace(',', '.'))
+  const podeSalvar = Number.isFinite(numero) && numero > 0 && categoriaId !== ''
+
   async function salvar() {
-    const numero = Number(valor.replace(',', '.'))
-    if (!Number.isFinite(numero) || numero <= 0 || categoriaId === '') return
+    if (!podeSalvar) return
 
     await criar.mutateAsync({
       valor: numero,
@@ -75,45 +88,63 @@ export function LancamentoRapido({ categorias, hoje }: LancamentoRapidoProps) {
 
   return (
     <Card>
-      <CardContent className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[9rem] flex-1">
-          <span className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm">
-            R$
+      <CardContent>
+        <form
+          className="flex flex-wrap items-center gap-2"
+          onSubmit={(evento) => {
+            evento.preventDefault()
+            void salvar()
+          }}
+        >
+          <div className="relative min-w-[9rem] flex-1">
+            <span className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm">
+              R$
+            </span>
+            <Input
+              ref={campoValor}
+              inputMode="decimal"
+              // Rotula a tecla de ação como "Ir" nos teclados que têm uma. Só
+              // tem efeito porque agora existe um form para submeter.
+              enterKeyHint="go"
+              placeholder="0,00"
+              aria-label="Valor do gasto"
+              value={valor}
+              onChange={(evento) => setValor(evento.target.value)}
+              className="metric-sm h-9 pl-9"
+            />
+          </div>
+
+          <Select value={categoriaId} onValueChange={setCategoriaId}>
+            <SelectTrigger className="h-9 w-[11rem]" aria-label="Categoria">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {despesas.map((categoria) => (
+                <SelectItem key={categoria.id} value={categoria.id}>
+                  {categoria.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/*
+            Botão no mobile, dica de teclado no desktop: são a mesma ação por
+            caminhos diferentes, e "Enter" só é verdade onde há tecla de Enter.
+            44px de alvo — a régua do HIG para o polegar.
+          */}
+          <Button
+            type="submit"
+            className="h-11 flex-1 sm:hidden"
+            disabled={!podeSalvar || criar.isPending}
+          >
+            {criar.isPending ? 'Lançando…' : 'Lançar hoje'}
+          </Button>
+
+          <span className="text-muted-foreground hidden items-center gap-1.5 text-xs sm:flex">
+            <CornerDownLeft className="size-3.5" />
+            {criar.isPending ? 'salvando…' : 'Enter para lançar hoje'}
           </span>
-          <Input
-            ref={campoValor}
-            inputMode="decimal"
-            placeholder="0,00"
-            aria-label="Valor do gasto"
-            value={valor}
-            onChange={(evento) => setValor(evento.target.value)}
-            onKeyDown={(evento) => {
-              if (evento.key === 'Enter') {
-                evento.preventDefault()
-                void salvar()
-              }
-            }}
-            className="metric-sm h-9 pl-9"
-          />
-        </div>
-
-        <Select value={categoriaId} onValueChange={setCategoriaId}>
-          <SelectTrigger className="h-9 w-[11rem]" aria-label="Categoria">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {despesas.map((categoria) => (
-              <SelectItem key={categoria.id} value={categoria.id}>
-                {categoria.nome}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
-          <CornerDownLeft className="size-3.5" />
-          {criar.isPending ? 'salvando…' : 'Enter para lançar hoje'}
-        </span>
+        </form>
       </CardContent>
     </Card>
   )

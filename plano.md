@@ -865,3 +865,35 @@ Consequências de virar editor:
   conflita com a sessão aberta de outro treino.
 - `atualizarHoraSessao` virou `atualizarSessao`, com data, horário e duração num
   update só.
+
+### 10.25 Lançamento rápido sem saída no mobile (corrige 2.5 / Bloco D) — descoberta em uso
+
+O lançamento rápido de despesa foi desenhado em duas interações: digitar o valor e
+apertar Enter. **No celular ele não salvava nunca**, e o celular é onde o
+lançamento mais acontece.
+
+Duas causas somadas, ambas no mesmo componente:
+
+- `inputMode="decimal"` abre o **teclado numérico**, que tem dígitos, separador e
+  backspace — e **não tem tecla de retorno**. O `onKeyDown` que escutava `Enter`
+  estava correto; nunca era acionado porque não existia tecla para emitir o evento.
+- O input estava solto dentro de uma `<div>`, **sem `<form>`**. Sem formulário o
+  navegador não pode oferecer a tecla de ação ("Ir"/"Enviar"), porque esse
+  mecanismo *é* a submissão implícita de formulário. `enterKeyHint` sozinho também
+  não teria efeito: ele rotula uma ação que precisa existir.
+
+E não havia botão de salvar nenhum no card — a única affordance era o rótulo
+"Enter para lançar hoje", uma instrução impossível de cumprir no aparelho. No
+desktop funcionava, o que é o que fez isso passar despercebido.
+
+A correção não é "fazer o Enter funcionar": no teclado numérico ele não existe.
+
+- O conteúdo virou `<form onSubmit>`, o que restaura a submissão implícita onde há
+  tecla, e o `onKeyDown` manual saiu — o formulário já faz esse trabalho.
+- **Botão "Lançar hoje" visível no mobile** (`sm:hidden`), alvo de 44px, que é a
+  affordance real de toque. A dica de teclado passou a `hidden sm:flex`: "Enter"
+  só é verdade onde existe um Enter.
+- `enterKeyHint="go"` rotula a tecla de ação nos teclados que têm uma.
+- O botão desabilita quando o valor não dá número positivo ou não há categoria — a
+  mesma guarda que `salvar()` já aplicava, agora visível antes do toque em vez de
+  falhar em silêncio depois dele.

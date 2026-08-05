@@ -301,7 +301,15 @@ A **forma de pagamento** deixou de ser texto livre e virou escolha entre débito
 crédito, dinheiro e pix — digitar produzia "Débito", "debito" e "Débito " como três
 formas distintas, e nenhum filtro agrupava direito.
 
-Detalhes em [`plano.md`, resolução 10.23](./plano.md).
+O **lançamento rápido** ganhou um botão "Lançar hoje" no mobile. Ele era de duas
+interações — digitar o valor e apertar Enter — e no celular não salvava nunca:
+`inputMode="decimal"` abre o teclado numérico, que não tem tecla de retorno, então
+não havia de onde emitir o Enter, e sem `<form>` o navegador também não podia
+oferecer a tecla de ação. Não existindo botão, o aparelho onde o lançamento mais
+acontece era o único sem saída. A dica "Enter para lançar hoje" agora só aparece no
+desktop, onde é verdade.
+
+Detalhes em [`plano.md`, resoluções 10.23 e 10.25](./plano.md).
 
 ## Calendário
 
