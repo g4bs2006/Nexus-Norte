@@ -636,6 +636,42 @@ export type Database = {
           },
         ]
       }
+      execucoes_pulados: {
+        Row: {
+          created_at: string
+          execucao_treino_id: string
+          exercicio_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          execucao_treino_id: string
+          exercicio_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          execucao_treino_id?: string
+          exercicio_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'execucoes_pulados_execucao_treino_id_fkey'
+            columns: ['execucao_treino_id']
+            isOneToOne: false
+            referencedRelation: 'execucoes_treino'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'execucoes_pulados_exercicio_id_fkey'
+            columns: ['exercicio_id']
+            isOneToOne: false
+            referencedRelation: 'exercicios_treino'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       execucoes_treino: {
         Row: {
           created_at: string

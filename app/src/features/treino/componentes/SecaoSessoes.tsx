@@ -141,14 +141,24 @@ export function SecaoSessoes({ sessoes, nomePorTreino }: SecaoSessoesProps) {
                           <div className="flex items-baseline justify-between gap-2">
                             <Link
                               to={`/treino/${exercicio.exercicio_base_id}`}
-                              className="truncate text-sm hover:underline"
+                              className={cn(
+                                'truncate text-sm hover:underline',
+                                exercicio.pulado &&
+                                  'text-muted-foreground line-through',
+                              )}
                             >
                               {exercicio.nome}
                             </Link>
-                            {exercicio.grupo_muscular && (
-                              <span className="text-muted-foreground shrink-0 text-xs capitalize">
-                                {exercicio.grupo_muscular}
+                            {exercicio.pulado ? (
+                              <span className="text-muted-foreground shrink-0 text-xs">
+                                pulado
                               </span>
+                            ) : (
+                              exercicio.grupo_muscular && (
+                                <span className="text-muted-foreground shrink-0 text-xs capitalize">
+                                  {exercicio.grupo_muscular}
+                                </span>
+                              )
                             )}
                           </div>
                           <ul className="mt-1 space-y-0.5">

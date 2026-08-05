@@ -17,6 +17,8 @@ export const chaves = {
   biblioteca: () => ['treino', 'biblioteca'] as const,
   tiposTreino: () => ['treino', 'tipos'] as const,
   execucaoAberta: () => ['treino', 'execucao-aberta'] as const,
+  pulados: (de?: string, ate?: string) =>
+    ['treino', 'pulados', de ?? 'todas', ate ?? 'todas'] as const,
 }
 
 // --- Leitura ----------------------------------------------------------------
@@ -147,12 +149,28 @@ export function useSalvarSerie() {
       data: string
       serie: Omit<api.NovaSerie, 'execucao_treino_id'>
     }) => {
+      const criandoAgora = execucaoId === null
       const id = execucaoId ?? (await api.iniciarExecucao(treinoId, data))
-      const serieId = await api.salvarSerie({
-        ...serie,
-        execucao_treino_id: id,
-      })
-      return { execucaoId: id, serieId }
+
+      try {
+        const serieId = await api.salvarSerie({
+          ...serie,
+          execucao_treino_id: id,
+        })
+        return { execucaoId: id, serieId }
+      } catch (erro) {
+        /*
+         * Desfaz a sessão que acabou de ser criada se a série não entrou.
+         *
+         * Sem isto sobra uma sessão aberta e vazia — e, como o banco só admite
+         * uma aberta, ela travaria o início de qualquer outro treino sem que
+         * exista nada na tela para fechá-la.
+         */
+        if (criandoAgora) {
+          await api.excluirExecucao(id).catch(() => undefined)
+        }
+        throw erro
+      }
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: chaves.raiz })
@@ -193,6 +211,86 @@ export function useExcluirSerie() {
 
 export function useFinalizarExecucao() {
   return useMutationTreino(api.finalizarExecucao, 'Treino registrado')
+}
+
+export function usePulados(de?: string, ate?: string) {
+  return useQuery({
+    queryKey: chaves.pulados(de, ate),
+    queryFn: () => api.listarPulados(de, ate),
+  })
+}
+
+/**
+ * Marca o exercício como pulado, criando a sessão se ainda não existir.
+ *
+ * Pular pode ser a primeira ação do treino — a máquina já estava ocupada quando
+ * você chegou — então precisa da mesma criação preguiçosa e do mesmo rollback de
+ * `useSalvarSerie`, senão uma falha deixaria sessão vazia travando o resto.
+ *
+ * Sem toast: pular é parte do fluxo do treino, não um evento a celebrar.
+ */
+export function usePularExercicio() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      execucaoId,
+      treinoId,
+      data,
+      exercicioId,
+    }: {
+      execucaoId: string | null
+      treinoId: string
+      data: string
+      exercicioId: string
+    }) => {
+      const criandoAgora = execucaoId === null
+      const id = execucaoId ?? (await api.iniciarExecucao(treinoId, data))
+
+      try {
+        await api.pularExercicio(id, exercicioId)
+        return { execucaoId: id }
+      } catch (erro) {
+        if (criandoAgora) {
+          await api.excluirExecucao(id).catch(() => undefined)
+        }
+        throw erro
+      }
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: chaves.raiz })
+    },
+    onError: (erro: Error) => toast.error(erro.message),
+  })
+}
+
+export function useDesfazerPulo() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      execucaoId,
+      exercicioId,
+    }: {
+      execucaoId: string
+      exercicioId: string
+    }) => api.desfazerPulo(execucaoId, exercicioId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: chaves.raiz })
+    },
+    onError: (erro: Error) => toast.error(erro.message),
+  })
+}
+
+/**
+ * Descarta a sessão aberta inteira.
+ *
+ * Faltava uma saída: "Finalizar" exige ao menos uma série gravada, então desfazer
+ * a última série deixava a sessão aberta e vazia — travando o início de qualquer
+ * outro treino, já que o banco só admite uma aberta.
+ */
+export function useDescartarExecucao() {
+  return useMutationTreino(api.excluirExecucao, 'Treino descartado')
 }
 
 // --- Biblioteca de exercícios e tipos (resolução 10.18) ---------------------

@@ -335,7 +335,11 @@ describe('sessoesRealizadas', () => {
         }),
       ],
       [
-        { exercicio_base_id: 'supino', data: '2026-08-05', um_rm_estimado: 125 },
+        {
+          exercicio_base_id: 'supino',
+          data: '2026-08-05',
+          um_rm_estimado: 125,
+        },
       ],
     )
 
@@ -349,7 +353,11 @@ describe('sessoesRealizadas', () => {
     const sessoes = sessoesRealizadas(
       [serie({ execucao_treino_id: 'a', data: '2026-08-05' })],
       [
-        { exercicio_base_id: 'supino', data: '2026-08-04', um_rm_estimado: 125 },
+        {
+          exercicio_base_id: 'supino',
+          data: '2026-08-04',
+          um_rm_estimado: 125,
+        },
       ],
     )
 
@@ -358,6 +366,79 @@ describe('sessoesRealizadas', () => {
 
   it('devolve vazio sem séries', () => {
     expect(sessoesRealizadas([])).toEqual([])
+  })
+
+  describe('exercício pulado (10.22)', () => {
+    const pulado = {
+      execucao_treino_id: 'a',
+      exercicio_base_id: 'leg-press',
+      exercicio_nome: 'Leg Press',
+      grupo_muscular: 'pernas',
+    }
+
+    it('entra na sessão marcado como pulado, sem séries', () => {
+      const sessoes = sessoesRealizadas(
+        [serie({ execucao_treino_id: 'a', exercicio_base_id: 'supino' })],
+        [],
+        [pulado],
+      )
+
+      const exercicios = sessoes[0]?.exercicios ?? []
+      expect(exercicios).toHaveLength(2)
+
+      const legPress = exercicios.find((e) => e.nome === 'Leg Press')
+      expect(legPress?.pulado).toBe(true)
+      expect(legPress?.series).toEqual([])
+    })
+
+    it('não afeta volume nem contagem de séries', () => {
+      const sessoes = sessoesRealizadas(
+        [
+          serie({
+            execucao_treino_id: 'a',
+            carga_real: 100,
+            reps_reais: 5,
+          }),
+        ],
+        [],
+        [pulado],
+      )
+
+      expect(sessoes[0]?.totalSeries).toBe(1)
+      expect(sessoes[0]?.volume).toBe(500)
+    })
+
+    it('série gravada vence a marca de pulado', () => {
+      // O gatilho no banco impede as duas juntas; a leitura é determinística de
+      // todo jeito, para um dado incoerente nunca aparecer feito e pulado
+      const sessoes = sessoesRealizadas(
+        [
+          serie({
+            execucao_treino_id: 'a',
+            exercicio_base_id: 'leg-press',
+            exercicio_nome: 'Leg Press',
+          }),
+        ],
+        [],
+        [pulado],
+      )
+
+      const exercicios = sessoes[0]?.exercicios ?? []
+      expect(exercicios).toHaveLength(1)
+      expect(exercicios[0]?.pulado).toBe(false)
+      expect(exercicios[0]?.series).toHaveLength(1)
+    })
+
+    it('não atribui pulado de outra sessão', () => {
+      const sessoes = sessoesRealizadas(
+        [serie({ execucao_treino_id: 'outra' })],
+        [],
+        [pulado],
+      )
+
+      expect(sessoes[0]?.exercicios).toHaveLength(1)
+      expect(sessoes[0]?.exercicios[0]?.pulado).toBe(false)
+    })
   })
 })
 

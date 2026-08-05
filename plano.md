@@ -748,3 +748,37 @@ mudou.
 
 **Código morto removido.** `useRegistrarSessao` e `api.registrarSeries`
 implementavam o fluxo de submeter tudo de uma vez, que deixou de existir.
+
+### 10.22 Pular exercício e sair da sessão (corrige 10.21) — descoberta em uso
+Três problemas, os dois últimos introduzidos pela própria 10.21.
+
+**1. Não havia como pular um exercício.** Acontece: a máquina está ocupada, o
+ombro doeu, o tempo acabou. Sem registro, as linhas do exercício ficavam em branco
+parecendo pendência, e o contador mentia — "9 de 12" ao fim de um treino em que
+você pulou de propósito lê como trabalho deixado pela metade.
+
+Resolvido com `execucoes_pulados (execucao_treino_id, exercicio_id)`. Tabela em vez
+de estado local porque a sessão foi feita para ser abandonada e retomada: um pulo
+que evapora ao fechar o app contradiz isso. Presença = pulado, como em
+`conclusoes_fluxograma` (10.15); desfazer apaga a linha em vez de gravar `false`.
+
+Como fato registrado, o pulo é informação: aparece no histórico e abre caminho para
+"pulei este exercício nas últimas três sessões", que é sinal de que ele não está
+funcionando no treino.
+
+**Regra no banco, não só no formulário.** Um gatilho recusa a marca quando já
+existe série gravada para aquele exercício na sessão: fez 2 de 4 não é "pulado", é
+"fez 2 de 4", e as duas coisas juntas apareceriam no histórico como feito e pulado
+ao mesmo tempo. A leitura em `sessoesRealizadas` também prefere a série à marca, de
+forma que um dado incoerente nunca chegue à tela.
+
+**2. `useSalvarSerie` não tinha rollback.** O `useRegistrarSessao` removido na
+10.21 desfazia a execução quando as séries falhavam; a versão nova não levou isso.
+Se o insert da série falhasse depois da sessão criada, sobrava sessão aberta e
+vazia — e, como o banco só admite uma aberta, ela travava o início de qualquer
+outro treino. `usePularExercicio` nasceu com o mesmo cuidado.
+
+**3. Não havia saída para a sessão sem séries.** "Finalizar" exige ao menos uma
+série gravada, então desfazer a última série deixava a sessão presa: nem finalizava
+nem desaparecia, e bloqueava todos os outros treinos. Agora há "Descartar" no
+diálogo e no aviso da Home.

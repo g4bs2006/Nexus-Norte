@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, Play, RotateCcw } from 'lucide-react'
+import { Check, Play, RotateCcw, SkipForward, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -17,9 +17,12 @@ import { cn } from '@/lib/utils'
 import { umRmEstimado } from '../calculos'
 import {
   useAtualizarSerie,
+  useDescartarExecucao,
+  useDesfazerPulo,
   useExcluirSerie,
   useExecucaoAberta,
   useFinalizarExecucao,
+  usePularExercicio,
   useSalvarSerie,
 } from '../hooks'
 import type { ExercicioComBase, TreinoComTipo } from '../types'
@@ -75,6 +78,9 @@ export function DialogExecucao({
   const atualizar = useAtualizarSerie()
   const excluir = useExcluirSerie()
   const finalizar = useFinalizarExecucao()
+  const pular = usePularExercicio()
+  const desfazerPulo = useDesfazerPulo()
+  const descartar = useDescartarExecucao()
 
   const sessao =
     aberta.data?.treino_id === treino.id ? (aberta.data ?? null) : null
@@ -213,8 +219,20 @@ export function DialogExecucao({
     if (!linha?.serieId) return
     await excluir.mutateAsync(linha.serieId)
     setLinhas((atual) =>
-      atual.map((item, i) => (i === indice ? { ...item, serieId: null } : item)),
+      atual.map((item, i) =>
+        i === indice ? { ...item, serieId: null } : item,
+      ),
     )
+  }
+
+  async function pularAqui(exercicioId: string) {
+    const resultado = await pular.mutateAsync({
+      execucaoId,
+      treinoId: treino.id,
+      data,
+      exercicioId,
+    })
+    setExecucaoId(resultado.execucaoId)
   }
 
   async function encerrar() {
@@ -223,12 +241,45 @@ export function DialogExecucao({
     setAberto(false)
   }
 
-  const gravadas = linhas.filter((linha) => linha.serieId !== null).length
+  /**
+   * Descarta a sessão inteira.
+   *
+   * A saída que faltava: "Finalizar" exige série gravada, então desfazer a última
+   * série deixava a sessão aberta e vazia — travando o início de qualquer outro
+   * treino, porque o banco só admite uma aberta.
+   */
+  async function descartarTudo() {
+    if (!execucaoId) {
+      setAberto(false)
+      return
+    }
+    await descartar.mutateAsync(execucaoId)
+    setExecucaoId(null)
+    setAberto(false)
+  }
+
+  const pulados = new Set(sessao?.pulados ?? [])
+
+  /*
+   * Linhas de exercício pulado saem do contador. Sem isto o rodapé diria "9 de
+   * 12" ao fim de um treino em que você pulou um exercício de propósito — lendo
+   * como trabalho deixado pela metade (resolução 10.22).
+   */
+  const linhasContadas = linhas.filter(
+    (linha) => !pulados.has(linha.exercicioId),
+  )
+  const gravadas = linhasContadas.filter(
+    (linha) => linha.serieId !== null,
+  ).length
+
   const pendente =
     salvar.isPending ||
     atualizar.isPending ||
     excluir.isPending ||
-    finalizar.isPending
+    finalizar.isPending ||
+    pular.isPending ||
+    desfazerPulo.isPending ||
+    descartar.isPending
 
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
@@ -286,127 +337,187 @@ export function DialogExecucao({
               .map((linha, i) => ({ linha, i }))
               .filter(({ linha }) => linha.exercicioId === exercicio.id)
 
+            const foiPulado = pulados.has(exercicio.id)
+            const temSerieSalva = indices.some(
+              ({ linha }) => linha.serieId !== null,
+            )
+
             return (
               <div key={exercicio.id} className="space-y-2">
-                <div className="flex items-baseline justify-between">
-                  <p className="text-sm font-medium">{exercicio.nome}</p>
-                  {exercicio.grupo_muscular && (
-                    <span className="text-muted-foreground text-xs capitalize">
-                      {exercicio.grupo_muscular}
-                    </span>
-                  )}
+                <div className="flex items-center justify-between gap-2">
+                  <p
+                    className={cn(
+                      'min-w-0 truncate text-sm font-medium',
+                      foiPulado && 'text-muted-foreground line-through',
+                    )}
+                  >
+                    {exercicio.nome}
+                  </p>
+                  <div className="flex shrink-0 items-center gap-2">
+                    {exercicio.grupo_muscular && !foiPulado && (
+                      <span className="text-muted-foreground text-xs capitalize">
+                        {exercicio.grupo_muscular}
+                      </span>
+                    )}
+                    {foiPulado ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        disabled={pendente || !execucaoId}
+                        onClick={() =>
+                          void desfazerPulo.mutateAsync({
+                            execucaoId: execucaoId as string,
+                            exercicioId: exercicio.id,
+                          })
+                        }
+                      >
+                        <RotateCcw className="size-3.5" />
+                        Voltar
+                      </Button>
+                    ) : (
+                      /*
+                       * Pular só aparece sem nenhuma série salva. Fez 2 de 4 não
+                       * é "pulado", é "fez 2 de 4" — e o gatilho no banco recusa
+                       * a marca nesse caso.
+                       */
+                      !temSerieSalva && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-muted-foreground h-7 text-xs"
+                          disabled={pendente}
+                          onClick={() => void pularAqui(exercicio.id)}
+                        >
+                          <SkipForward className="size-3.5" />
+                          Pular
+                        </Button>
+                      )
+                    )}
+                  </div>
                 </div>
 
-                {/*
-                  Cabeçalho de colunas só no desktop. No celular cada série é um
-                  bloco com rótulo em cada campo: em 296px úteis, cinco colunas
-                  davam ~73px por input — e esta é a tela que se usa de pé, com
-                  uma mão, no intervalo da série.
-                */}
-                <div className="text-muted-foreground hidden grid-cols-[1.5rem_1fr_1fr_1fr_auto_auto] items-center gap-2 text-[11px] sm:grid">
-                  <span />
-                  <span>Carga</span>
-                  <span>Reps</span>
-                  <span>RPE</span>
-                  <span className="text-right">1RM</span>
-                  <span />
-                </div>
+                {foiPulado && (
+                  <p className="text-muted-foreground text-xs">
+                    Pulado nesta sessão. Fica registrado no histórico.
+                  </p>
+                )}
 
-                {indices.map(({ linha, i }, ordem) => {
-                  const valores = valoresDaLinha(linha)
-                  const estimado = valores
-                    ? umRmEstimado(valores.carga_real, valores.reps_reais)
-                    : null
-                  const umRm = estimado === null ? '—' : estimado.toFixed(1)
-                  const salva = linha.serieId !== null
-
-                  return (
-                    <div
-                      key={linha.serieId ?? `nova-${i}`}
-                      className={cn(
-                        'rounded-md border p-2.5 transition-colors sm:rounded-none sm:border-0 sm:p-0',
-                        salva
-                          ? 'border-status-ok/40 bg-status-ok/5 sm:bg-transparent'
-                          : 'border-border',
-                      )}
-                    >
-                      <div className="mb-1.5 flex items-baseline justify-between sm:hidden">
-                        <span className="text-xs font-medium">
-                          Série {ordem + 1}
-                          {salva && (
-                            <span className="text-status-ok ml-1.5 font-normal">
-                              salva
-                            </span>
-                          )}
-                        </span>
-                        <span className="text-muted-foreground text-xs tabular-nums">
-                          1RM {umRm}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-[1fr_1fr_1fr_auto] items-end gap-2 sm:grid-cols-[1.5rem_1fr_1fr_1fr_auto_auto] sm:items-center">
-                        <span className="text-muted-foreground hidden text-xs tabular-nums sm:block">
-                          {ordem + 1}
-                        </span>
-
-                        <CampoSerie
-                          rotulo="Carga"
-                          aria={`Carga da série ${ordem + 1} de ${exercicio.nome}`}
-                          valor={linha.carga}
-                          step="0.5"
-                          min="0"
-                          onChange={(valor) => alterar(i, 'carga', valor)}
-                        />
-                        <CampoSerie
-                          rotulo="Reps"
-                          aria={`Reps da série ${ordem + 1} de ${exercicio.nome}`}
-                          valor={linha.reps}
-                          step="1"
-                          min="1"
-                          onChange={(valor) => alterar(i, 'reps', valor)}
-                        />
-                        <CampoSerie
-                          rotulo="RPE"
-                          aria={`RPE da série ${ordem + 1} de ${exercicio.nome}`}
-                          valor={linha.rpe}
-                          step="1"
-                          min="1"
-                          max="10"
-                          placeholder="—"
-                          onChange={(valor) => alterar(i, 'rpe', valor)}
-                        />
-
-                        <span className="text-muted-foreground hidden w-14 text-right text-xs tabular-nums sm:block">
-                          {umRm}
-                        </span>
-
-                        {salva ? (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-muted-foreground size-9 shrink-0 sm:size-7"
-                            aria-label={`Desfazer série ${ordem + 1} de ${exercicio.nome}`}
-                            disabled={pendente}
-                            onClick={() => void desfazer(i)}
-                          >
-                            <RotateCcw className="size-3.5" />
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="secondary"
-                            size="icon"
-                            className="size-9 shrink-0 sm:size-7"
-                            aria-label={`Salvar série ${ordem + 1} de ${exercicio.nome}`}
-                            disabled={pendente || valores === null}
-                            onClick={() => void gravar(i)}
-                          >
-                            <Check className="size-4" />
-                          </Button>
-                        )}
-                      </div>
+                {/* Exercício pulado esconde as linhas: não há nada a anotar */}
+                {!foiPulado && (
+                  <>
+                    {/*
+                    Cabeçalho de colunas só no desktop. No celular cada série é um
+                    bloco com rótulo em cada campo: em 296px úteis, cinco colunas
+                    davam ~73px por input — e esta é a tela que se usa de pé, com
+                    uma mão, no intervalo da série.
+                  */}
+                    <div className="text-muted-foreground hidden grid-cols-[1.5rem_1fr_1fr_1fr_auto_auto] items-center gap-2 text-[11px] sm:grid">
+                      <span />
+                      <span>Carga</span>
+                      <span>Reps</span>
+                      <span>RPE</span>
+                      <span className="text-right">1RM</span>
+                      <span />
                     </div>
-                  )
-                })}
+
+                    {indices.map(({ linha, i }, ordem) => {
+                      const valores = valoresDaLinha(linha)
+                      const estimado = valores
+                        ? umRmEstimado(valores.carga_real, valores.reps_reais)
+                        : null
+                      const umRm = estimado === null ? '—' : estimado.toFixed(1)
+                      const salva = linha.serieId !== null
+
+                      return (
+                        <div
+                          key={linha.serieId ?? `nova-${i}`}
+                          className={cn(
+                            'rounded-md border p-2.5 transition-colors sm:rounded-none sm:border-0 sm:p-0',
+                            salva
+                              ? 'border-status-ok/40 bg-status-ok/5 sm:bg-transparent'
+                              : 'border-border',
+                          )}
+                        >
+                          <div className="mb-1.5 flex items-baseline justify-between sm:hidden">
+                            <span className="text-xs font-medium">
+                              Série {ordem + 1}
+                              {salva && (
+                                <span className="text-status-ok ml-1.5 font-normal">
+                                  salva
+                                </span>
+                              )}
+                            </span>
+                            <span className="text-muted-foreground text-xs tabular-nums">
+                              1RM {umRm}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-[1fr_1fr_1fr_auto] items-end gap-2 sm:grid-cols-[1.5rem_1fr_1fr_1fr_auto_auto] sm:items-center">
+                            <span className="text-muted-foreground hidden text-xs tabular-nums sm:block">
+                              {ordem + 1}
+                            </span>
+
+                            <CampoSerie
+                              rotulo="Carga"
+                              aria={`Carga da série ${ordem + 1} de ${exercicio.nome}`}
+                              valor={linha.carga}
+                              step="0.5"
+                              min="0"
+                              onChange={(valor) => alterar(i, 'carga', valor)}
+                            />
+                            <CampoSerie
+                              rotulo="Reps"
+                              aria={`Reps da série ${ordem + 1} de ${exercicio.nome}`}
+                              valor={linha.reps}
+                              step="1"
+                              min="1"
+                              onChange={(valor) => alterar(i, 'reps', valor)}
+                            />
+                            <CampoSerie
+                              rotulo="RPE"
+                              aria={`RPE da série ${ordem + 1} de ${exercicio.nome}`}
+                              valor={linha.rpe}
+                              step="1"
+                              min="1"
+                              max="10"
+                              placeholder="—"
+                              onChange={(valor) => alterar(i, 'rpe', valor)}
+                            />
+
+                            <span className="text-muted-foreground hidden w-14 text-right text-xs tabular-nums sm:block">
+                              {umRm}
+                            </span>
+
+                            {salva ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-muted-foreground size-9 shrink-0 sm:size-7"
+                                aria-label={`Desfazer série ${ordem + 1} de ${exercicio.nome}`}
+                                disabled={pendente}
+                                onClick={() => void desfazer(i)}
+                              >
+                                <RotateCcw className="size-3.5" />
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="secondary"
+                                size="icon"
+                                className="size-9 shrink-0 sm:size-7"
+                                aria-label={`Salvar série ${ordem + 1} de ${exercicio.nome}`}
+                                disabled={pendente || valores === null}
+                                onClick={() => void gravar(i)}
+                              >
+                                <Check className="size-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </>
+                )}
               </div>
             )
           })}
@@ -418,12 +529,27 @@ export function DialogExecucao({
               ? 'Nada salvo ainda.'
               : 'Pode fechar e voltar depois — o progresso fica salvo.'}
           </p>
-          <Button
-            onClick={() => void encerrar()}
-            disabled={pendente || gravadas === 0}
-          >
-            {finalizar.isPending ? 'Finalizando…' : 'Finalizar treino'}
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* Só faz sentido descartar o que já existe no banco */}
+            {execucaoId && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-status-risco"
+                disabled={pendente}
+                onClick={() => void descartarTudo()}
+              >
+                <Trash2 className="size-3.5" />
+                Descartar
+              </Button>
+            )}
+            <Button
+              onClick={() => void encerrar()}
+              disabled={pendente || gravadas === 0}
+            >
+              {finalizar.isPending ? 'Finalizando…' : 'Finalizar treino'}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

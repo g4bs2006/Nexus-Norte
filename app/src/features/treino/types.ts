@@ -109,4 +109,15 @@ export interface ExecucaoAberta {
     reps_reais: number
     rpe: number | null
   }[]
+  /** Ids em `exercicios_treino` marcados como pulados (resolução 10.22). */
+  pulados: readonly string[]
+}
+
+/** Exercício pulado numa sessão, com o nome resolvido pela biblioteca. */
+export interface ExercicioPulado {
+  execucao_treino_id: string
+  exercicio_id: string
+  exercicio_base_id: string
+  exercicio_nome: string
+  grupo_muscular: string | null
 }

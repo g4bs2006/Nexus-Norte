@@ -38,6 +38,7 @@ import {
   usePersonalRecords,
   useLesoes,
   useRegistroCorporal,
+  usePulados,
   useSeries,
   useTreinos,
 } from '@/features/treino/hooks'
@@ -65,6 +66,7 @@ export default function TreinoPage() {
   const fluxograma = useFluxogramaTreino()
   const execucoesSemana = useExecucoes(semana.de, semana.ate)
   const seriesSemana = useSeries(semana.de, semana.ate)
+  const puladosSemana = usePulados(semana.de, semana.ate)
   const prs = usePersonalRecords()
   const corporal = useRegistroCorporal()
   const lesoes = useLesoes()
@@ -144,8 +146,13 @@ export default function TreinoPage() {
 
   /** Sessões da semana, agrupadas a partir das séries (resolução 10.21). */
   const sessoes = useMemo(
-    () => sessoesRealizadas(seriesSemana.data ?? [], prs.data ?? []),
-    [seriesSemana.data, prs.data],
+    () =>
+      sessoesRealizadas(
+        seriesSemana.data ?? [],
+        prs.data ?? [],
+        puladosSemana.data ?? [],
+      ),
+    [seriesSemana.data, prs.data, puladosSemana.data],
   )
 
   const itensGrade: ItemFluxograma[] = useMemo(

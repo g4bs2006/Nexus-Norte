@@ -5,6 +5,7 @@ import type {
   ExecucaoTreino,
   ExercicioBaseComUso,
   ExercicioComBase,
+  ExercicioPulado,
   FluxogramaTreino,
   PersonalRecordComNome,
   RegistroCorporal,
@@ -298,7 +299,7 @@ export async function execucaoAberta(): Promise<ExecucaoAberta | null> {
   const { data, error } = await supabase
     .from('execucoes_treino')
     .select(
-      'id, treino_id, data, created_at, execucoes_exercicio(id, exercicio_id, carga_real, reps_reais, rpe)',
+      'id, treino_id, data, created_at, execucoes_exercicio(id, exercicio_id, carga_real, reps_reais, rpe), execucoes_pulados(exercicio_id)',
     )
     .is('finalizado_em', null)
     .maybeSingle()
@@ -311,7 +312,65 @@ export async function execucaoAberta(): Promise<ExecucaoAberta | null> {
     data: data.data,
     created_at: data.created_at,
     series: data.execucoes_exercicio,
+    pulados: data.execucoes_pulados.map((linha) => linha.exercicio_id),
   }
+}
+
+// --- Exercício pulado (resolução 10.22) -------------------------------------
+
+/**
+ * Marca o exercício como pulado nesta sessão.
+ *
+ * O gatilho no banco recusa se já houver série gravada: fez 2 de 4 não é
+ * "pulado", é "fez 2 de 4", e as duas marcas juntas apareceriam no histórico como
+ * feito e pulado ao mesmo tempo.
+ */
+export async function pularExercicio(
+  execucaoId: string,
+  exercicioId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('execucoes_pulados')
+    .insert({ execucao_treino_id: execucaoId, exercicio_id: exercicioId })
+  if (error) throw new Error(error.message)
+}
+
+export async function desfazerPulo(
+  execucaoId: string,
+  exercicioId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('execucoes_pulados')
+    .delete()
+    .eq('execucao_treino_id', execucaoId)
+    .eq('exercicio_id', exercicioId)
+  if (error) throw new Error(error.message)
+}
+
+/** Exercícios pulados no intervalo, com o nome resolvido pela biblioteca. */
+export async function listarPulados(
+  de?: string,
+  ate?: string,
+): Promise<ExercicioPulado[]> {
+  let consulta = supabase
+    .from('execucoes_pulados')
+    .select(
+      'execucao_treino_id, exercicio_id, execucoes_treino!inner(data), exercicios_treino!inner(exercicio_base_id, biblioteca_exercicios!inner(nome, grupo_muscular))',
+    )
+  if (de) consulta = consulta.gte('execucoes_treino.data', de)
+  if (ate) consulta = consulta.lte('execucoes_treino.data', ate)
+
+  const { data, error } = await consulta
+  if (error) throw new Error(error.message)
+
+  return (data ?? []).map((linha) => ({
+    execucao_treino_id: linha.execucao_treino_id,
+    exercicio_id: linha.exercicio_id,
+    exercicio_base_id: linha.exercicios_treino.exercicio_base_id,
+    exercicio_nome: linha.exercicios_treino.biblioteca_exercicios.nome,
+    grupo_muscular:
+      linha.exercicios_treino.biblioteca_exercicios.grupo_muscular,
+  }))
 }
 
 export async function finalizarExecucao(id: string): Promise<void> {

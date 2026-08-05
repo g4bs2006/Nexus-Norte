@@ -262,10 +262,18 @@ Treino abandonado no meio não é treino feito.
 Dois ganhos que vieram junto: o recorde é gravado no instante em que a série é
 salva, e a sessão passou a ter **duração** — do primeiro registro ao encerramento.
 
+Dá para **pular** um exercício — máquina ocupada, ombro doendo, tempo curto. O pulo
+fica registrado: as linhas somem do formulário, o exercício sai do contador de
+progresso e aparece no histórico como "pulado". Só vale para exercício sem nenhuma
+série salva; fez 2 de 4 não é pulado, é "fez 2 de 4", e o dado já diz isso.
+
+Mudou de ideia no meio? **Descartar** remove a sessão inteira, no diálogo ou no
+aviso da Home.
+
 O card "Treinos realizados" lista as sessões da semana e abre cada uma para ver
 exercício por exercício, com carga, reps, RPE e 1RM de cada série, além de volume
 total e quais recordes caíram ali. Também dá para apagar uma sessão registrada
-errado.
+errado — **a exclusão é definitiva e leva as séries junto.**
 
 Detalhes em [`plano.md`, resolução 10.21](./plano.md).
 

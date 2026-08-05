@@ -227,6 +227,16 @@ export interface ExercicioDaSessao {
   nome: string
   grupo_muscular: string | null
   series: SerieDeSessao[]
+  /** Marcado como pulado naquela sessão (resolução 10.22). */
+  pulado: boolean
+}
+
+/** Pulado mínimo para cruzar com a sessão. */
+export interface PuladoParaCruzar {
+  execucao_treino_id: string
+  exercicio_base_id: string
+  exercicio_nome: string
+  grupo_muscular: string | null
 }
 
 export interface SessaoRealizada {
@@ -269,6 +279,7 @@ export interface SessaoRealizada {
 export function sessoesRealizadas(
   series: readonly SerieDeSessao[],
   recordes: readonly RecordeParaCruzar[] = [],
+  pulados: readonly PuladoParaCruzar[] = [],
 ): SessaoRealizada[] {
   const porSessao = new Map<string, SerieDeSessao[]>()
   for (const serie of series) {
@@ -291,8 +302,30 @@ export function sessoesRealizadas(
           nome: serie.exercicio_nome,
           grupo_muscular: serie.grupo_muscular,
           series: [serie],
+          pulado: false,
         })
       }
+    }
+
+    /*
+     * Pulados entram depois dos feitos, e só se não houver série do mesmo
+     * exercício.
+     *
+     * O gatilho no banco já impede as duas marcas juntas, mas ler nesta ordem
+     * torna a exibição determinística de todo jeito: série gravada é fato mais
+     * forte que a marca de pulado, e um dado incoerente nunca apareceria como
+     * feito e pulado ao mesmo tempo.
+     */
+    for (const pulado of pulados) {
+      if (pulado.execucao_treino_id !== id) continue
+      if (porExercicio.has(pulado.exercicio_base_id)) continue
+      porExercicio.set(pulado.exercicio_base_id, {
+        exercicio_base_id: pulado.exercicio_base_id,
+        nome: pulado.exercicio_nome,
+        grupo_muscular: pulado.grupo_muscular,
+        series: [],
+        pulado: true,
+      })
     }
 
     const basesDaSessao = new Set(doSessao.map((s) => s.exercicio_base_id))
