@@ -4,7 +4,6 @@ import type {
   Avaliacao,
   ConfigCalculoMedia,
   Documento,
-  ExcecaoFluxograma,
   Falta,
   FluxogramaAula,
   Materia,
@@ -345,18 +344,6 @@ export async function excluirFluxograma(id: string): Promise<void> {
     .delete()
     .eq('id', id)
   if (error) throw new Error(error.message)
-}
-
-export async function listarExcecoes(
-  de: string,
-  ate: string,
-): Promise<ExcecaoFluxograma[]> {
-  const resultado = await supabase
-    .from('excecoes_fluxograma')
-    .select('*')
-    .gte('data', de)
-    .lte('data', ate)
-  return lancarSeErro(resultado) as ExcecaoFluxograma[]
 }
 
 // --- Conclusões do fluxograma (resolução 10.15) -----------------------------

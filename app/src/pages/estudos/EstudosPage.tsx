@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/card'
 import { paraISO } from '@/lib/datas'
 import { ocorrenciasDoDia } from '@/lib/recorrencia'
+import { useExcecoes } from '@/features/fluxograma/hooks'
 import {
   faltasRestantes,
   mediaMateria,
@@ -46,6 +47,8 @@ export default function EstudosPage() {
   const faltas = useFaltas()
   const fluxograma = useFluxograma()
   const conclusoes = useConclusoes(hojeISO)
+  // Exceções do dia: aula cancelada não deve pedir check (resolução 10.19)
+  const excecoes = useExcecoes(hojeISO, hojeISO)
   const excluirHorario = useExcluirFluxograma()
   const definirConclusao = useDefinirConclusao()
 
@@ -102,14 +105,41 @@ export default function EstudosPage() {
   // Aulas de hoje, derivadas do fluxograma na leitura (plano 3.4)
   const checksDeHoje = useMemo(() => {
     const concluidos = new Set(conclusoes.data ?? [])
-    return ocorrenciasDoDia(listaFluxograma, hojeISO).map((ocorrencia) => ({
-      fluxogramaId: ocorrencia.regra.id,
-      rotulo: nomePorMateria.get(ocorrencia.regra.materia_id) ?? 'Matéria',
-      horario: ocorrencia.regra.horario_inicio.slice(0, 5),
-      concluido: concluidos.has(ocorrencia.regra.id),
-      remarcada: ocorrencia.remarcada,
-    }))
-  }, [listaFluxograma, hojeISO, conclusoes.data, nomePorMateria])
+    return ocorrenciasDoDia(listaFluxograma, hojeISO, excecoes.data ?? []).map(
+      (ocorrencia) => ({
+        fluxogramaId: ocorrencia.regra.id,
+        rotulo: nomePorMateria.get(ocorrencia.regra.materia_id) ?? 'Matéria',
+        horario: ocorrencia.regra.horario_inicio.slice(0, 5),
+        horarioFim: ocorrencia.regra.horario_fim.slice(0, 5),
+        concluido: concluidos.has(ocorrencia.regra.id),
+        remarcada: ocorrencia.remarcada,
+        // A exceção é identificada pela data de origem, não pela exibida
+        dataExcecao: ocorrencia.dataOriginal ?? ocorrencia.data,
+      }),
+    )
+  }, [listaFluxograma, hojeISO, excecoes.data, conclusoes.data, nomePorMateria])
+
+  /** Aulas de hoje que foram canceladas — seguem listadas, riscadas. */
+  const canceladasDeHoje = useMemo(
+    () =>
+      (excecoes.data ?? []).flatMap((excecao) => {
+        if (excecao.status !== 'cancelado' || excecao.data !== hojeISO)
+          return []
+        const regra = listaFluxograma.find(
+          (item) => item.id === excecao.fluxograma_id,
+        )
+        if (!regra) return []
+        return [
+          {
+            fluxogramaId: excecao.fluxograma_id,
+            rotulo: nomePorMateria.get(regra.materia_id) ?? 'Matéria',
+            horario: regra.horario_inicio.slice(0, 5),
+            data: excecao.data,
+          },
+        ]
+      }),
+    [excecoes.data, hojeISO, listaFluxograma, nomePorMateria],
+  )
 
   const itensGrade: ItemFluxograma[] = useMemo(
     () =>
@@ -179,6 +209,7 @@ export default function EstudosPage() {
             <CardContent>
               <ChecksFluxograma
                 itens={checksDeHoje}
+                canceladas={canceladasDeHoje}
                 vazio="Nenhuma aula prevista para hoje."
                 onAlternar={(fluxogramaId, concluido) =>
                   definirConclusao.mutate({

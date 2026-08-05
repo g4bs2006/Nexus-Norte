@@ -586,3 +586,54 @@ agora é do movimento, como sempre deveria ter sido.
 e agrega o histórico de todos os treinos que o usam. Editar nome ou grupo é
 função da Biblioteca; editar séries, reps e carga alvo continua no card do
 treino, porque esses valores variam legitimamente entre treinos.
+
+### 10.19 Exceção pontual do fluxograma (completa 3.4 / 4.3) — descoberta em uso
+O fluxograma guarda **padrão**, não datas: uma linha diz "treino B, terça, 18h" e
+vale para toda terça. A recorrência não é materializada (10.5), o que é certo —
+mas faltava o meio entre "segue o padrão" e "não existe mais". Quando a realidade
+fugia do padrão (viagem, aula cancelada pelo professor, treino feito noutro dia)
+as duas saídas eram ruins: deixar o check em aberto, e a frequência da semana
+acusar falha; ou apagar a linha do fluxograma, e perder o padrão de todas as
+semanas seguintes para consertar uma terça.
+
+`excecoes_fluxograma` já existia desde a Fase 2 com `status in ('cancelado',
+'remarcado')`, e `expandirRecorrencia` já lia a tabela. Faltavam três coisas.
+
+**1. `remarcado` não tinha destino.** A tabela tinha a data de origem e o status,
+nada mais. Ganhou `nova_data`, `novo_horario_inicio` e `novo_horario_fim`, com
+CHECKs que barram os estados incoerentes — remarcado sem destino, cancelado com
+destino, horário pela metade, fim antes do início. A regra fica no banco e não só
+no formulário: um `remarcado` sem destino gravado por fora seria descartado em
+silêncio pela expansão.
+
+**2. Ninguém escrevia.** Não havia botão; o hook `useExcecoes` existia e não era
+usado em lugar nenhum. Agora há um menu por ocorrência ("Não vai acontecer",
+"Remarcar…", "Voltar ao padrão") no check do dia e no card do treino de hoje.
+
+**3. Quatro telas discordavam.** Das cinco chamadas de `expandirRecorrencia`, só
+o calendário passava as exceções. Home, Estudos e Treino caíam no `[]` padrão, e
+uma ocorrência cancelada continuaria pedindo check na Home e contando como
+prevista na frequência do Treino. Corrigido, e a invalidação de qualquer exceção
+atinge as quatro raízes de cache.
+
+**Semântica da expansão mudou.** `remarcado` agora **move** a ocorrência para
+`nova_data` em vez de mantê-la na origem sinalizada. Isso exige um segundo
+caminho na função: o destino pode cair num dia da semana que a regra não cobre —
+é justamente o caso de "treinei quinta em vez de terça" — e o laço por dia da
+semana jamais o geraria. Pela mesma razão, a busca filtra por `data` **ou**
+`nova_data`: uma ocorrência empurrada de 31/07 para 02/08 tem origem fora de
+agosto e precisa aparecer ao olhar agosto.
+
+**Onde o código mora.** Num módulo próprio, `features/fluxograma`, e não em
+`estudos` ou `treino`: a tabela é dos dois (`fluxograma_semanal` tem `materia_id`
+OU `treino_id`) e deixar a escrita em `estudos` obrigaria a página de Treino a
+importar de lá. Na mesma passada, as duas leituras duplicadas da tabela viraram
+uma — a de `estudos` estava morta, e a do calendário ignorava as colunas novas.
+
+**Cancelada continua listada, riscada.** Omitir sem deixar rastro tirava o
+caminho de volta: cancelar por engano deixaria o dia sem a linha e sem como
+restaurá-la. Aparecer riscada também é mais honesto sobre o que houve no dia.
+
+**Horário nulo é intencional.** Quando a remarcação só muda o dia, os horários
+ficam nulos e a ocorrência herda o do padrão — assim, mudar o padrão depois
+continua valendo para ela. Só grava horário próprio quem de fato mexeu no campo.

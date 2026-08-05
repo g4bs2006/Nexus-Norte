@@ -61,21 +61,199 @@ describe('expandirRecorrencia', () => {
     expect(ocorrencias.map((o) => o.data)).toEqual(['2026-08-03', '2026-08-17'])
   })
 
-  it('mantém e sinaliza ocorrências remarcadas', () => {
+  it('move a ocorrência remarcada para a nova data', () => {
     const ocorrencias = expandirRecorrencia(
       [AULA_SEGUNDA],
+      { de: SEGUNDA, ate: DOMINGO },
+      [
+        {
+          fluxograma_id: 'aula-seg',
+          data: SEGUNDA,
+          status: 'remarcado',
+          nova_data: '2026-08-06',
+        },
+      ],
+    )
+
+    expect(ocorrencias).toHaveLength(1)
+    expect(ocorrencias[0]?.data).toBe('2026-08-06')
+    expect(ocorrencias[0]?.remarcada).toBe(true)
+    expect(ocorrencias[0]?.dataOriginal).toBe(SEGUNDA)
+  })
+
+  it('remarca para um dia da semana que a regra não cobre', () => {
+    // O caso real: "treinei quinta em vez de terça". O laço por dia da semana
+    // nunca geraria quinta, então o destino tem de entrar por outro caminho.
+    const ocorrencias = expandirRecorrencia(
+      [AULA_SEGUNDA],
+      { de: SEGUNDA, ate: DOMINGO },
+      [
+        {
+          fluxograma_id: 'aula-seg',
+          data: SEGUNDA,
+          status: 'remarcado',
+          nova_data: '2026-08-08', // sábado
+        },
+      ],
+    )
+
+    expect(ocorrencias.map((o) => o.data)).toEqual(['2026-08-08'])
+  })
+
+  it('sobrescreve o horário quando a remarcação traz um', () => {
+    const comHorario = {
+      id: 'aula-seg',
+      dia_semana: 1,
+      horario_inicio: '08:00:00',
+      horario_fim: '10:00:00',
+    }
+
+    const ocorrencias = expandirRecorrencia(
+      [comHorario],
+      { de: SEGUNDA, ate: DOMINGO },
+      [
+        {
+          fluxograma_id: 'aula-seg',
+          data: SEGUNDA,
+          status: 'remarcado',
+          nova_data: '2026-08-06',
+          novo_horario_inicio: '19:00:00',
+          novo_horario_fim: '21:00:00',
+        },
+      ],
+    )
+
+    expect(ocorrencias[0]?.regra.horario_inicio).toBe('19:00:00')
+    expect(ocorrencias[0]?.regra.horario_fim).toBe('21:00:00')
+    // A regra original não pode ter sido mutada — outras datas ainda a usam
+    expect(comHorario.horario_inicio).toBe('08:00:00')
+  })
+
+  it('herda o horário do padrão quando a remarcação só muda o dia', () => {
+    const ocorrencias = expandirRecorrencia(
+      [{ id: 'aula-seg', dia_semana: 1, horario_inicio: '08:00:00' }],
+      { de: SEGUNDA, ate: DOMINGO },
+      [
+        {
+          fluxograma_id: 'aula-seg',
+          data: SEGUNDA,
+          status: 'remarcado',
+          nova_data: '2026-08-06',
+          novo_horario_inicio: null,
+          novo_horario_fim: null,
+        },
+      ],
+    )
+
+    expect(ocorrencias[0]?.regra.horario_inicio).toBe('08:00:00')
+  })
+
+  it('aceita remarcação no mesmo dia, só mudando o horário', () => {
+    const ocorrencias = expandirRecorrencia(
+      [{ id: 'aula-seg', dia_semana: 1, horario_inicio: '08:00:00' }],
       { de: SEGUNDA, ate: SEGUNDA },
       [
         {
           fluxograma_id: 'aula-seg',
           data: SEGUNDA,
           status: 'remarcado',
+          nova_data: SEGUNDA,
+          novo_horario_inicio: '14:00:00',
+          novo_horario_fim: '16:00:00',
         },
       ],
     )
 
     expect(ocorrencias).toHaveLength(1)
-    expect(ocorrencias[0]?.remarcada).toBe(true)
+    expect(ocorrencias[0]?.data).toBe(SEGUNDA)
+    expect(ocorrencias[0]?.regra.horario_inicio).toBe('14:00:00')
+  })
+
+  it('some da origem sem aparecer no destino quando o destino está fora do intervalo', () => {
+    const ocorrencias = expandirRecorrencia(
+      [AULA_SEGUNDA],
+      { de: SEGUNDA, ate: DOMINGO },
+      [
+        {
+          fluxograma_id: 'aula-seg',
+          data: SEGUNDA,
+          status: 'remarcado',
+          nova_data: '2026-09-01',
+        },
+      ],
+    )
+
+    expect(ocorrencias).toEqual([])
+  })
+
+  it('traz o destino mesmo com a data original fora do intervalo', () => {
+    // Empurrada de 31/07 (julho) para 03/08 (agosto): ao olhar agosto, a data
+    // original nem aparece no intervalo, mas o destino tem de aparecer.
+    const ocorrencias = expandirRecorrencia(
+      [AULA_SEGUNDA],
+      { de: SEGUNDA, ate: DOMINGO },
+      [
+        {
+          fluxograma_id: 'aula-seg',
+          data: '2026-07-31',
+          status: 'remarcado',
+          nova_data: '2026-08-05',
+        },
+      ],
+    )
+
+    expect(ocorrencias.map((o) => [o.data, o.remarcada])).toEqual([
+      ['2026-08-03', false],
+      ['2026-08-05', true],
+    ])
+  })
+
+  it('ordena por data e depois por horário', () => {
+    const manha = {
+      id: 'manha',
+      dia_semana: 3,
+      horario_inicio: '08:00:00',
+    }
+    const noite = { id: 'noite', dia_semana: 1, horario_inicio: '20:00:00' }
+
+    const ocorrencias = expandirRecorrencia(
+      [manha, noite],
+      { de: SEGUNDA, ate: DOMINGO },
+      [
+        // A remarcada cai na quarta às 12h: tem de ficar DEPOIS da aula da
+        // manhã de quarta, não no fim da lista
+        {
+          fluxograma_id: 'noite',
+          data: SEGUNDA,
+          status: 'remarcado',
+          nova_data: '2026-08-05',
+          novo_horario_inicio: '12:00:00',
+          novo_horario_fim: '13:00:00',
+        },
+      ],
+    )
+
+    expect(ocorrencias.map((o) => [o.data, o.regra.horario_inicio])).toEqual([
+      ['2026-08-05', '08:00:00'],
+      ['2026-08-05', '12:00:00'],
+    ])
+  })
+
+  it('ignora remarcação cuja regra não está na lista', () => {
+    const ocorrencias = expandirRecorrencia(
+      [AULA_SEGUNDA],
+      { de: SEGUNDA, ate: DOMINGO },
+      [
+        {
+          fluxograma_id: 'regra-de-outro-pilar',
+          data: SEGUNDA,
+          status: 'remarcado',
+          nova_data: '2026-08-06',
+        },
+      ],
+    )
+
+    expect(ocorrencias.map((o) => o.data)).toEqual(['2026-08-03'])
   })
 
   it('não deixa exceção de uma regra afetar outra na mesma data', () => {

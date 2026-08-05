@@ -1,5 +1,4 @@
 import { supabase } from '@/lib/supabase'
-import type { ExcecaoRecorrencia } from '@/lib/recorrencia'
 import type {
   FonteAvaliacao,
   FonteConta,
@@ -37,22 +36,14 @@ export async function fluxogramaCompleto(): Promise<FonteFluxograma[]> {
   return data ?? []
 }
 
-export async function excecoesNoIntervalo(
-  de: string,
-  ate: string,
-): Promise<ExcecaoRecorrencia[]> {
-  const { data, error } = await supabase
-    .from('excecoes_fluxograma')
-    .select('fluxograma_id, data, status')
-    .gte('data', de)
-    .lte('data', ate)
-  if (error) throw new Error(error.message)
-  return (data ?? []).map((linha) => ({
-    fluxograma_id: linha.fluxograma_id,
-    data: linha.data,
-    status: linha.status as 'cancelado' | 'remarcado',
-  }))
-}
+/**
+ * Reexporta a leitura compartilhada (resolução 10.19).
+ *
+ * Antes havia duas implementações da mesma consulta, e esta ignorava as colunas
+ * de destino da remarcação — o calendário mostraria a ocorrência remarcada
+ * ainda no dia antigo.
+ */
+export { listarExcecoes as excecoesNoIntervalo } from '@/features/fluxograma/api'
 
 /**
  * Lançamentos com o tipo e a natureza da categoria, para que o construtor

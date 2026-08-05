@@ -32,6 +32,7 @@ import {
   paraISO,
 } from '@/lib/datas'
 import { expandirRecorrencia, ocorrenciasDoDia } from '@/lib/recorrencia'
+import { useExcecoes } from '@/features/fluxograma/hooks'
 import { cn } from '@/lib/utils'
 import {
   metaTotalDespesas,
@@ -130,6 +131,15 @@ export default function HomePage() {
   const sonoOntem = useRegistroSono(ontemISO)
   const planoSonoOntem = usePlanejamentoSono(subDays(hoje, 1).getDay())
 
+  /*
+   * Exceções do fluxograma (resolução 10.19). A janela da semana já contém
+   * hoje, então a mesma lista serve para os checks do dia e para a frequência —
+   * `expandirRecorrencia` filtra por regra e data internamente, e receber um
+   * superconjunto é inofensivo.
+   */
+  const excecoes = useExcecoes(semana.de, semana.ate)
+  const listaExcecoes = useMemo(() => excecoes.data ?? [], [excecoes.data])
+
   // --- Calendário -----------------------------------------------------------
   const { fontes } = useFontesCalendario(proximos.de, proximos.ate)
 
@@ -190,9 +200,12 @@ export default function HomePage() {
   }, [materias.data, avaliacoes.data, faltas.data, hoje])
 
   const treino = useMemo(() => {
+    // Cancelado não conta como previsto: era o que fazia a frequência acusar
+    // falha numa semana de viagem
     const previstos = expandirRecorrencia(
       fluxogramaTreino.data ?? [],
       semana,
+      listaExcecoes,
     ).length
     const frequencia = frequenciaSemana(
       execucoesSemana.data?.length ?? 0,
@@ -227,6 +240,7 @@ export default function HomePage() {
   }, [
     fluxogramaTreino.data,
     semana,
+    listaExcecoes,
     execucoesSemana.data,
     prs.data,
     treinos.data,
@@ -285,23 +299,30 @@ export default function HomePage() {
     const aulas: ItemCheckFluxograma[] = ocorrenciasDoDia(
       fluxogramaEstudos.data ?? [],
       hojeISO,
+      listaExcecoes,
     ).map((ocorrencia) => ({
       fluxogramaId: ocorrencia.regra.id,
       rotulo: nomeMateria.get(ocorrencia.regra.materia_id) ?? 'Aula',
       horario: ocorrencia.regra.horario_inicio.slice(0, 5),
+      horarioFim: ocorrencia.regra.horario_fim.slice(0, 5),
       concluido: concluidos.has(ocorrencia.regra.id),
       remarcada: ocorrencia.remarcada,
+      // A exceção é identificada pela data de origem, não pela exibida
+      dataExcecao: ocorrencia.dataOriginal ?? ocorrencia.data,
     }))
 
     const treinosHoje: ItemCheckFluxograma[] = ocorrenciasDoDia(
       fluxogramaTreino.data ?? [],
       hojeISO,
+      listaExcecoes,
     ).map((ocorrencia) => ({
       fluxogramaId: ocorrencia.regra.id,
       rotulo: nomeTreino.get(ocorrencia.regra.treino_id) ?? 'Treino',
       horario: ocorrencia.regra.horario_inicio.slice(0, 5),
+      horarioFim: ocorrencia.regra.horario_fim.slice(0, 5),
       concluido: concluidos.has(ocorrencia.regra.id),
       remarcada: ocorrencia.remarcada,
+      dataExcecao: ocorrencia.dataOriginal ?? ocorrencia.data,
     }))
 
     return [...aulas, ...treinosHoje]
@@ -311,7 +332,55 @@ export default function HomePage() {
     treinos.data,
     fluxogramaEstudos.data,
     fluxogramaTreino.data,
+    listaExcecoes,
     hojeISO,
+  ])
+
+  /**
+   * Canceladas de hoje, para continuarem listadas riscadas.
+   *
+   * Vêm das exceções e não das ocorrências: a expansão justamente as omite, e é
+   * por isso que sem esta derivação não haveria caminho de volta depois de
+   * cancelar por engano.
+   */
+  const canceladasDeHoje = useMemo(() => {
+    const regras = [
+      ...(fluxogramaEstudos.data ?? []).map((regra) => ({
+        regra,
+        rotulo:
+          (materias.data ?? []).find((m) => m.id === regra.materia_id)?.nome ??
+          'Aula',
+      })),
+      ...(fluxogramaTreino.data ?? []).map((regra) => ({
+        regra,
+        rotulo:
+          (treinos.data ?? []).find((t) => t.id === regra.treino_id)?.nome ??
+          'Treino',
+      })),
+    ]
+
+    return listaExcecoes.flatMap((excecao) => {
+      if (excecao.status !== 'cancelado' || excecao.data !== hojeISO) return []
+      const achada = regras.find(
+        (item) => item.regra.id === excecao.fluxograma_id,
+      )
+      if (!achada) return []
+      return [
+        {
+          fluxogramaId: excecao.fluxograma_id,
+          rotulo: achada.rotulo,
+          horario: achada.regra.horario_inicio.slice(0, 5),
+          data: excecao.data,
+        },
+      ]
+    })
+  }, [
+    listaExcecoes,
+    hojeISO,
+    fluxogramaEstudos.data,
+    fluxogramaTreino.data,
+    materias.data,
+    treinos.data,
   ])
 
   /**
@@ -435,6 +504,7 @@ export default function HomePage() {
 
             <ChecksFluxograma
               itens={checksFluxograma}
+              canceladas={canceladasDeHoje}
               vazio="Nenhuma aula ou treino previsto para hoje."
               onAlternar={(fluxogramaId, concluido) =>
                 definirConclusao.mutate({

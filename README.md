@@ -217,6 +217,34 @@ progressão somando todos os treinos que o usam, e buscar "Supino" na paleta de
 comando devolve um resultado, não um por treino. Detalhes em
 [`plano.md`, resolução 10.18](./plano.md).
 
+## Exceções do fluxograma
+
+O fluxograma guarda padrão, não datas: uma linha diz "treino B, terça, 18h" e
+vale para toda terça. Faltava o meio entre "segue o padrão" e "não existe mais" —
+quando a semana fugia do plano, só dava para deixar o check em aberto (e a
+frequência acusar falha) ou apagar a linha (e perder o padrão de todas as semanas
+seguintes por causa de uma terça).
+
+Cada ocorrência tem agora um menu com três ações:
+
+| Ação | O que faz |
+| --- | --- |
+| Não vai acontecer | Cancela só aquela data. Sai dos checks e do denominador da frequência |
+| Remarcar… | Move a ocorrência para outra data, com horário próprio se você mudar o campo |
+| Voltar ao padrão | Desfaz a exceção |
+
+O que foi cancelado continua listado, riscado, com um botão de restaurar — sumir
+sem deixar rastro tirava o caminho de volta depois de um cancelamento por engano.
+
+A remarcação **move** a ocorrência: ela desaparece do dia de origem e aparece no
+destino, inclusive quando o destino cai num dia da semana que a regra não cobre —
+"treinei quinta em vez de terça" é o caso que motivou a feature. Se você não
+mexer nos horários, eles ficam nulos e a ocorrência herda o do padrão, então
+mudar o padrão depois continua valendo para ela.
+
+Detalhes e o que mudou na expansão da recorrência em
+[`plano.md`, resolução 10.19](./plano.md).
+
 ## Estrutura
 
 ```

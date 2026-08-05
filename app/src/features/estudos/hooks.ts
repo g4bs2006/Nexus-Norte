@@ -21,8 +21,6 @@ export const chaves = {
   registroListas: (materiaId: string) =>
     ['estudos', 'registro-listas', materiaId] as const,
   fluxograma: () => ['estudos', 'fluxograma'] as const,
-  excecoes: (de: string, ate: string) =>
-    ['estudos', 'excecoes', de, ate] as const,
   conclusoes: (data: string) => ['estudos', 'conclusoes', data] as const,
 }
 
@@ -78,13 +76,6 @@ export function useFluxograma() {
   return useQuery({
     queryKey: chaves.fluxograma(),
     queryFn: api.listarFluxograma,
-  })
-}
-
-export function useExcecoes(de: string, ate: string) {
-  return useQuery({
-    queryKey: chaves.excecoes(de, ate),
-    queryFn: () => api.listarExcecoes(de, ate),
   })
 }
 

@@ -930,18 +930,27 @@ export type Database = {
           data: string
           fluxograma_id: string
           id: string
+          nova_data: string | null
+          novo_horario_fim: string | null
+          novo_horario_inicio: string | null
           status: string
         }
         Insert: {
           data: string
           fluxograma_id: string
           id?: string
+          nova_data?: string | null
+          novo_horario_fim?: string | null
+          novo_horario_inicio?: string | null
           status: string
         }
         Update: {
           data?: string
           fluxograma_id?: string
           id?: string
+          nova_data?: string | null
+          novo_horario_fim?: string | null
+          novo_horario_inicio?: string | null
           status?: string
         }
         Relationships: [

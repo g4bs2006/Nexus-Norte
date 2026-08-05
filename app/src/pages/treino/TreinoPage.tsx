@@ -20,6 +20,8 @@ import { BarraProgresso } from '@/components/BarraProgresso'
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { inicioSemana, paraISO } from '@/lib/datas'
 import { expandirRecorrencia } from '@/lib/recorrencia'
+import { useExcecoes } from '@/features/fluxograma/hooks'
+import { MenuOcorrencia } from '@/features/fluxograma/componentes/MenuOcorrencia'
 import { addDays } from 'date-fns'
 import {
   frequenciaSemana,
@@ -64,6 +66,8 @@ export default function TreinoPage() {
   const prs = usePersonalRecords()
   const corporal = useRegistroCorporal()
   const lesoes = useLesoes()
+  // A janela da semana cobre hoje: serve para o card do dia e para a frequência
+  const excecoes = useExcecoes(semana.de, semana.ate)
 
   const excluirTreino = useExcluirTreino()
   const excluirExercicio = useExcluirExercicio()
@@ -78,6 +82,7 @@ export default function TreinoPage() {
     () => fluxograma.data ?? [],
     [fluxograma.data],
   )
+  const listaExcecoes = useMemo(() => excecoes.data ?? [], [excecoes.data])
 
   const nomePorTreino = useMemo(
     () => new Map(listaTreinos.map((treino) => [treino.id, treino.nome])),
@@ -85,28 +90,45 @@ export default function TreinoPage() {
   )
   /** Treinos previstos para hoje, derivados do fluxograma (plano 4.3). */
   const treinosDeHoje = useMemo(() => {
-    const ocorrencias = expandirRecorrencia(listaFluxograma, {
-      de: hojeISO,
-      ate: hojeISO,
-    })
+    const ocorrencias = expandirRecorrencia(
+      listaFluxograma,
+      { de: hojeISO, ate: hojeISO },
+      listaExcecoes,
+    )
     return ocorrencias.flatMap((ocorrencia) => {
       const treino = listaTreinos.find(
         (item) => item.id === ocorrencia.regra.treino_id,
       )
       return treino
-        ? [{ treino, horario: ocorrencia.regra.horario_inicio }]
+        ? [
+            {
+              treino,
+              horario: ocorrencia.regra.horario_inicio,
+              horarioFim: ocorrencia.regra.horario_fim,
+              fluxogramaId: ocorrencia.regra.id,
+              remarcada: ocorrencia.remarcada,
+              // A exceção é identificada pela data de origem (10.19)
+              dataExcecao: ocorrencia.dataOriginal ?? ocorrencia.data,
+            },
+          ]
         : []
     })
-  }, [listaFluxograma, hojeISO, listaTreinos])
+  }, [listaFluxograma, hojeISO, listaExcecoes, listaTreinos])
 
   /**
    * Frequência da semana: execuções reais contra ocorrências previstas no
    * fluxograma (resolução 10.17).
    */
   const frequencia = useMemo(() => {
-    const previstos = expandirRecorrencia(listaFluxograma, semana).length
+    // Cancelado sai do denominador: a frequência mede aderência ao que estava
+    // de pé, não ao padrão que a semana desmentiu
+    const previstos = expandirRecorrencia(
+      listaFluxograma,
+      semana,
+      listaExcecoes,
+    ).length
     return frequenciaSemana(execucoesSemana.data?.length ?? 0, previstos)
-  }, [listaFluxograma, semana, execucoesSemana.data])
+  }, [listaFluxograma, semana, listaExcecoes, execucoesSemana.data])
 
   const volume = useMemo(
     () => volumeGrupoMuscular(seriesSemana.data ?? []),
@@ -188,7 +210,8 @@ export default function TreinoPage() {
                   Nenhum treino previsto para hoje.
                 </p>
               ) : (
-                treinosDeHoje.map(({ treino, horario }) => {
+                treinosDeHoje.map((previsto) => {
+                  const { treino, horario } = previsto
                   const doTreino = listaExercicios.filter
                     ? listaExercicios.filter(
                         (item) => item.treino_id === treino.id,
@@ -206,6 +229,11 @@ export default function TreinoPage() {
                           <span className="text-muted-foreground text-xs tabular-nums">
                             {horario.slice(0, 5)}
                           </span>
+                          {previsto.remarcada && (
+                            <span className="text-status-atencao text-xs">
+                              remarcado
+                            </span>
+                          )}
                         </p>
                         <p className="text-muted-foreground text-xs">
                           {doTreino.length === 0
@@ -213,11 +241,26 @@ export default function TreinoPage() {
                             : doTreino.map((item) => item.nome).join(' · ')}
                         </p>
                       </div>
-                      <DialogExecucao
-                        treino={treino}
-                        exercicios={doTreino}
-                        hoje={hoje}
-                      />
+                      <div className="flex items-center gap-1">
+                        <DialogExecucao
+                          treino={treino}
+                          exercicios={doTreino}
+                          hoje={hoje}
+                        />
+                        {/*
+                          Mesmo menu do check na Home: viajou, lesionou, mudou o
+                          horário da academia — resolve na data, sem mexer no
+                          padrão da semana.
+                        */}
+                        <MenuOcorrencia
+                          fluxogramaId={previsto.fluxogramaId}
+                          data={previsto.dataExcecao}
+                          rotulo={treino.nome}
+                          horarioInicio={previsto.horario.slice(0, 5)}
+                          horarioFim={previsto.horarioFim.slice(0, 5)}
+                          remarcada={previsto.remarcada}
+                        />
+                      </div>
                     </div>
                   )
                 })

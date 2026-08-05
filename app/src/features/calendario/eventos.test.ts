@@ -106,15 +106,71 @@ describe('eventosFluxograma', () => {
     expect(eventos).toEqual([])
   })
 
-  it('marca ocorrência remarcada no título', () => {
+  it('move a ocorrência remarcada para a nova data e marca o título', () => {
     const eventos = eventosFluxograma(
       [aula],
-      [{ fluxograma_id: 'f1', data: '2026-08-03', status: 'remarcado' }],
+      [
+        {
+          fluxograma_id: 'f1',
+          data: '2026-08-03',
+          status: 'remarcado',
+          nova_data: '2026-08-06',
+        },
+      ],
       SEMANA,
       MATERIAS,
       TREINOS,
     )
+
+    expect(eventos).toHaveLength(1)
     expect(eventos[0]?.titulo).toBe('Cálculo II (remarcado)')
+    // Sai de segunda e cai na quinta, herdando o horário do padrão
+    expect(eventos[0]?.inicio).toContain('2026-08-06')
+    expect(eventos[0]?.inicio).toContain('08:00')
+  })
+
+  it('usa o horário próprio da remarcação quando há um', () => {
+    const eventos = eventosFluxograma(
+      [aula],
+      [
+        {
+          fluxograma_id: 'f1',
+          data: '2026-08-03',
+          status: 'remarcado',
+          nova_data: '2026-08-06',
+          novo_horario_inicio: '14:00:00',
+          novo_horario_fim: '16:00:00',
+        },
+      ],
+      SEMANA,
+      MATERIAS,
+      TREINOS,
+    )
+
+    expect(eventos[0]?.inicio).toContain('14:00')
+    expect(eventos[0]?.fim).toContain('16:00')
+  })
+
+  it('dá ids distintos para a mesma regra em datas diferentes', () => {
+    // O id embute a data; sem isso a remarcada colidiria com a ocorrência do
+    // padrão na semana seguinte e o FullCalendar descartaria uma delas.
+    const eventos = eventosFluxograma(
+      [aula],
+      [
+        {
+          fluxograma_id: 'f1',
+          data: '2026-08-03',
+          status: 'remarcado',
+          nova_data: '2026-08-05',
+        },
+      ],
+      { de: '2026-08-03', ate: '2026-08-16' },
+      MATERIAS,
+      TREINOS,
+    )
+
+    const ids = eventos.map((evento) => evento.id)
+    expect(new Set(ids).size).toBe(ids.length)
   })
 })
 
