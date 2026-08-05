@@ -19,6 +19,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
+import { formatarDecimal, parseDecimal } from '@/lib/numeros'
 import {
   useAtualizarExercicio,
   useBiblioteca,
@@ -89,9 +90,7 @@ export function DialogExercicio({
       setBaseId(exercicio.exercicio_base_id)
       setSeries(String(exercicio.series))
       setReps(exercicio.reps_alvo !== null ? String(exercicio.reps_alvo) : '')
-      setCarga(
-        exercicio.carga_alvo !== null ? String(exercicio.carga_alvo) : '',
-      )
+      setCarga(formatarDecimal(exercicio.carga_alvo))
       setDescanso(
         exercicio.descanso_segundos !== null
           ? String(exercicio.descanso_segundos)
@@ -107,8 +106,9 @@ export function DialogExercicio({
   }, [aberto, exercicio])
 
   function numeroOuNulo(valor: string): number | null {
-    const numero = Number(valor)
-    return valor.trim() !== '' && Number.isFinite(numero) ? numero : null
+    // `parseDecimal` aceita a vírgula do teclado: carga de 87,5 kg vinha vazia
+    const numero = parseDecimal(valor)
+    return Number.isFinite(numero) ? numero : null
   }
 
   const pendente = criar.isPending || atualizar.isPending
@@ -365,9 +365,10 @@ export function DialogExercicio({
               <Label htmlFor="ex-carga">Carga</Label>
               <Input
                 id="ex-carga"
-                type="number"
-                min="0"
-                step="0.5"
+                // `text`, não `number`: 87,5 no teclado do celular é vírgula, e
+                // vírgula num campo numérico chega como vazio
+                type="text"
+                inputMode="decimal"
                 placeholder="—"
                 className="tabular-nums"
                 value={carga}

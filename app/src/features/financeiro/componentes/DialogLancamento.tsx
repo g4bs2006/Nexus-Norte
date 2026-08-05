@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Pencil, Plus } from 'lucide-react'
+import { CampoDecimal } from '@/components/CampoDecimal'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -174,17 +175,11 @@ export function DialogLancamento({
                 <FormItem>
                   <FormLabel>Valor</FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      inputMode="decimal"
+                    <CampoDecimal
                       autoFocus
                       placeholder="0,00"
-                      value={Number.isNaN(field.value) ? '' : field.value}
-                      onChange={(evento) =>
-                        field.onChange(evento.target.valueAsNumber)
-                      }
+                      valor={field.value}
+                      onValorChange={field.onChange}
                     />
                   </FormControl>
                   <FormMessage />

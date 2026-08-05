@@ -21,6 +21,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { deISO } from '@/lib/datas'
+import { formatarDecimal, parseDecimal } from '@/lib/numeros'
 import { NOTA_MINIMA_APROVACAO } from '@/lib/constants'
 import {
   useAtualizarAvaliacao,
@@ -58,7 +59,7 @@ export function AbaAvaliacoes({
   )
 
   async function adicionar() {
-    const pesoNumero = Number(peso)
+    const pesoNumero = parseDecimal(peso)
     if (nome.trim() === '' || !Number.isFinite(pesoNumero) || pesoNumero <= 0) {
       return
     }
@@ -75,7 +76,10 @@ export function AbaAvaliacoes({
 
   /** Salva a nota ao sair do campo — evita mutation a cada tecla. */
   function salvarNota(avaliacao: Avaliacao, bruto: string) {
-    const nova = bruto.trim() === '' ? null : Number(bruto)
+    // Campo vazio é "sem nota", não zero: `parseDecimal` devolve NaN nos dois
+    // casos, então o vazio é distinguido antes de decidir por `null`.
+    const lido = parseDecimal(bruto)
+    const nova = bruto.trim() === '' ? null : lido
     if (nova !== null && !Number.isFinite(nova)) return
     if (nova === avaliacao.nota) return
     atualizar.mutate({ id: avaliacao.id, dados: { nota: nova } })
@@ -107,7 +111,7 @@ export function AbaAvaliacoes({
                       materiaId,
                       config: {
                         tipo: 'manual',
-                        nota_manual: Number(notaManual) || 0,
+                        nota_manual: parseDecimal(notaManual) || 0,
                         observacao: config?.observacao ?? null,
                       },
                     })
@@ -131,9 +135,10 @@ export function AbaAvaliacoes({
                 </Label>
                 <Input
                   id="nota-manual"
-                  type="number"
-                  step="0.1"
-                  min="0"
+                  // `text`, não `number`: nota 7,5 vem com vírgula do teclado do
+                  // celular, e vírgula num campo numérico chega como vazio
+                  type="text"
+                  inputMode="decimal"
                   className="h-8 w-24 tabular-nums"
                   value={notaManual}
                   onChange={(evento) => setNotaManual(evento.target.value)}
@@ -142,7 +147,7 @@ export function AbaAvaliacoes({
                       materiaId,
                       config: {
                         tipo: 'manual',
-                        nota_manual: Number(notaManual) || 0,
+                        nota_manual: parseDecimal(notaManual) || 0,
                         observacao: config?.observacao ?? null,
                       },
                     })
@@ -180,9 +185,8 @@ export function AbaAvaliacoes({
             </Label>
             <Input
               id="novo-peso"
-              type="number"
-              step="0.5"
-              min="0.5"
+              type="text"
+              inputMode="decimal"
               className="h-8 w-20 tabular-nums"
               value={peso}
               onChange={(evento) => setPeso(evento.target.value)}
@@ -250,11 +254,10 @@ export function AbaAvaliacoes({
                     </TableCell>
                     <TableCell>
                       <Input
-                        type="number"
-                        step="0.1"
-                        min="0"
+                        type="text"
+                        inputMode="decimal"
                         placeholder="—"
-                        defaultValue={avaliacao.nota ?? ''}
+                        defaultValue={formatarDecimal(avaliacao.nota)}
                         onBlur={(evento) =>
                           salvarNota(avaliacao, evento.target.value)
                         }

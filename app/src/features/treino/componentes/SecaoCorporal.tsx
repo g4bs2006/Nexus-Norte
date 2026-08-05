@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ESTILO_TOOLTIP } from '@/components/grafico'
 import { deISO, paraISO } from '@/lib/datas'
+import { formatarDecimal, parseDecimal } from '@/lib/numeros'
 import { enviarFotoProgresso } from '../api'
 import { useSalvarRegistroCorporal, useExcluirRegistroCorporal } from '../hooks'
 import type { RegistroCorporal } from '../types'
@@ -65,9 +66,8 @@ export function SecaoCorporal({ registros, hoje }: SecaoCorporalProps) {
   )
 
   async function registrar(arquivo?: File) {
-    const pesoNumero = Number(peso)
-    const temPeso =
-      peso.trim() !== '' && Number.isFinite(pesoNumero) && pesoNumero > 0
+    const pesoNumero = parseDecimal(peso)
+    const temPeso = Number.isFinite(pesoNumero) && pesoNumero > 0
     if (!temPeso && !arquivo) return
 
     setEnviando(true)
@@ -117,10 +117,11 @@ export function SecaoCorporal({ registros, hoje }: SecaoCorporalProps) {
             </Label>
             <Input
               id="corporal-peso"
-              type="number"
-              step="0.1"
-              min="1"
-              placeholder={ultimo ? String(ultimo.peso) : '—'}
+              // `text`, não `number`: 87,5 no teclado do celular é vírgula, e
+              // vírgula num campo numérico chega como vazio
+              type="text"
+              inputMode="decimal"
+              placeholder={ultimo ? formatarDecimal(ultimo.peso) : '—'}
               className="h-8 w-24 tabular-nums"
               value={peso}
               onChange={(evento) => setPeso(evento.target.value)}

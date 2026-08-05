@@ -897,3 +897,59 @@ A correção não é "fazer o Enter funcionar": no teclado numérico ele não ex
 - O botão desabilita quando o valor não dá número positivo ou não há categoria — a
   mesma guarda que `salvar()` já aplicava, agora visível antes do toque em vez de
   falhar em silêncio depois dele.
+
+### 10.26 A vírgula do teclado brasileiro (corrige 2.5 / 3.3 / 4.3) — descoberta em uso
+
+Todo campo decimal era `<input type="number">`, lido com `Number(...)` ou
+`valueAsNumber`. **Para um `type="number"` a vírgula é caractere inválido**: o
+navegador descarta a entrada, `.value` vira `''` e `valueAsNumber` vira `NaN`.
+
+O teclado numérico do celular em português oferece **vírgula** como separador
+decimal. Então digitar 87,5 resultava em campo vazio para o código — e o
+formulário reprovava com "Informe um valor" tendo o número na tela. Pior caso
+possível de bug: **funciona na máquina de quem programa e falha no aparelho de
+quem usa**, porque o Chrome localiza a entrada de campos numéricos e o Safari
+não. Não é um bug de uma tela; é do tipo do campo.
+
+Dez campos afetados, todos com separador decimal:
+
+| Campo | Onde |
+| --- | --- |
+| Valor do lançamento | `DialogLancamento` |
+| Meta da categoria | `DialogCategoria` |
+| Valor do investimento | `DialogInvestimento` |
+| Planejamento semanal | `GradePlanejamentoSemanal` |
+| Peso corporal | `SecaoCorporal` |
+| Nota, nota manual e peso da avaliação | `AbaAvaliacoes` |
+| Carga planejada | `DialogExercicio` |
+| **Carga da série** | `DialogExecucao` |
+
+O último é o mais grave: é o campo digitado de pé na academia, e a série
+simplesmente não gravava.
+
+**A correção, em fonte única.** `lib/numeros.ts` com `parseDecimal` e
+`formatarDecimal`, com teste (15 casos), e os campos passaram a `type="text"` com
+`inputMode="decimal"` — que mantém o teclado numérico e deixa a vírgula chegar até
+o parse. Perde-se o spinner do desktop, e ele não faz falta: ninguém ajusta uma
+despesa de centavo em centavo pela setinha.
+
+Regras de `parseDecimal`, na ordem, porque separador em português é ambíguo:
+
+1. **Tem vírgula** → vírgula é decimal, pontos são milhar: `1.234,56` → `1234.56`.
+2. **Só pontos em grupos de três** → é milhar: `1.500` → `1500`. Sem esta regra,
+   mil e quinhentos digitado do jeito brasileiro lançaria **R$ 1,50** — erro de
+   mil vezes, em silêncio, num app de finanças.
+3. **Qualquer outro ponto** → decimal: `87.5` → `87.5`.
+
+Vazio devolve `NaN`, não `0` como faria `Number('')`: zero é valor legítimo em
+vários desses campos, e confundir "não informado" com "zero" esconderia dado — a
+mesma regra da resolução 10.24.
+
+`CampoDecimal` guarda o **texto** digitado, não o número. Sem isso "12," passaria
+por número e voltaria como "12", apagando a vírgula debaixo do dedo a cada tecla.
+A sincronização com o valor de fora compara pelo número justamente para não
+reescrever o campo no meio da digitação.
+
+**Os campos inteiros ficaram como estavam** (séries, reps, RPE, descanso, duração,
+faltas, total de exercícios da lista): inteiro não tem separador, então não tem o
+problema, e mantêm o spinner do desktop.

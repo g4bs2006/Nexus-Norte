@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { paraISO } from '@/lib/datas'
+import { parseDecimal } from '@/lib/numeros'
 import { useUIStore } from '@/stores/ui'
 import { useCriarLancamento } from '../hooks'
 import type { Categoria } from '../types'
@@ -62,8 +63,7 @@ export function LancamentoRapido({ categorias, hoje }: LancamentoRapidoProps) {
     setCategoriaId(lembrada?.id ?? despesas[0]?.id ?? '')
   }, [despesas, categoriaId, ultima])
 
-  // Aceita a vírgula do teclado brasileiro. `NaN` quando não dá número.
-  const numero = valor.trim() === '' ? Number.NaN : Number(valor.replace(',', '.'))
+  const numero = parseDecimal(valor)
   const podeSalvar = Number.isFinite(numero) && numero > 0 && categoriaId !== ''
 
   async function salvar() {

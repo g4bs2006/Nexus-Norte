@@ -309,7 +309,14 @@ oferecer a tecla de ação. Não existindo botão, o aparelho onde o lançamento
 acontece era o único sem saída. A dica "Enter para lançar hoje" agora só aparece no
 desktop, onde é verdade.
 
-Detalhes em [`plano.md`, resoluções 10.23 e 10.25](./plano.md).
+Todo campo com casa decimal — valor, meta, peso corporal, nota, carga — aceita
+**vírgula**. Antes eram campos `type="number"`, onde a vírgula é caractere inválido:
+o navegador descartava a entrada, e como o teclado do celular em português oferece
+vírgula, digitar 87,5 chegava ao código como vazio. Valia para a carga da série
+também, que é o campo digitado de pé na academia. A leitura virou uma função só,
+com teste, e "1.500" é lido como mil e quinhentos, não como um e meio.
+
+Detalhes em [`plano.md`, resoluções 10.23, 10.25 e 10.26](./plano.md).
 
 ## Calendário
 

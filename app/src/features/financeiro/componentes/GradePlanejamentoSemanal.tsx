@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { deISO, formatarMoeda } from '@/lib/datas'
+import { formatarDecimal, parseDecimal } from '@/lib/numeros'
 import { cn } from '@/lib/utils'
 import type { EntradaPlanejamento } from '../api'
 import type { Categoria, PlanejamentoSemanal } from '../types'
@@ -58,7 +59,7 @@ export function GradePlanejamentoSemanal({
   useEffect(() => {
     const inicial: Record<string, string> = {}
     for (const linha of planejamento) {
-      inicial[chave(linha.categoria_id, linha.dia_semana)] = String(
+      inicial[chave(linha.categoria_id, linha.dia_semana)] = formatarDecimal(
         linha.valor_planejado,
       )
     }
@@ -68,7 +69,7 @@ export function GradePlanejamentoSemanal({
   const total = useMemo(
     () =>
       Object.values(valores).reduce((soma, bruto) => {
-        const numero = Number(bruto)
+        const numero = parseDecimal(bruto)
         return soma + (Number.isFinite(numero) ? numero : 0)
       }, 0),
     [valores],
@@ -78,7 +79,7 @@ export function GradePlanejamentoSemanal({
     const entradas: EntradaPlanejamento[] = []
     for (const [id, bruto] of Object.entries(valores)) {
       const [categoriaId, diaTexto] = id.split(':')
-      const valor = Number(bruto)
+      const valor = parseDecimal(bruto)
       if (!categoriaId || diaTexto === undefined) continue
       if (!Number.isFinite(valor) || valor <= 0) continue
       entradas.push({
@@ -147,10 +148,10 @@ export function GradePlanejamentoSemanal({
                     return (
                       <td key={dia} className="border-border border-t p-0.5">
                         <Input
-                          type="number"
+                          // `text`, não `number`: a vírgula do teclado brasileiro
+                          // é inválida num campo numérico e chegaria como vazio
+                          type="text"
                           inputMode="decimal"
-                          min={0}
-                          step="0.01"
                           value={valores[id] ?? ''}
                           onChange={(evento) =>
                             setValores((atual) => ({

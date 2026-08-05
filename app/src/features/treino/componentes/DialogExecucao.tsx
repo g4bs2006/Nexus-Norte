@@ -20,6 +20,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { paraISO } from '@/lib/datas'
+import { formatarDecimal, parseDecimal } from '@/lib/numeros'
 import { cn } from '@/lib/utils'
 import { umRmEstimado } from '../calculos'
 import {
@@ -167,7 +168,7 @@ export function DialogExecucao({
         if (salva) {
           return {
             exercicioId: exercicio.id,
-            carga: String(salva.carga_real),
+            carga: formatarDecimal(salva.carga_real),
             reps: String(salva.reps_reais),
             rpe: salva.rpe === null ? '' : String(salva.rpe),
             serieId: salva.id,
@@ -175,8 +176,7 @@ export function DialogExecucao({
         }
         return {
           exercicioId: exercicio.id,
-          carga:
-            exercicio.carga_alvo === null ? '' : String(exercicio.carga_alvo),
+          carga: formatarDecimal(exercicio.carga_alvo),
           reps: exercicio.reps_alvo === null ? '' : String(exercicio.reps_alvo),
           rpe: '',
           serieId: null,
@@ -227,9 +227,11 @@ export function DialogExecucao({
 
   /** `null` quando a linha não tem valores válidos para gravar. */
   function valoresDaLinha(linha: LinhaSerie) {
-    const carga = Number(linha.carga)
-    const reps = Number(linha.reps)
-    const rpe = Number(linha.rpe)
+    // Carga aceita vírgula: 87,5 kg digitado no celular vinha vazio de um
+    // `type="number"` e a série não gravava
+    const carga = parseDecimal(linha.carga)
+    const reps = parseDecimal(linha.reps)
+    const rpe = parseDecimal(linha.rpe)
     if (!Number.isFinite(carga) || carga < 0) return null
     if (!Number.isInteger(reps) || reps <= 0) return null
     return {
@@ -605,6 +607,7 @@ export function DialogExecucao({
                               valor={linha.carga}
                               step="0.5"
                               min="0"
+                              decimal
                               onChange={(valor) => alterar(i, 'carga', valor)}
                             />
                             <CampoSerie
@@ -706,7 +709,15 @@ export function DialogExecucao({
   )
 }
 
-/** Campo numérico com rótulo visível só no mobile, onde não há cabeçalho. */
+/**
+ * Campo numérico com rótulo visível só no mobile, onde não há cabeçalho.
+ *
+ * `decimal` troca `type="number"` por `type="text"` com `inputMode="decimal"`.
+ * É o que a carga precisa: num campo numérico a vírgula é caractere inválido, e
+ * como o teclado do celular oferece vírgula, 87,5 chegava como texto vazio e a
+ * série não gravava. Reps e RPE são inteiros — não têm separador, então mantêm o
+ * campo numérico e o spinner do desktop.
+ */
 function CampoSerie({
   rotulo,
   aria,
@@ -716,6 +727,7 @@ function CampoSerie({
   min,
   max,
   placeholder,
+  decimal = false,
 }: {
   rotulo: string
   aria: string
@@ -725,6 +737,7 @@ function CampoSerie({
   min: string
   max?: string
   placeholder?: string
+  decimal?: boolean
 }) {
   return (
     <div className="space-y-1 sm:space-y-0">
@@ -735,10 +748,10 @@ function CampoSerie({
         {rotulo}
       </span>
       <Input
-        type="number"
-        step={step}
-        min={min}
-        {...(max ? { max } : {})}
+        {...(decimal
+          ? { type: 'text' as const, inputMode: 'decimal' as const }
+          : { type: 'number' as const, step, min })}
+        {...(max && !decimal ? { max } : {})}
         {...(placeholder ? { placeholder } : {})}
         className="h-9 tabular-nums sm:h-8"
         value={valor}
