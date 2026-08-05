@@ -1,9 +1,11 @@
 import { useMemo } from 'react'
 import { getDate, getDaysInMonth } from 'date-fns'
-import { Wallet } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Receipt, Wallet } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
 import { EstadoVazio } from '@/components/EstadoVazio'
 import { SkeletonPagina } from '@/components/Skeletons'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
   diasRestantesNoMes,
@@ -159,6 +161,14 @@ export default function FinanceiroPage() {
         icone={Wallet}
         acoes={
           <>
+            {/* Caminho explícito para a lista, sem depender de rolar até o card
+                de últimos lançamentos e achar o atalho no cabeçalho dele */}
+            <Button asChild variant="secondary" size="sm">
+              <Link to="/financeiro/lancamentos">
+                <Receipt className="size-4" />
+                Lançamentos
+              </Link>
+            </Button>
             <DialogCategoria />
             <DialogLancamento categorias={listaCategorias} hoje={hoje} />
           </>

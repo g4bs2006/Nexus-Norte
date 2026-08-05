@@ -8,7 +8,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { deISO, formatarMoeda } from '@/lib/datas'
 import { cn } from '@/lib/utils'
 import type { Categoria, Lancamento } from '../types'
@@ -53,18 +52,34 @@ export function SecaoUltimosLancamentos({
 
   return (
     <Card>
-      <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
-        <div>
-          <CardTitle className="text-base">Últimos lançamentos</CardTitle>
-          <CardDescription>Deste mês.</CardDescription>
-        </div>
-        <Button asChild variant="ghost" size="sm" className="shrink-0 text-xs">
-          <Link to="/financeiro/lancamentos">
+      {/*
+        O cabeçalho inteiro é o link, não só o "Ver todos" de `text-xs` no canto.
+        Aquele botão era o **único** caminho para a lista em todo o app, e um alvo
+        de texto pequeno na quina de um card é o pior lugar para pôr isso no
+        celular. O título é o alvo grande que já está no campo de visão.
+
+        O link envolve só o cabeçalho, e não o card: a lista abaixo tem os próprios
+        alvos, e link dentro de link não é HTML válido.
+      */}
+      <Link
+        to="/financeiro/lancamentos"
+        className="hover:bg-accent/40 focus-visible:ring-ring group/atalho rounded-t-xl transition-colors focus-visible:ring-2 focus-visible:outline-none"
+      >
+        <CardHeader className="flex-row items-start justify-between gap-3 space-y-0">
+          <div>
+            <CardTitle className="text-base">Últimos lançamentos</CardTitle>
+            <CardDescription>Deste mês.</CardDescription>
+          </div>
+          {/*
+            `span`, não `Button`: é a affordance visual do link que o envolve, e um
+            botão aqui dentro seria um segundo alvo interativo aninhado.
+          */}
+          <span className="text-muted-foreground group-hover/atalho:text-foreground flex shrink-0 items-center gap-1 text-xs transition-colors">
             Ver todos
             <ArrowRight className="size-3.5" />
-          </Link>
-        </Button>
-      </CardHeader>
+          </span>
+        </CardHeader>
+      </Link>
       <CardContent>
         {ultimos.length === 0 ? (
           <p className="text-muted-foreground text-sm">

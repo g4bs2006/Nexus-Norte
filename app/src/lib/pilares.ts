@@ -4,6 +4,7 @@ import {
   FolderKanban,
   GraduationCap,
   LayoutDashboard,
+  Receipt,
   Wallet,
   type LucideIcon,
 } from 'lucide-react'
@@ -79,5 +80,35 @@ export const ITENS_NAVEGACAO: readonly ItemNavegacao[] = [
     icone: CalendarDays,
     classeTexto: 'text-sono',
     classeFundoSuave: 'bg-sono-soft',
+  },
+] as const
+
+/**
+ * Páginas que existem mas não são pilares, para a paleta de comando.
+ *
+ * Ficam **fora** de `ITENS_NAVEGACAO` de propósito: aquela lista alimenta a
+ * sidebar e a barra inferior do mobile, e a barra já tem seis alvos numa faixa —
+ * um sétimo apertaria todos. Mas sem estar em lugar nenhum da navegação, a lista
+ * de lançamentos tinha *um único* caminho no app inteiro (um botão de texto
+ * pequeno no canto de um card do painel), e no celular era como se não existisse.
+ */
+export interface SubPagina {
+  readonly id: string
+  readonly nome: string
+  /** O que a página responde — é o que faz a busca casar por intenção. */
+  readonly termos: string
+  readonly rota: string
+  readonly icone: LucideIcon
+  readonly classeTexto: string
+}
+
+export const SUBPAGINAS: readonly SubPagina[] = [
+  {
+    id: 'lancamentos',
+    nome: 'Lançamentos',
+    termos: 'lançamentos despesas gastos entradas saídas extrato',
+    rota: '/financeiro/lancamentos',
+    icone: Receipt,
+    classeTexto: 'text-financeiro',
   },
 ] as const

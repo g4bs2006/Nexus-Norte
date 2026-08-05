@@ -1,6 +1,13 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, Search, Wallet, X } from 'lucide-react'
+import {
+  ArrowLeft,
+  ChevronDown,
+  Search,
+  SlidersHorizontal,
+  Wallet,
+  X,
+} from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -15,6 +22,7 @@ import {
 } from '@/components/ui/select'
 import { formatarMoeda } from '@/lib/datas'
 import { FORMAS_PAGAMENTO } from '@/lib/formasPagamento'
+import { cn } from '@/lib/utils'
 import { totaisDoPeriodo } from '@/features/financeiro/calculos'
 import {
   useCategorias,
@@ -43,6 +51,15 @@ const TODAS = 'todas'
  */
 export default function LancamentosPage() {
   const hoje = useMemo(() => new Date(), [])
+
+  /**
+   * Só no mobile. Sete campos empilhados em coluna única somavam ~450px, e com o
+   * cabeçalho e os totais a lista nascia abaixo da dobra: a tela cujo propósito é
+   * a lista abria mostrando um formulário de busca. No `sm:` para cima a grade tem
+   * duas a quatro colunas e cabe junto com a lista, então lá tudo fica sempre à
+   * vista e este estado é ignorado.
+   */
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false)
 
   const [preset, setPreset] = useState<PresetPeriodo>('mes')
   const [intervalo, setIntervalo] = useState(() =>
@@ -75,6 +92,9 @@ export default function LancamentosPage() {
     setPreset(valor)
     // 'livre' não recalcula: o usuário vai digitar as datas
     if (valor !== 'livre') setIntervalo(intervaloDoPreset(valor, hoje))
+    // De/Até moram no bloco recolhível: escolher período livre sem abri-lo
+    // deixaria o usuário sem onde digitar a data que ele acabou de pedir
+    if (valor === 'livre') setFiltrosAbertos(true)
   }
 
   /** Mudar as datas à mão implica período livre — o preset deixou de valer. */
@@ -88,6 +108,24 @@ export default function LancamentosPage() {
     natureza !== '' ||
     formaPagamento !== '' ||
     busca.trim() !== ''
+
+  /**
+   * Quantos filtros escondidos estão valendo, para o contador do botão.
+   *
+   * Com o bloco fechado, o resultado na tela seria inexplicável sem isso: uma
+   * lista curta parecendo "não gastei nada" quando na verdade há um filtro de
+   * categoria ligado que não aparece em lugar nenhum. Período livre conta porque
+   * as datas também ficam escondidas ali.
+   */
+  const quantosFiltros =
+    (categoriaId !== '' ? 1 : 0) +
+    (natureza !== '' ? 1 : 0) +
+    (formaPagamento !== '' ? 1 : 0) +
+    (busca.trim() !== '' ? 1 : 0) +
+    (preset === 'livre' ? 1 : 0)
+
+  /** Recolhido no mobile, sempre aberto de `sm:` para cima. */
+  const classeCampo = filtrosAbertos ? '' : 'hidden sm:block'
 
   function limparFiltros() {
     setCategoriaId('')
@@ -136,7 +174,7 @@ export default function LancamentosPage() {
                 </Select>
               </div>
 
-              <div className="space-y-1.5">
+              <div className={cn('space-y-1.5', classeCampo)}>
                 <Label className="text-xs" htmlFor="filtro-de">
                   De
                 </Label>
@@ -148,7 +186,7 @@ export default function LancamentosPage() {
                 />
               </div>
 
-              <div className="space-y-1.5">
+              <div className={cn('space-y-1.5', classeCampo)}>
                 <Label className="text-xs" htmlFor="filtro-ate">
                   Até
                 </Label>
@@ -160,7 +198,7 @@ export default function LancamentosPage() {
                 />
               </div>
 
-              <div className="space-y-1.5">
+              <div className={cn('space-y-1.5', classeCampo)}>
                 <Label className="text-xs">Categoria</Label>
                 <Select
                   value={categoriaId === '' ? TODAS : categoriaId}
@@ -182,7 +220,7 @@ export default function LancamentosPage() {
                 </Select>
               </div>
 
-              <div className="space-y-1.5">
+              <div className={cn('space-y-1.5', classeCampo)}>
                 <Label className="text-xs">Tipo</Label>
                 <Select
                   value={natureza === '' ? TODAS : natureza}
@@ -203,7 +241,7 @@ export default function LancamentosPage() {
                 </Select>
               </div>
 
-              <div className="space-y-1.5">
+              <div className={cn('space-y-1.5', classeCampo)}>
                 <Label className="text-xs">Forma de pagamento</Label>
                 <Select
                   value={formaPagamento === '' ? TODAS : formaPagamento}
@@ -225,7 +263,7 @@ export default function LancamentosPage() {
                 </Select>
               </div>
 
-              <div className="space-y-1.5 sm:col-span-2">
+              <div className={cn('space-y-1.5 sm:col-span-2', classeCampo)}>
                 <Label className="text-xs" htmlFor="filtro-busca">
                   Buscar na descrição
                 </Label>
@@ -245,17 +283,49 @@ export default function LancamentosPage() {
               </div>
             </div>
 
-            {temFiltroExtra && (
+            <div className="flex flex-wrap items-center gap-1">
+              {/*
+                Só no mobile: de `sm:` para cima os campos estão todos à vista e um
+                botão de abrir não teria o que abrir.
+              */}
               <Button
-                variant="ghost"
+                variant="secondary"
                 size="sm"
-                className="text-muted-foreground -ml-2 text-xs"
-                onClick={limparFiltros}
+                className="h-11 sm:hidden"
+                // Sem `aria-controls`: os campos recolhidos são seis irmãos dentro
+                // da grade, não uma região só, e apontar para a grade incluiria o
+                // Período, que nunca esconde
+                aria-expanded={filtrosAbertos}
+                onClick={() => setFiltrosAbertos((atual) => !atual)}
               >
-                <X className="size-3.5" />
-                Limpar filtros
+                <SlidersHorizontal className="size-4" />
+                Filtros
+                {quantosFiltros > 0 && (
+                  <span className="bg-financeiro-soft text-financeiro rounded-full px-1.5 text-xs tabular-nums">
+                    {quantosFiltros}
+                  </span>
+                )}
+                <ChevronDown
+                  aria-hidden
+                  className={cn(
+                    'size-4 transition-transform',
+                    filtrosAbertos && 'rotate-180',
+                  )}
+                />
               </Button>
-            )}
+
+              {temFiltroExtra && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground h-11 text-xs sm:-ml-2 sm:h-8"
+                  onClick={limparFiltros}
+                >
+                  <X className="size-3.5" />
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
 

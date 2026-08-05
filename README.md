@@ -316,7 +316,17 @@ vírgula, digitar 87,5 chegava ao código como vazio. Valia para a carga da sér
 também, que é o campo digitado de pé na academia. A leitura virou uma função só,
 com teste, e "1.500" é lido como mil e quinhentos, não como um e meio.
 
-Detalhes em [`plano.md`, resoluções 10.23, 10.25 e 10.26](./plano.md).
+No celular os **filtros vêm recolhidos**, com o período à vista e um botão "Filtros"
+que mostra quantos estão valendo — sete campos empilhados empurravam a lista para
+fora da primeira tela, e a página cujo propósito é a lista abria mostrando uma busca.
+No desktop nada muda: lá os filtros cabem em duas linhas junto com a lista.
+
+E dá para **chegar na lista por três caminhos** — pela paleta de comando, pelo card
+"Últimos lançamentos" do painel ou pelo botão no topo do Financeiro. Antes havia um
+só, um "Ver todos" de texto pequeno na quina de um card, que no celular era o mesmo
+que não existir.
+
+Detalhes em [`plano.md`, resoluções 10.23, 10.25, 10.26 e 10.27](./plano.md).
 
 ## Calendário
 

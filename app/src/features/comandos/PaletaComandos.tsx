@@ -10,7 +10,7 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from '@/components/ui/command'
-import { ITENS_NAVEGACAO } from '@/lib/pilares'
+import { ITENS_NAVEGACAO, SUBPAGINAS } from '@/lib/pilares'
 import { useUIStore, type Tema } from '@/stores/ui'
 import { cn } from '@/lib/utils'
 import { useIndiceBusca } from './useIndiceBusca'
@@ -87,6 +87,16 @@ export function PaletaComandos({
               </CommandItem>
             ),
           )}
+
+          {/* Sub-páginas no mesmo grupo: para quem busca, "Lançamentos" é um
+              lugar do app como qualquer outro — a distinção pilar/sub-página é
+              nossa, não dele. */}
+          {SUBPAGINAS.map(({ id, nome, termos, rota, icone: Icone, classeTexto }) => (
+            <CommandItem key={id} value={`ir ${termos}`} onSelect={() => irPara(rota)}>
+              <Icone className={cn('size-4', classeTexto)} />
+              {nome}
+            </CommandItem>
+          ))}
         </CommandGroup>
 
         {(indice.data ?? []).length > 0 && (

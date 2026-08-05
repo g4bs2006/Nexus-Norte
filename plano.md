@@ -953,3 +953,48 @@ reescrever o campo no meio da digitação.
 **Os campos inteiros ficaram como estavam** (séries, reps, RPE, descanso, duração,
 faltas, total de exercícios da lista): inteiro não tem separador, então não tem o
 problema, e mantêm o spinner do desktop.
+
+### 10.27 A lista de lançamentos era invisível no mobile (corrige 10.23) — descoberta em uso
+
+A lista de lançamentos foi pedida de novo, como se não existisse. Ela existia desde
+a 10.23, e completa: lista agrupada por dia com saldo do dia, período por preset ou
+intervalo livre, filtros de categoria, natureza, forma de pagamento e busca, e
+totais do que está filtrado. O problema não era o que faltava construir — era que
+**ela não era alcançável nem legível no celular**.
+
+**Um único caminho no app inteiro.** Varredura do `src`: `/financeiro/lancamentos`
+aparecia em dois lugares, a rota em `App.tsx` e um link em
+`SecaoUltimosLancamentos`. Esse link era o "Ver todos" `size="sm" text-xs` na quina
+do cabeçalho de um card do painel. A barra inferior do mobile tem os seis pilares e
+nenhum caminho para lá; a paleta de comando navegava só sobre `ITENS_NAVEGACAO`,
+os mesmos seis. No celular, chegar na página exigia entrar no Financeiro, rolar até
+o card certo e acertar um alvo de texto pequeno no canto.
+
+**A página abria mostrando o formulário, não a lista.** O card de filtros é
+`grid gap-3 sm:grid-cols-2 lg:grid-cols-4` — no mobile, coluna única com **sete
+campos**: Período, De, Até, Categoria, Tipo, Forma de pagamento e Busca. Somando
+~54px por campo com label mais os gaps dá ~450px, e com o `PageHeader` (~130px, com
+as ações quebrando para a própria linha), o card de totais (~80px) e a barra
+superior (48px), são **~700px antes do primeiro lançamento** numa tela útil de ~660
+a 750px. A tela cujo propósito é a lista abria mostrando uma busca. De novo o padrão
+das resoluções 10.25 e 10.26: correto no desktop, onde `lg:grid-cols-4` resolve em
+duas linhas, e quebrado na tela pequena.
+
+**Nada foi reconstruído.** A lista e a lógica de filtro estavam boas.
+
+- **Filtros recolhidos no mobile**, com o Período sempre à vista porque é o que mais
+  muda. Botão "Filtros" com **contador dos escondidos que estão valendo** — sem o
+  contador, uma lista curta pareceria "não gastei nada" quando há um filtro de
+  categoria ligado que não aparece em lugar nenhum. Período livre conta, porque De e
+  Até também moram no bloco. Escolher "livre" abre o bloco: pedir intervalo próprio
+  e não ter onde digitar a data seria um beco.
+- De `sm:` para cima **nada muda** — os campos estão todos à vista e o botão de
+  abrir não existe. A implementação esconde cada campo com `hidden sm:block` em vez
+  de agrupá-los num container, justamente para a grade do desktop ficar idêntica.
+- **Três caminhos até a página**, no lugar de um: entrada na paleta de comando, o
+  cabeçalho do card "Últimos lançamentos" inteiro clicável (alvo grande no lugar
+  onde o olho já está, em vez do texto na quina) e um botão no `PageHeader` do
+  painel.
+- `SUBPAGINAS` em `lib/pilares.ts` guarda as páginas que não são pilares. Ficam
+  **fora** de `ITENS_NAVEGACAO` de propósito: aquela lista alimenta a barra inferior,
+  que já tem seis alvos numa faixa — um sétimo apertaria todos.
