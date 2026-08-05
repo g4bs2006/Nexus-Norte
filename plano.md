@@ -1092,3 +1092,50 @@ um gesto, e prometer um gesto que não existe é pior que não ter o desenho.
 em `y=161` com 390×503, encostando embaixo, largura cheia; e no desktop de 1280 o
 diálogo continua centralizado (`x=448`, largura 384, centro em 640). Foi essa
 verificação que revelou o crash da paleta de comando, corrigido em commit próprio.
+
+### 10.30 Tabela vira lista no mobile (corrige 10.23 / 3.3) — descoberta em uso
+
+Sobraram duas tabelas no app, e as duas mostravam **menos** no celular do que no
+desktop. O mecanismo era o mesmo: `TableCell` tem `whitespace-nowrap` global, então
+para caber em ~296px cada página escondia coluna e truncava texto.
+
+**Lançamentos da categoria — a tabela foi apagada e a lista reaproveitada.**
+
+A `ListaLancamentos` da página de lançamentos já resolvia tudo isso: agrupa por dia
+com saldo, filete na cor da categoria, descrição com a largura toda. Manter uma
+tabela própria aqui era uma segunda lista do mesmo dado — e duas divergem na primeira
+mudança. Ganhos concretos:
+
+- a descrição saiu de ~80px truncados para a largura da linha, **quebrando em mais de
+  uma linha em vez de cortar** — o `truncate` foi trocado por `break-words`. Medido no
+  navegador: "Almoço foi mais caro do que o esperado pois a promoção do restaurante
+  terminou" aparece inteiro, onde antes se lia "Almoço f…";
+- a **forma de pagamento voltou no mobile** (era `hidden sm:inline`);
+- ganhou agrupamento por dia com saldo, que a tabela não tinha.
+
+`ListaLancamentos` ganhou exclusão — que a tabela tinha e ela não — mais
+`ocultarCategoria`, porque repetir o nome da categoria em toda linha dentro da
+própria categoria só gasta a largura que a descrição precisa. A consulta da categoria
+devolve `Lancamento` sem os campos da categoria; eles são preenchidos a partir da
+`categoria` que a página já tem em mãos, em vez de outra consulta ao banco.
+
+**Avaliações — uma lista só, não tabela no desktop e lista no mobile.**
+
+A tabela tinha cinco colunas; a **data** era escondida com `hidden sm:table-cell` e o
+nome truncava em `max-w-0`. Esconder a data era pior do que parecia: é ela que diz se
+a prova já aconteceu, o que **muda o sentido de um campo de nota vazio**. Sem ela, "P2
+sem nota" (prova em setembro, normal) e "Trabalho sem nota" (entregue em julho,
+pendência) apareciam idênticos.
+
+A linha agora empilha nome-e-peso em cima, data embaixo, com o campo de nota e o
+excluir à direita — e é **a mesma marcação nas duas larguras**, não duas versões que
+divergiriam. Nota vazia em avaliação cuja data já passou ganhou um **"sem nota"** em
+cor de atenção; em avaliação futura, nada, porque ali é o estado normal.
+
+**Verificado no navegador** com dado temporário inserido e apagado em seguida
+(asserção de limpeza: 0 linhas restantes). Nas duas páginas: nenhuma `<table>` no DOM
+e **zero** de rolagem horizontal no documento.
+
+**Consequência:** `components/ui/table.tsx` ficou sem nenhum uso. Não apaguei — é
+primitivo do design system, e removê-lo é decisão de quem mantém o sistema, não efeito
+colateral desta mudança.

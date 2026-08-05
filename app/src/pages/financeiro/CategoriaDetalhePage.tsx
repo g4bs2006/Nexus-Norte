@@ -7,28 +7,19 @@ import { PageHeader } from '@/components/PageHeader'
 import { SkeletonPagina } from '@/components/Skeletons'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { deISO, formatarMoeda, mesDeISO, ultimosMeses } from '@/lib/datas'
-import { format } from 'date-fns'
+import { formatarMoeda, mesDeISO, ultimosMeses } from '@/lib/datas'
 import { metaEfetiva, progressoCategoria } from '@/features/financeiro/calculos'
 import {
   useCategorias,
   useExcluirCategoria,
-  useExcluirLancamento,
   useLancamentosDaCategoria,
   useReceitaDoMes,
   useResumoMensal,
 } from '@/features/financeiro/hooks'
+import type { LancamentoDetalhado } from '@/features/financeiro/types'
 import { GraficoTendencia } from '@/features/financeiro/componentes/GraficoTendencia'
 import { DialogCategoria } from '@/features/financeiro/componentes/DialogCategoria'
-import { DialogLancamento } from '@/features/financeiro/componentes/DialogLancamento'
+import { ListaLancamentos } from '@/features/financeiro/componentes/ListaLancamentos'
 
 const MESES_TENDENCIA = 6
 
@@ -43,11 +34,26 @@ export default function CategoriaDetalhePage() {
   const receita = useReceitaDoMes(mesAtual)
   const lancamentos = useLancamentosDaCategoria(id)
   const resumo = useResumoMensal(meses[0] ?? mesAtual, mesAtual)
-  const excluirLancamento = useExcluirLancamento()
   const excluirCategoria = useExcluirCategoria()
 
   const categoria = categorias.data?.find((c) => c.id === id)
   const receitaDoMes = receita.data ?? 0
+
+  /**
+   * A consulta da categoria devolve `Lancamento` puro, e `ListaLancamentos` pede
+   * `LancamentoDetalhado`. Os campos que faltam são justamente os da categoria,
+   * que aqui já estão em mãos — preencher a partir dela é de graça, e pedir outra
+   * consulta ao banco para buscar o que já se sabe seria desperdício.
+   */
+  const lancamentosDetalhados = useMemo<LancamentoDetalhado[]>(() => {
+    if (!categoria) return []
+    return (lancamentos.data ?? []).map((lancamento) => ({
+      ...lancamento,
+      categoria_nome: categoria.nome,
+      categoria_natureza: categoria.natureza,
+      categoria_cor: categoria.cor,
+    }))
+  }, [lancamentos.data, categoria])
 
   if (categorias.isPending) {
     return (
@@ -160,81 +166,31 @@ export default function CategoriaDetalhePage() {
 
         <section className="space-y-3">
           <h2 className="text-sm font-medium">Últimos lançamentos</h2>
-          {lancamentos.data && lancamentos.data.length > 0 ? (
-            <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {/*
-                        Larguras apertadas no mobile para a tabela caber em
-                        ~296px sem rolagem horizontal — antes valor e ações
-                        nasciam fora da tela.
-                      */}
-                      <TableHead className="w-20 sm:w-28">Data</TableHead>
-                      <TableHead>Descrição</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
-                      {/*
-                        84px: o alvo de excluir subiu para 44px no toque e agora
-                        divide a célula com o de editar. Aperta a descrição, e é
-                        mais um motivo para esta tabela virar lista de cards no
-                        mobile — o alvo do dedo não cabe em coluna de tabela.
-                      */}
-                      <TableHead className="w-[5.25rem] sm:w-20" />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {lancamentos.data.map((lancamento) => (
-                      <TableRow key={lancamento.id}>
-                        <TableCell className="text-muted-foreground text-xs tabular-nums">
-                          {format(deISO(lancamento.data), 'dd/MM/yyyy')}
-                        </TableCell>
-                        <TableCell className="max-w-0 truncate text-sm">
-                          {lancamento.descricao ?? '—'}
-                          {/* Forma de pagamento é contexto: sai no mobile */}
-                          {lancamento.forma_pagamento && (
-                            <span className="text-muted-foreground ml-2 hidden text-xs sm:inline">
-                              {lancamento.forma_pagamento}
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="metric-sm text-right">
-                          {formatarMoeda(lancamento.valor)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1 sm:gap-0.5">
-                            <DialogLancamento
-                              categorias={categorias.data ?? []}
-                              hoje={hoje}
-                              lancamento={lancamento}
-                            />
-                            <DialogConfirmarExclusao
-                              titulo="Excluir lançamento"
-                              mensagem={`${formatarMoeda(lancamento.valor)} em ${format(deISO(lancamento.data), 'dd/MM/yyyy')}${
-                                lancamento.descricao
-                                  ? ` — ${lancamento.descricao}`
-                                  : ''
-                              }. Essa ação não pode ser desfeita.`}
-                              onConfirmar={() =>
-                                excluirLancamento.mutate(lancamento.id)
-                              }
-                              pendente={excluirLancamento.isPending}
-                            />
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="border-dashed shadow-none">
-              <CardContent className="text-muted-foreground text-sm">
-                Nenhum lançamento nesta categoria.
-              </CardContent>
-            </Card>
-          )}
+          {/*
+            Mesma lista da página de lançamentos, não uma tabela própria.
+            A tabela aqui era o pior caso do mobile: `whitespace-nowrap` global
+            forçava `max-w-0 truncate` na descrição (~80px de texto útil num card
+            de ~296px) e a forma de pagamento tinha de ser escondida com
+            `hidden sm:inline` para as colunas caberem — no aparelho onde o app
+            mais é usado, ela mostrava menos.
+
+            `ListaLancamentos` já resolvia isso na outra página: agrupa por dia com
+            saldo, deixa a descrição usar a largura toda e mostra a forma de
+            pagamento em vez de sacrificá-la. Reaproveitar é fonte única de
+            verdade — duas listas do mesmo dado divergem na primeira mudança.
+
+            A consulta da categoria devolve `Lancamento`, sem os campos da
+            categoria; aqui eles são conhecidos, então são preenchidos a partir da
+            própria `categoria` em vez de pedir outra consulta ao banco.
+          */}
+          <ListaLancamentos
+            lancamentos={lancamentosDetalhados}
+            categorias={categorias.data ?? []}
+            hoje={hoje}
+            carregando={lancamentos.isPending}
+            ocultarCategoria
+            mensagemVazia="Nenhum lançamento nesta categoria."
+          />
         </section>
       </div>
     </>

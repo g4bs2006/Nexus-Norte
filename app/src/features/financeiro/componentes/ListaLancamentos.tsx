@@ -1,9 +1,11 @@
 import { format } from 'date-fns'
+import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { Card, CardContent } from '@/components/ui/card'
 import { deISO, formatarMoeda } from '@/lib/datas'
 import { rotuloFormaPagamento } from '@/lib/formasPagamento'
 import { cn } from '@/lib/utils'
 import { agruparPorDia } from '../calculos'
+import { useExcluirLancamento } from '../hooks'
 import type { LancamentoDetalhado } from '../types'
 import { DialogLancamento } from './DialogLancamento'
 import type { Categoria } from '../types'
@@ -14,6 +16,14 @@ interface ListaLancamentosProps {
   categorias: readonly Categoria[]
   hoje: Date
   carregando?: boolean
+  /**
+   * Omite o nome da categoria na linha. Para quando a lista já está dentro de uma
+   * categoria e repetir o nome em toda linha só gasta a largura que a descrição
+   * precisa.
+   */
+  ocultarCategoria?: boolean
+  /** Texto do estado vazio, que muda com o contexto da lista. */
+  mensagemVazia?: string
 }
 
 /**
@@ -31,7 +41,10 @@ export function ListaLancamentos({
   categorias,
   hoje,
   carregando = false,
+  ocultarCategoria = false,
+  mensagemVazia = 'Nenhum lançamento neste período.',
 }: ListaLancamentosProps) {
+  const excluir = useExcluirLancamento()
   const dias = agruparPorDia(lancamentos)
 
   if (carregando && lancamentos.length === 0) {
@@ -48,7 +61,7 @@ export function ListaLancamentos({
     return (
       <Card className="border-dashed shadow-none">
         <CardContent className="text-muted-foreground text-sm">
-          Nenhum lançamento neste período.
+          {mensagemVazia}
         </CardContent>
       </Card>
     )
@@ -93,13 +106,22 @@ export function ListaLancamentos({
                   />
 
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm">
+                    {/*
+                      Quebra em vez de truncar. Com dois alvos de 44px na linha, a
+                      descrição fica com ~160px no celular, e `truncate` cortava
+                      "Almoço foi mais caro …" numa linha só. Deixar a linha crescer
+                      mostra o texto inteiro — é literalmente para isso que a tabela
+                      virou lista.
+                    */}
+                    <p className="text-sm break-words">
                       {lancamento.descricao ?? lancamento.categoria_nome}
                     </p>
                     <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
-                      <span className="truncate">
-                        {lancamento.categoria_nome}
-                      </span>
+                      {!ocultarCategoria && (
+                        <span className="truncate">
+                          {lancamento.categoria_nome}
+                        </span>
+                      )}
                       {lancamento.forma_pagamento && (
                         <span>
                           {rotuloFormaPagamento(lancamento.forma_pagamento)}
@@ -127,6 +149,14 @@ export function ListaLancamentos({
                     categorias={categorias}
                     hoje={hoje}
                     lancamento={lancamento}
+                  />
+                  <DialogConfirmarExclusao
+                    titulo="Excluir lançamento"
+                    mensagem={`${formatarMoeda(lancamento.valor)} em ${format(deISO(lancamento.data), 'dd/MM/yyyy')}${
+                      lancamento.descricao ? ` — ${lancamento.descricao}` : ''
+                    }. Essa ação não pode ser desfeita.`}
+                    onConfirmar={() => excluir.mutate(lancamento.id)}
+                    pendente={excluir.isPending}
                   />
                 </li>
               )

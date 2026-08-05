@@ -394,6 +394,21 @@ tem alcinha no topo, porque alcinha promete um gesto que não existiria.
 
 Detalhes em [`plano.md`, resolução 10.29](./plano.md).
 
+## Nada de tabela no celular
+
+As duas tabelas que restavam mostravam **menos** no celular do que no desktop: para
+caber em ~296px, uma escondia a forma de pagamento e truncava a descrição em ~80px, a
+outra escondia a data das avaliações.
+
+Os lançamentos da categoria passaram a usar a **mesma lista** da página de
+lançamentos — uma lista só para o mesmo dado, agrupada por dia, com a descrição
+quebrando em mais de uma linha em vez de ser cortada. As avaliações viraram lista
+também, com a data de volta; e avaliação sem nota cuja data já passou ganhou um aviso
+de **"sem nota"**, que é o que distingue uma pendência de uma prova que ainda vai
+acontecer.
+
+Detalhes em [`plano.md`, resolução 10.30](./plano.md).
+
 ## Estrutura
 
 ```

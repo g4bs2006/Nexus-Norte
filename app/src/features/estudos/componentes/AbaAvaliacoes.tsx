@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { Plus } from 'lucide-react'
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
@@ -13,15 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { deISO } from '@/lib/datas'
+import { deISO, paraISO } from '@/lib/datas'
 import { formatarDecimal, parseDecimal } from '@/lib/numeros'
 import { NOTA_MINIMA_APROVACAO } from '@/lib/constants'
 import {
@@ -47,6 +39,10 @@ export function AbaAvaliacoes({
   const atualizar = useAtualizarAvaliacao()
   const excluir = useExcluirAvaliacao()
   const salvarConfig = useSalvarConfigMedia()
+
+  // Uma vez por render, não uma vez por linha: só serve para separar prova que já
+  // aconteceu de prova futura
+  const hojeISO = useMemo(() => paraISO(new Date()), [])
 
   const [nome, setNome] = useState('')
   const [peso, setPeso] = useState('1')
@@ -223,70 +219,81 @@ export function AbaAvaliacoes({
           </CardContent>
         </Card>
       ) : (
+        /*
+          Lista, não tabela — e **a mesma** marcação nas duas larguras.
+          A tabela tinha cinco colunas que não cabiam em ~296px, então a data era
+          escondida com `hidden sm:table-cell` e o nome truncava em `max-w-0`:
+          no celular a tela mostrava menos justamente onde ela é mais usada. E
+          esconder a data é pior do que parece, porque é ela que diz se a prova
+          já aconteceu — o que muda o sentido de um campo de nota vazio.
+
+          Uma lista só, e não uma tabela no desktop com uma lista no mobile: duas
+          marcações do mesmo dado divergem na primeira mudança. Como a linha empilha
+          nome-e-peso em cima e data-e-nota embaixo, ela funciona apertada sem
+          precisar de outra versão.
+        */
         <Card>
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Avaliação</TableHead>
-                  <TableHead className="w-12 text-right sm:w-20">
-                    Peso
-                  </TableHead>
-                  <TableHead className="w-24">Nota</TableHead>
-                  {/*
-                    A data sai no mobile: sem ela as cinco colunas não cabem em
-                    ~296px, e a prova já aparece datada no calendário e no painel
-                    de eventos importantes. Nota é o que se edita aqui.
-                  */}
-                  <TableHead className="hidden w-28 sm:table-cell">
-                    Data
-                  </TableHead>
-                  <TableHead className="w-12" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {avaliacoes.map((avaliacao) => (
-                  <TableRow key={avaliacao.id}>
-                    <TableCell className="max-w-0 truncate text-sm">
-                      {avaliacao.nome}
-                    </TableCell>
-                    <TableCell className="metric-sm text-right">
-                      {avaliacao.peso}
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="—"
-                        defaultValue={formatarDecimal(avaliacao.nota)}
-                        onBlur={(evento) =>
-                          salvarNota(avaliacao, evento.target.value)
-                        }
-                        className="h-8 w-20 tabular-nums"
-                        aria-label={`Nota de ${avaliacao.nome}`}
-                      />
-                    </TableCell>
-                    <TableCell className="text-muted-foreground hidden text-xs tabular-nums sm:table-cell">
-                      {avaliacao.data
-                        ? format(deISO(avaliacao.data), 'dd/MM/yyyy')
-                        : '—'}
-                    </TableCell>
-                    <TableCell>
-                      <DialogConfirmarExclusao
-                        titulo={`Excluir ${avaliacao.nome}`}
-                        mensagem={
-                          avaliacao.nota === null
-                            ? `${avaliacao.nome} sai da matéria e do cálculo da média projetada.`
-                            : `A nota ${formatarDecimal(avaliacao.nota)} de ${avaliacao.nome} será perdida e a média recalculada sem ela.`
-                        }
-                        onConfirmar={() => excluir.mutate(avaliacao.id)}
-                        pendente={excluir.isPending}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <ul className="divide-border divide-y">
+              {avaliacoes.map((avaliacao) => {
+                const feita =
+                  avaliacao.data !== null && avaliacao.data <= hojeISO
+
+                return (
+                  <li
+                    key={avaliacao.id}
+                    className="flex items-center gap-3 px-4 py-2.5"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
+                        <span className="break-words">{avaliacao.nome}</span>
+                        <span className="text-muted-foreground text-xs tabular-nums">
+                          peso {formatarDecimal(avaliacao.peso)}
+                        </span>
+                      </p>
+                      <p className="text-muted-foreground text-xs tabular-nums">
+                        {avaliacao.data
+                          ? format(deISO(avaliacao.data), 'dd/MM/yyyy')
+                          : 'sem data'}
+                        {/*
+                          Nota vazia numa prova que já passou é pendência; numa
+                          prova futura é o estado normal. Sem esta distinção, os
+                          dois casos apareciam idênticos.
+                        */}
+                        {feita && avaliacao.nota === null && (
+                          <span className="text-status-atencao ml-2">
+                            sem nota
+                          </span>
+                        )}
+                      </p>
+                    </div>
+
+                    <Input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="—"
+                      defaultValue={formatarDecimal(avaliacao.nota)}
+                      onBlur={(evento) =>
+                        salvarNota(avaliacao, evento.target.value)
+                      }
+                      className="h-11 w-16 shrink-0 text-center tabular-nums sm:h-8"
+                      aria-label={`Nota de ${avaliacao.nome}`}
+                    />
+
+                    <DialogConfirmarExclusao
+                      titulo={`Excluir ${avaliacao.nome}`}
+                      mensagem={
+                        avaliacao.nota === null
+                          ? `${avaliacao.nome} sai da matéria e do cálculo da média projetada.`
+                          : `A nota ${formatarDecimal(avaliacao.nota)} de ${avaliacao.nome} será perdida e a média recalculada sem ela.`
+                      }
+                      onConfirmar={() => excluir.mutate(avaliacao.id)}
+                      pendente={excluir.isPending}
+                    />
+                  </li>
+                )
+              })}
+            </ul>
           </CardContent>
         </Card>
       )}
