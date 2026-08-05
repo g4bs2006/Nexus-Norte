@@ -43,10 +43,6 @@ function CommandDialog({
 }) {
   return (
     <Dialog {...props}>
-      <DialogHeader className="sr-only">
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{description}</DialogDescription>
-      </DialogHeader>
       <DialogContent
         className={cn(
           'top-1/3 translate-y-0 overflow-hidden rounded-xl! p-0',
@@ -54,7 +50,26 @@ function CommandDialog({
         )}
         showCloseButton={showCloseButton}
       >
-        {children}
+        {/*
+          `sr-only` porque a paleta se apresenta pelo próprio campo de busca — o
+          título é para leitor de tela, e o Radix exige que exista. Fica dentro do
+          Content porque `Dialog.Title` lê o contexto que só o Content provê.
+        */}
+        <DialogHeader className="sr-only">
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        {/*
+          A raiz `Command` estava FALTANDO, e sem ela a paleta derrubava o app
+          inteiro para tela branca: `CommandInput`, `CommandList` e `CommandItem`
+          leem o store do cmdk por contexto, que só esta raiz cria. Sem contexto,
+          o `subscribe` do store vinha `undefined` e o render explodia.
+
+          Ou seja: o botão de busca da barra superior do mobile e o Ctrl+K nunca
+          abriram. Como não há error boundary, o app ia para branco e só voltava
+          recarregando.
+        */}
+        <Command>{children}</Command>
       </DialogContent>
     </Dialog>
   )
