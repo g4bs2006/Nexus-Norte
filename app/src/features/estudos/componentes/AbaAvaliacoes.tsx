@@ -224,16 +224,27 @@ export function AbaAvaliacoes({
               <TableHeader>
                 <TableRow>
                   <TableHead>Avaliação</TableHead>
-                  <TableHead className="w-20 text-right">Peso</TableHead>
+                  <TableHead className="w-12 text-right sm:w-20">
+                    Peso
+                  </TableHead>
                   <TableHead className="w-24">Nota</TableHead>
-                  <TableHead className="w-28">Data</TableHead>
+                  {/*
+                    A data sai no mobile: sem ela as cinco colunas não cabem em
+                    ~296px, e a prova já aparece datada no calendário e no painel
+                    de eventos importantes. Nota é o que se edita aqui.
+                  */}
+                  <TableHead className="hidden w-28 sm:table-cell">
+                    Data
+                  </TableHead>
                   <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {avaliacoes.map((avaliacao) => (
                   <TableRow key={avaliacao.id}>
-                    <TableCell className="text-sm">{avaliacao.nome}</TableCell>
+                    <TableCell className="max-w-0 truncate text-sm">
+                      {avaliacao.nome}
+                    </TableCell>
                     <TableCell className="metric-sm text-right">
                       {avaliacao.peso}
                     </TableCell>
@@ -251,7 +262,7 @@ export function AbaAvaliacoes({
                         aria-label={`Nota de ${avaliacao.nome}`}
                       />
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-xs tabular-nums">
+                    <TableCell className="text-muted-foreground hidden text-xs tabular-nums sm:table-cell">
                       {avaliacao.data
                         ? format(deISO(avaliacao.data), 'dd/MM/yyyy')
                         : '—'}
@@ -260,7 +271,7 @@ export function AbaAvaliacoes({
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-muted-foreground hover:text-status-risco size-7"
+                        className="text-muted-foreground hover:text-status-risco size-9 sm:size-7"
                         aria-label={`Excluir ${avaliacao.nome}`}
                         onClick={() => excluir.mutate(avaliacao.id)}
                       >

@@ -105,7 +105,8 @@ export function DialogFluxograma({
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild>
         {modoEdicao ? (
-          <Button size="icon" variant="ghost" className="size-6">
+          // 24px era o menor alvo de toque do app
+          <Button size="icon" variant="ghost" className="size-8 sm:size-6">
             <Pencil className="size-3" />
           </Button>
         ) : (

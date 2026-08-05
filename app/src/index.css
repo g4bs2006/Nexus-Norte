@@ -478,3 +478,75 @@
 .calendario-nexus .fc .fc-list-day-text {
     color: var(--muted-foreground);
 }
+
+/* ---------------------------------------------------------------------------
+   Calendário no mobile
+
+   Em 296px úteis a barra de ferramentas padrão (prev/next/hoje · título ·
+   Mês/Semana) somava mais que a largura da tela, e a grade do mês dava sete
+   colunas de ~42px. Aqui a barra passa a empilhar em duas linhas, com o título
+   primeiro, e a grade ganha respiro cortando o texto do evento em vez de
+   comprimir a coluna.
+--------------------------------------------------------------------------- */
+
+@media (width < 40rem) {
+    .calendario-nexus .fc .fc-header-toolbar {
+        display: grid;
+        grid-template-areas: 'titulo' 'botoes';
+        gap: 0.625rem;
+        margin-bottom: 0.75rem;
+    }
+
+    /* O título vem antes dos botões: é o que orienta, e vira a linha de cima */
+    .calendario-nexus .fc .fc-toolbar-chunk:nth-child(2) {
+        grid-area: titulo;
+        text-align: center;
+    }
+
+    .calendario-nexus .fc .fc-toolbar-chunk:nth-child(1),
+    .calendario-nexus .fc .fc-toolbar-chunk:nth-child(3) {
+        grid-area: botoes;
+        display: flex;
+    }
+
+    .calendario-nexus .fc .fc-toolbar-chunk:nth-child(1) {
+        justify-content: flex-start;
+    }
+
+    .calendario-nexus .fc .fc-toolbar-chunk:nth-child(3) {
+        justify-content: flex-end;
+    }
+
+    .calendario-nexus .fc .fc-toolbar-title {
+        font-size: 0.9375rem;
+    }
+
+    /* 44px de altura: alvo de toque, não só área clicável */
+    .calendario-nexus .fc .fc-button {
+        min-height: 2.25rem;
+        padding-inline: 0.5rem;
+    }
+
+    .calendario-nexus .fc .fc-col-header-cell-cushion {
+        font-size: 0.6875rem;
+        padding-inline: 2px;
+    }
+
+    .calendario-nexus .fc .fc-daygrid-day-number {
+        padding: 2px 3px;
+    }
+
+    /* Numa coluna de ~40px o título não cabe de todo jeito — cortar é melhor
+       que quebrar em três linhas e esticar a semana inteira */
+    .calendario-nexus .fc .fc-daygrid-event .fc-event-title,
+    .calendario-nexus .fc .fc-daygrid-event .fc-event-time {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Duas marcas por dia + "mais N": três já não caberiam legíveis */
+    .calendario-nexus .fc .fc-daygrid-day-events {
+        font-size: 0.625rem;
+    }
+}

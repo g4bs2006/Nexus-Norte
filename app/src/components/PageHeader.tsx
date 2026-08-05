@@ -68,7 +68,13 @@ export function PageHeader({
         />
       )}
 
-      <div className="flex items-start justify-between gap-4">
+      {/*
+        No mobile as ações vão para a própria linha e podem quebrar. Antes eram
+        `shrink-0` na mesma linha do título: no Treino, três botões com texto
+        somam mais que a largura da tela, e como o `main` não rola na
+        horizontal, o último ficava cortado e inalcançável.
+      */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="flex min-w-0 items-start gap-3">
           {Icone && acento && (
             <span
@@ -89,7 +95,9 @@ export function PageHeader({
           </div>
         </div>
         {acoes && (
-          <div className="flex shrink-0 items-center gap-2">{acoes}</div>
+          <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
+            {acoes}
+          </div>
         )}
       </div>
     </header>

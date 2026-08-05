@@ -25,7 +25,8 @@ export function SeletorCor({ valor, onChange }: SeletorCorProps) {
         aria-label="Sem cor"
         aria-pressed={valor === ''}
         className={cn(
-          'flex size-7 items-center justify-center rounded-full border transition-all',
+          // 36px no toque: swatch de 28px é alvo pequeno demais para o dedo
+          'flex size-9 items-center justify-center rounded-full border transition-all sm:size-7',
           'text-muted-foreground hover:border-foreground/40',
           valor === ''
             ? 'border-foreground/60 ring-ring/40 ring-2'
@@ -47,7 +48,7 @@ export function SeletorCor({ valor, onChange }: SeletorCorProps) {
             aria-pressed={selecionada}
             style={{ backgroundColor: cor.valor }}
             className={cn(
-              'flex size-7 items-center justify-center rounded-full transition-all',
+              'flex size-9 items-center justify-center rounded-full transition-all sm:size-7',
               'ring-offset-background hover:scale-105',
               selecionada && 'ring-foreground/50 ring-2 ring-offset-2',
             )}

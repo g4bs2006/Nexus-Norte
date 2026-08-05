@@ -25,7 +25,16 @@ function Tabs({
 }
 
 const tabsListVariants = cva(
-  'group/tabs-list inline-flex w-fit items-center justify-center rounded-lg p-[3px] text-muted-foreground group-data-horizontal/tabs:h-8 group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col data-[variant=line]:rounded-none',
+  // `max-w-full overflow-x-auto`: cinco abas (matéria) somam mais que a largura
+  // de um celular, e sem isso a lista estourava a página — a última aba ficava
+  // cortada. `justify-start` em vez de `justify-center` porque conteúdo
+  // centralizado num container que rola deixa a borda inicial inalcançável.
+  // A lista é `w-fit`, então em tela larga o alinhamento não muda nada.
+  // A barra de rolagem fica escondida de propósito: a faixa tem 32px de altura
+  // e uma barra clássica comeria o texto das abas. Arrastar funciona no toque e
+  // as setas do teclado percorrem as abas (Radix), então o acesso não depende
+  // dela — é o mesmo padrão das abas do navegador.
+  'group/tabs-list inline-flex w-fit max-w-full items-center justify-start overflow-x-auto rounded-lg p-[3px] text-muted-foreground [-ms-overflow-style:none] [scrollbar-width:none] group-data-horizontal/tabs:h-8 group-data-vertical/tabs:h-fit group-data-vertical/tabs:flex-col group-data-vertical/tabs:overflow-x-visible data-[variant=line]:rounded-none [&::-webkit-scrollbar]:hidden',
   {
     variants: {
       variant: {

@@ -120,9 +120,16 @@ export function DialogLancamento({
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild>
         {modoEdicao ? (
-          <Button size="sm" variant="ghost">
+          // Só ícone no mobile: este gatilho vive numa célula estreita da
+          // tabela de lançamentos, onde "Editar" não cabe
+          <Button
+            size="sm"
+            variant="ghost"
+            className="size-9 p-0 sm:size-auto sm:px-3"
+            aria-label="Editar lançamento"
+          >
             <Pencil className="size-3.5" />
-            Editar
+            <span className="hidden sm:inline">Editar</span>
           </Button>
         ) : (
           <Button size="sm">

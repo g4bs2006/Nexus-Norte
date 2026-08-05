@@ -362,7 +362,7 @@ export default function TreinoPage() {
                                   )}
                                 </p>
                               </div>
-                              <div className="flex shrink-0 items-center gap-0.5">
+                              <div className="flex shrink-0 items-center gap-1 sm:gap-0.5">
                                 <DialogExercicio
                                   treinoId={treino.id}
                                   treinoNome={treino.nome}
@@ -371,7 +371,7 @@ export default function TreinoPage() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="text-muted-foreground hover:text-status-risco size-7 shrink-0"
+                                  className="text-muted-foreground hover:text-status-risco size-9 sm:size-7 shrink-0"
                                   aria-label={`Remover ${exercicio.nome}`}
                                   onClick={() =>
                                     excluirExercicio.mutate(exercicio.id)

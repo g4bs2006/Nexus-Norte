@@ -53,7 +53,9 @@ export function BottomNav() {
           aria-label={nome}
           className={({ isActive }) =>
             cn(
-              'flex min-w-0 flex-1 flex-col items-center gap-0.5 py-2 text-[10px] transition-colors',
+              // 11px: mínimo recomendado pelo HIG. Em 10px o rótulo já pesava menos
+              // que o ícone e não era o que se lia primeiro.
+              'flex min-w-0 flex-1 flex-col items-center gap-0.5 py-2 text-[11px] transition-colors',
               isActive ? 'text-foreground' : 'text-muted-foreground',
             )
           }

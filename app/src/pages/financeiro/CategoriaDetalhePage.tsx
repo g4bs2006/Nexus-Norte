@@ -166,10 +166,15 @@ export default function CategoriaDetalhePage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-28">Data</TableHead>
+                      {/*
+                        Larguras apertadas no mobile para a tabela caber em
+                        ~296px sem rolagem horizontal — antes valor e ações
+                        nasciam fora da tela.
+                      */}
+                      <TableHead className="w-20 sm:w-28">Data</TableHead>
                       <TableHead>Descrição</TableHead>
                       <TableHead className="text-right">Valor</TableHead>
-                      <TableHead className="w-20" />
+                      <TableHead className="w-11 sm:w-20" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -178,10 +183,11 @@ export default function CategoriaDetalhePage() {
                         <TableCell className="text-muted-foreground text-xs tabular-nums">
                           {format(deISO(lancamento.data), 'dd/MM/yyyy')}
                         </TableCell>
-                        <TableCell className="text-sm">
+                        <TableCell className="max-w-0 truncate text-sm">
                           {lancamento.descricao ?? '—'}
+                          {/* Forma de pagamento é contexto: sai no mobile */}
                           {lancamento.forma_pagamento && (
-                            <span className="text-muted-foreground ml-2 text-xs">
+                            <span className="text-muted-foreground ml-2 hidden text-xs sm:inline">
                               {lancamento.forma_pagamento}
                             </span>
                           )}
@@ -190,7 +196,7 @@ export default function CategoriaDetalhePage() {
                           {formatarMoeda(lancamento.valor)}
                         </TableCell>
                         <TableCell>
-                          <div className="flex items-center gap-0.5">
+                          <div className="flex items-center gap-1 sm:gap-0.5">
                             <DialogLancamento
                               categorias={categorias.data ?? []}
                               hoje={hoje}
@@ -199,7 +205,7 @@ export default function CategoriaDetalhePage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="text-muted-foreground hover:text-status-risco size-7"
+                              className="text-muted-foreground hover:text-status-risco size-9 sm:size-7"
                               aria-label="Excluir lançamento"
                               onClick={() =>
                                 excluirLancamento.mutate(lancamento.id)

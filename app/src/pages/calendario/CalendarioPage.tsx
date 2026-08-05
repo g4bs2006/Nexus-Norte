@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { deISO, paraISO } from '@/lib/datas'
 import { differenceInCalendarDays, endOfMonth, startOfMonth } from 'date-fns'
 import { cn } from '@/lib/utils'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import {
   COR_CAMADA,
   ROTULO_CAMADA,
@@ -26,6 +27,12 @@ const CAMADAS = Object.keys(ROTULO_CAMADA) as CamadaCalendario[]
 export default function CalendarioPage() {
   const hoje = useMemo(() => new Date(), [])
   const navegar = useNavigate()
+
+  /**
+   * Numa coluna de ~40px três eventos empilhados não sobram legíveis. Precisa
+   * ser prop, não CSS: `dayMaxEvents` é um número do FullCalendar.
+   */
+  const telaEstreita = useMediaQuery('(width < 40rem)')
 
   /**
    * Intervalo visível. Começa no mês atual e é atualizado pelo `datesSet` do
@@ -194,7 +201,7 @@ export default function CalendarioPage() {
               slotMinTime="05:00:00"
               slotMaxTime="24:00:00"
               expandRows
-              dayMaxEvents={3}
+              dayMaxEvents={telaEstreita ? 2 : 3}
               eventTimeFormat={{
                 hour: '2-digit',
                 minute: '2-digit',

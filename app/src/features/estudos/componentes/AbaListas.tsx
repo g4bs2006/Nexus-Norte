@@ -253,7 +253,7 @@ export function AbaListas({ materiaId, registros, hoje }: AbaListasProps) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-muted-foreground hover:text-foreground size-7"
+                        className="text-muted-foreground hover:text-foreground size-9 sm:size-7"
                         aria-label="Editar registro"
                         onClick={() => iniciarEdicao(registro)}
                       >
@@ -262,7 +262,7 @@ export function AbaListas({ materiaId, registros, hoje }: AbaListasProps) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-muted-foreground hover:text-status-risco size-7"
+                        className="text-muted-foreground hover:text-status-risco size-9 sm:size-7"
                         aria-label="Remover registro"
                         onClick={() => excluir.mutate(registro.id)}
                       >

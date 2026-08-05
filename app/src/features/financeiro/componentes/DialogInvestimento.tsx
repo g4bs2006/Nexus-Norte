@@ -118,7 +118,7 @@ export function DialogInvestimento({
           <Button
             size="sm"
             variant="ghost"
-            className="size-7"
+            className="size-9 sm:size-7"
             aria-label="Editar investimento"
           >
             <Pencil className="size-3.5" />

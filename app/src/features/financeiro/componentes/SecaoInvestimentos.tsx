@@ -103,7 +103,7 @@ export function SecaoInvestimentos({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="text-muted-foreground hover:text-status-risco size-7"
+                    className="text-muted-foreground hover:text-status-risco size-9 sm:size-7"
                     aria-label="Excluir investimento"
                     onClick={() => excluir.mutate(item.id)}
                     disabled={excluir.isPending}

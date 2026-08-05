@@ -46,7 +46,7 @@ export function DialogBiblioteca() {
           Biblioteca
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Biblioteca</DialogTitle>
           <DialogDescription>
@@ -187,7 +187,7 @@ function AbaExercicios() {
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="text-status-ok size-7"
+                      className="text-status-ok size-9 sm:size-7"
                       aria-label="Salvar"
                       onClick={() => void salvarEdicao(item.id)}
                       disabled={atualizar.isPending}
@@ -197,7 +197,7 @@ function AbaExercicios() {
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="text-muted-foreground size-7"
+                      className="text-muted-foreground size-9 sm:size-7"
                       aria-label="Cancelar"
                       onClick={() => setEditandoId(null)}
                     >
@@ -222,7 +222,7 @@ function AbaExercicios() {
                       <Button
                         size="icon"
                         variant="ghost"
-                        className="text-muted-foreground size-7"
+                        className="text-muted-foreground size-9 sm:size-7"
                         aria-label={`Editar ${item.nome}`}
                         onClick={() => {
                           setEditandoId(item.id)
@@ -337,7 +337,7 @@ function AbaTipos() {
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="text-status-ok size-7"
+                      className="text-status-ok size-9 sm:size-7"
                       aria-label="Salvar"
                       disabled={atualizar.isPending}
                       onClick={() => {
@@ -355,7 +355,7 @@ function AbaTipos() {
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="text-muted-foreground size-7"
+                      className="text-muted-foreground size-9 sm:size-7"
                       aria-label="Cancelar"
                       onClick={() => setEditandoId(null)}
                     >
@@ -377,7 +377,7 @@ function AbaTipos() {
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="text-muted-foreground size-7"
+                      className="text-muted-foreground size-9 sm:size-7"
                       aria-label={`Editar ${item.nome}`}
                       onClick={() => {
                         setEditandoId(item.id)

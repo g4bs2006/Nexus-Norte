@@ -60,7 +60,7 @@ export function DialogConfirmarExclusao({
             size="icon"
             className={
               classeTrigger ??
-              'text-muted-foreground hover:text-status-risco size-7'
+              'text-muted-foreground hover:text-status-risco size-9 sm:size-7'
             }
             aria-label={titulo}
           >

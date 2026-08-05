@@ -348,7 +348,7 @@ export default function ProjetoDetalhePage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-muted-foreground hover:text-status-risco size-7"
+                        className="text-muted-foreground hover:text-status-risco size-9 sm:size-7"
                         aria-label={`Remover ${marco.nome}`}
                         onClick={() => excluirMarco.mutate(marco.id)}
                       >
@@ -467,7 +467,7 @@ export default function ProjetoDetalhePage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-muted-foreground hover:text-foreground size-7 shrink-0"
+                        className="text-muted-foreground hover:text-foreground size-9 sm:size-7 shrink-0"
                         aria-label="Editar registro"
                         onClick={() => {
                           setIdLogEditando(log.id)
@@ -479,7 +479,7 @@ export default function ProjetoDetalhePage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-muted-foreground hover:text-status-risco size-7 shrink-0"
+                        className="text-muted-foreground hover:text-status-risco size-9 sm:size-7 shrink-0"
                         aria-label="Remover registro"
                         onClick={() => excluirLog.mutate(log.id)}
                       >

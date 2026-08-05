@@ -150,7 +150,7 @@ export function DialogExercicio({
           <Button
             size="icon"
             variant="ghost"
-            className="text-muted-foreground size-7"
+            className="text-muted-foreground size-9 sm:size-7"
             aria-label={`Editar ${exercicio?.nome}`}
           >
             <Pencil className="size-3.5" />
@@ -269,7 +269,8 @@ export function DialogExercicio({
             </div>
           )}
 
-          <div className="grid grid-cols-4 gap-3">
+          {/* 2×2 no mobile: quatro colunas davam ~65px, e "Descanso" não cabia */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="space-y-1.5">
               <Label htmlFor="ex-series">Séries</Label>
               <Input

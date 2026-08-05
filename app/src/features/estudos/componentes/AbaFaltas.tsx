@@ -173,7 +173,7 @@ export function AbaFaltas({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="text-muted-foreground hover:text-foreground size-7"
+                      className="text-muted-foreground hover:text-foreground size-9 sm:size-7"
                       aria-label="Editar falta"
                       onClick={() => iniciarEdicao(falta)}
                     >
@@ -182,7 +182,7 @@ export function AbaFaltas({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="text-muted-foreground hover:text-status-risco size-7 shrink-0"
+                      className="text-muted-foreground hover:text-status-risco size-9 sm:size-7 shrink-0"
                       aria-label="Remover falta"
                       onClick={() => excluir.mutate(falta.id)}
                     >

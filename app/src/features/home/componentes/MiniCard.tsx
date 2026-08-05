@@ -63,7 +63,12 @@ export function MiniCard({
         {titulo}
       </span>
 
-      <span className="metric-md truncate">{valor}</span>
+      {/*
+        `metric-sm` no mobile: em duas colunas de 360px sobram ~132px úteis, e
+        20px em mono truncava o valor a partir de dez mil. Truncar o número
+        principal da Home é o oposto do que este tile existe para fazer.
+      */}
+      <span className="metric-sm sm:metric-md truncate">{valor}</span>
 
       <span className="text-muted-foreground truncate text-xs">{detalhe}</span>
     </Link>

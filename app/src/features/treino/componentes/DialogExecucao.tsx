@@ -128,7 +128,7 @@ export function DialogExecucao({
           {rotulo}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{treino.nome}</DialogTitle>
           <DialogDescription>
@@ -167,7 +167,13 @@ export function DialogExecucao({
                   )}
                 </div>
 
-                <div className="text-muted-foreground grid grid-cols-[1.5rem_1fr_1fr_1fr_auto] items-center gap-2 text-[11px]">
+                {/*
+                  Cabeçalho de colunas só no desktop. No celular cada série é um
+                  bloco com rótulo em cada campo: em 296px úteis, cinco colunas
+                  davam ~73px por input — e esta é a tela que se usa de pé, com
+                  uma mão, no intervalo da série.
+                */}
+                <div className="text-muted-foreground hidden grid-cols-[1.5rem_1fr_1fr_1fr_auto] items-center gap-2 text-[11px] sm:grid">
                   <span />
                   <span>Carga</span>
                   <span>Reps</span>
@@ -183,52 +189,94 @@ export function DialogExecucao({
                       ? umRmEstimado(carga, reps)
                       : null
 
+                  const umRm = estimado === null ? '—' : estimado.toFixed(1)
+
                   return (
                     <div
                       key={i}
-                      className="grid grid-cols-[1.5rem_1fr_1fr_1fr_auto] items-center gap-2"
+                      className="border-border rounded-md border p-2.5 sm:rounded-none sm:border-0 sm:p-0"
                     >
-                      <span className="text-muted-foreground text-xs tabular-nums">
-                        {ordem + 1}
-                      </span>
-                      <Input
-                        type="number"
-                        step="0.5"
-                        min="0"
-                        className="h-8 tabular-nums"
-                        value={linha.carga}
-                        onChange={(evento) =>
-                          alterar(i, 'carga', evento.target.value)
-                        }
-                        aria-label={`Carga da série ${ordem + 1} de ${exercicio.nome}`}
-                      />
-                      <Input
-                        type="number"
-                        step="1"
-                        min="1"
-                        className="h-8 tabular-nums"
-                        value={linha.reps}
-                        onChange={(evento) =>
-                          alterar(i, 'reps', evento.target.value)
-                        }
-                        aria-label={`Reps da série ${ordem + 1} de ${exercicio.nome}`}
-                      />
-                      <Input
-                        type="number"
-                        step="1"
-                        min="1"
-                        max="10"
-                        placeholder="—"
-                        className="h-8 tabular-nums"
-                        value={linha.rpe}
-                        onChange={(evento) =>
-                          alterar(i, 'rpe', evento.target.value)
-                        }
-                        aria-label={`RPE da série ${ordem + 1} de ${exercicio.nome}`}
-                      />
-                      <span className="text-muted-foreground w-14 text-right text-xs tabular-nums">
-                        {estimado === null ? '—' : estimado.toFixed(1)}
-                      </span>
+                      {/* Número da série e 1RM viram linha própria no mobile */}
+                      <div className="mb-1.5 flex items-baseline justify-between sm:hidden">
+                        <span className="text-xs font-medium">
+                          Série {ordem + 1}
+                        </span>
+                        <span className="text-muted-foreground text-xs tabular-nums">
+                          1RM {umRm}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 sm:grid-cols-[1.5rem_1fr_1fr_1fr_auto] sm:items-center">
+                        <span className="text-muted-foreground hidden text-xs tabular-nums sm:block">
+                          {ordem + 1}
+                        </span>
+
+                        <div className="space-y-1 sm:space-y-0">
+                          <span
+                            aria-hidden
+                            className="text-muted-foreground block text-[11px] sm:hidden"
+                          >
+                            Carga
+                          </span>
+                          <Input
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            className="h-9 tabular-nums sm:h-8"
+                            value={linha.carga}
+                            onChange={(evento) =>
+                              alterar(i, 'carga', evento.target.value)
+                            }
+                            aria-label={`Carga da série ${ordem + 1} de ${exercicio.nome}`}
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:space-y-0">
+                          <span
+                            aria-hidden
+                            className="text-muted-foreground block text-[11px] sm:hidden"
+                          >
+                            Reps
+                          </span>
+                          <Input
+                            type="number"
+                            step="1"
+                            min="1"
+                            className="h-9 tabular-nums sm:h-8"
+                            value={linha.reps}
+                            onChange={(evento) =>
+                              alterar(i, 'reps', evento.target.value)
+                            }
+                            aria-label={`Reps da série ${ordem + 1} de ${exercicio.nome}`}
+                          />
+                        </div>
+
+                        <div className="space-y-1 sm:space-y-0">
+                          <span
+                            aria-hidden
+                            className="text-muted-foreground block text-[11px] sm:hidden"
+                          >
+                            RPE
+                          </span>
+                          <Input
+                            type="number"
+                            step="1"
+                            min="1"
+                            max="10"
+                            placeholder="—"
+                            className="h-9 tabular-nums sm:h-8"
+                            value={linha.rpe}
+                            onChange={(evento) =>
+                              alterar(i, 'rpe', evento.target.value)
+                            }
+                            aria-label={`RPE da série ${ordem + 1} de ${exercicio.nome}`}
+                          />
+                        </div>
+
+                        <span className="text-muted-foreground hidden w-14 text-right text-xs tabular-nums sm:block">
+                          {umRm}
+                        </span>
+                      </div>
                     </div>
                   )
                 })}
