@@ -40,6 +40,7 @@ import {
   type Progressao,
 } from '@/features/treino/calculos'
 import {
+  useBiblioteca,
   useExercicios,
   usePersonalRecords,
   useSeries,
@@ -66,22 +67,38 @@ const CLASSE_PROGRESSAO: Record<Progressao, string> = {
   indefinido: 'text-muted-foreground',
 }
 
-import { DialogExercicio } from '@/features/treino/componentes/DialogExercicio'
-
+/**
+ * Progressão de um exercício, agregando todos os treinos que o usam.
+ *
+ * `:exercicioId` é o id do exercício BASE, não de `exercicios_treino` (resolução
+ * 10.18). Antes a rota recebia o id por treino, então Supino Inclinado no Push e
+ * no Upper viravam dois gráficos parciais em vez de uma progressão só.
+ */
 export default function ExercicioDetalhePage() {
-  const { exercicioId } = useParams<{ exercicioId: string }>()
+  const { exercicioId: baseId } = useParams<{ exercicioId: string }>()
 
+  const biblioteca = useBiblioteca()
   const exercicios = useExercicios()
   // Sem filtro de data: o histórico completo é o ponto desta página
   const series = useSeries()
   const prs = usePersonalRecords()
 
-  const exercicio = exercicios.data?.find((item) => item.id === exercicioId)
+  const exercicio = biblioteca.data?.find((item) => item.id === baseId)
 
+  /** Em quais treinos este exercício aparece — mostrado no cabeçalho. */
+  const treinosComEle = useMemo(
+    () =>
+      (exercicios.data ?? []).filter(
+        (item) => item.exercicio_base_id === baseId,
+      ),
+    [exercicios.data, baseId],
+  )
+
+  // Séries de TODOS os treinos que usam este exercício base
   const doExercicio = useMemo(
     () =>
-      (series.data ?? []).filter((serie) => serie.exercicio_id === exercicioId),
-    [series.data, exercicioId],
+      (series.data ?? []).filter((serie) => serie.exercicio_base_id === baseId),
+    [series.data, baseId],
   )
 
   const sessoes = useMemo(() => sessoesPorData(doExercicio), [doExercicio])
@@ -98,11 +115,11 @@ export default function ExercicioDetalhePage() {
   )
 
   const prsDoExercicio = useMemo(
-    () => (prs.data ?? []).filter((pr) => pr.exercicio_id === exercicioId),
-    [prs.data, exercicioId],
+    () => (prs.data ?? []).filter((pr) => pr.exercicio_base_id === baseId),
+    [prs.data, baseId],
   )
 
-  if (exercicios.isPending) {
+  if (biblioteca.isPending) {
     return (
       <>
         <PageHeader titulo="Exercício" pilar="treino" />
@@ -143,28 +160,29 @@ export default function ExercicioDetalhePage() {
       <PageHeader
         titulo={exercicio.nome}
         descricao={
+          /*
+           * Grupo muscular e os treinos onde aparece. Os alvos (séries, reps,
+           * carga) NÃO entram aqui: eles variam por treino, e esta página
+           * agrega todos. Editar nome ou grupo é função da Biblioteca; editar
+           * alvos, do card do treino.
+           */
           [
             exercicio.grupo_muscular,
-            `${exercicio.series}×${exercicio.reps_alvo ?? '—'}`,
+            treinosComEle.length > 0
+              ? `em ${treinosComEle.length} treino${treinosComEle.length === 1 ? '' : 's'}`
+              : null,
           ]
             .filter(Boolean)
             .join(' · ') || undefined
         }
         pilar="treino"
         acoes={
-          <div className="flex items-center gap-1">
-            <DialogExercicio
-              treinoId={exercicio.treino_id}
-              treinoNome=""
-              exercicio={exercicio}
-            />
-            <Button asChild variant="ghost" size="sm">
-              <Link to="/treino">
-                <ArrowLeft className="size-4" />
-                Voltar
-              </Link>
-            </Button>
-          </div>
+          <Button asChild variant="ghost" size="sm">
+            <Link to="/treino">
+              <ArrowLeft className="size-4" />
+              Voltar
+            </Link>
+          </Button>
         }
       />
 

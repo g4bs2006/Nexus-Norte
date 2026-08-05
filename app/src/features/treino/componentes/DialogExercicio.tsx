@@ -12,44 +12,85 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useCriarExercicio, useAtualizarExercicio } from '../hooks'
-import type { ExercicioTreino } from '../types'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  useAtualizarExercicio,
+  useBiblioteca,
+  useCriarExercicio,
+  useCriarExercicioBase,
+} from '../hooks'
+import type { ExercicioComBase } from '../types'
 
 interface DialogExercicioProps {
   treinoId: string
   treinoNome: string
   /** Se passado, o dialog abre em modo de edição. */
-  exercicio?: ExercicioTreino
+  exercicio?: ExercicioComBase
 }
 
-export function DialogExercicio({ treinoId, treinoNome, exercicio }: DialogExercicioProps) {
+/**
+ * Adiciona ou edita um exercício dentro de um treino.
+ *
+ * Depois da resolução 10.18, o exercício é ESCOLHIDO da biblioteca em vez de
+ * digitado: nome e grupo muscular vivem lá, e este formulário cuida apenas dos
+ * ALVOS daquele treino (séries, reps, carga, descanso). O mesmo movimento pode
+ * ter alvos diferentes em treinos diferentes, mas é o mesmo exercício — é isso
+ * que faz o PR e a progressão se unificarem.
+ */
+export function DialogExercicio({
+  treinoId,
+  treinoNome,
+  exercicio,
+}: DialogExercicioProps) {
   const modoEdicao = Boolean(exercicio)
   const [aberto, setAberto] = useState(false)
+
   const criar = useCriarExercicio()
   const atualizar = useAtualizarExercicio()
+  const criarBase = useCriarExercicioBase()
+  const biblioteca = useBiblioteca()
 
-  const [nome, setNome] = useState('')
-  const [grupo, setGrupo] = useState('')
+  const [baseId, setBaseId] = useState('')
   const [series, setSeries] = useState('3')
   const [reps, setReps] = useState('')
   const [carga, setCarga] = useState('')
   const [descanso, setDescanso] = useState('')
 
+  // Criação rápida sem sair do diálogo
+  const [criandoNovo, setCriandoNovo] = useState(false)
+  const [novoNome, setNovoNome] = useState('')
+  const [novoGrupo, setNovoGrupo] = useState('')
+
+  const lista = biblioteca.data ?? []
+  const selecionado = lista.find((item) => item.id === baseId)
+
   useEffect(() => {
-    if (aberto && exercicio) {
-      setNome(exercicio.nome)
-      setGrupo(exercicio.grupo_muscular ?? '')
+    if (!aberto) return
+
+    setCriandoNovo(false)
+    setNovoNome('')
+    setNovoGrupo('')
+
+    if (exercicio) {
+      setBaseId(exercicio.exercicio_base_id)
       setSeries(String(exercicio.series))
       setReps(exercicio.reps_alvo !== null ? String(exercicio.reps_alvo) : '')
-      setCarga(exercicio.carga_alvo !== null ? String(exercicio.carga_alvo) : '')
+      setCarga(
+        exercicio.carga_alvo !== null ? String(exercicio.carga_alvo) : '',
+      )
       setDescanso(
         exercicio.descanso_segundos !== null
           ? String(exercicio.descanso_segundos)
           : '',
       )
-    } else if (aberto && !exercicio) {
-      setNome('')
-      setGrupo('')
+    } else {
+      setBaseId('')
       setSeries('3')
       setReps('')
       setCarga('')
@@ -64,17 +105,29 @@ export function DialogExercicio({ treinoId, treinoNome, exercicio }: DialogExerc
 
   const pendente = criar.isPending || atualizar.isPending
 
+  /** Cria na biblioteca e já seleciona, para o fluxo não quebrar no meio. */
+  async function criarESelecionar() {
+    if (novoNome.trim() === '') return
+    const novo = await criarBase.mutateAsync({
+      nome: novoNome.trim(),
+      grupo_muscular:
+        novoGrupo.trim() === '' ? null : novoGrupo.trim().toLowerCase(),
+    })
+    setBaseId(novo.id)
+    setCriandoNovo(false)
+    setNovoNome('')
+    setNovoGrupo('')
+  }
+
   async function submeter() {
     const seriesNumero = Number(series)
-    if (nome.trim() === '' || !Number.isInteger(seriesNumero) || seriesNumero <= 0) {
+    if (baseId === '' || !Number.isInteger(seriesNumero) || seriesNumero <= 0) {
       return
     }
 
     const dados = {
       treino_id: treinoId,
-      nome: nome.trim(),
-      // grupo_muscular alimenta volume_grupo_muscular (resolução 10.1)
-      grupo_muscular: grupo.trim() === '' ? null : grupo.trim().toLowerCase(),
+      exercicio_base_id: baseId,
       series: seriesNumero,
       reps_alvo: numeroOuNulo(reps),
       carga_alvo: numeroOuNulo(carga),
@@ -87,12 +140,6 @@ export function DialogExercicio({ treinoId, treinoNome, exercicio }: DialogExerc
       await criar.mutateAsync(dados)
     }
 
-    setNome('')
-    setGrupo('')
-    setSeries('3')
-    setReps('')
-    setCarga('')
-    setDescanso('')
     setAberto(false)
   }
 
@@ -123,32 +170,104 @@ export function DialogExercicio({ treinoId, treinoNome, exercicio }: DialogExerc
               : `Exercício em ${treinoNome}`}
           </DialogTitle>
           <DialogDescription>
-            Carga e reps alvo pré-preenchem o registro da execução.
+            Nome e grupo vêm da biblioteca. Aqui você define os alvos deste
+            treino.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="ex-nome">Nome</Label>
-              <Input
-                id="ex-nome"
-                autoFocus
-                placeholder="Ex: Supino reto"
-                value={nome}
-                onChange={(evento) => setNome(evento.target.value)}
-              />
+          {criandoNovo ? (
+            <div className="border-border space-y-3 rounded-md border border-dashed p-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="novo-ex-nome">Nome do exercício</Label>
+                  <Input
+                    id="novo-ex-nome"
+                    autoFocus
+                    placeholder="Ex: Supino Reto"
+                    value={novoNome}
+                    onChange={(e) => setNovoNome(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        void criarESelecionar()
+                      }
+                    }}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="novo-ex-grupo">Grupo muscular</Label>
+                  <Input
+                    id="novo-ex-grupo"
+                    placeholder="Ex: peito"
+                    value={novoGrupo}
+                    onChange={(e) => setNovoGrupo(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => void criarESelecionar()}
+                  disabled={criarBase.isPending}
+                >
+                  {criarBase.isPending ? 'Criando…' : 'Criar e usar'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setCriandoNovo(false)}
+                >
+                  Cancelar
+                </Button>
+              </div>
+              <p className="text-muted-foreground text-xs">
+                Fica disponível para todos os treinos.
+              </p>
             </div>
+          ) : (
             <div className="space-y-1.5">
-              <Label htmlFor="ex-grupo">Grupo muscular</Label>
-              <Input
-                id="ex-grupo"
-                placeholder="Ex: peito"
-                value={grupo}
-                onChange={(evento) => setGrupo(evento.target.value)}
-              />
+              <div className="flex items-center justify-between gap-2">
+                <Label>Exercício</Label>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-auto py-0.5 text-xs"
+                  onClick={() => setCriandoNovo(true)}
+                >
+                  <Plus className="size-3" />
+                  Novo na biblioteca
+                </Button>
+              </div>
+              <Select value={baseId} onValueChange={setBaseId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue
+                    placeholder={
+                      biblioteca.isPending ? 'Carregando…' : 'Selecione'
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {lista.map((item) => (
+                    <SelectItem key={item.id} value={item.id}>
+                      {item.nome}
+                      {item.grupo_muscular && (
+                        <span className="text-muted-foreground ml-1 text-xs">
+                          {item.grupo_muscular}
+                        </span>
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selecionado && (
+                <p className="text-muted-foreground text-xs">
+                  Grupo: {selecionado.grupo_muscular ?? 'não definido'} · edite
+                  na Biblioteca para mudar em todos os treinos
+                </p>
+              )}
             </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-4 gap-3">
             <div className="space-y-1.5">
@@ -206,7 +325,10 @@ export function DialogExercicio({ treinoId, treinoNome, exercicio }: DialogExerc
         </div>
 
         <DialogFooter>
-          <Button onClick={() => void submeter()} disabled={pendente}>
+          <Button
+            onClick={() => void submeter()}
+            disabled={pendente || baseId === ''}
+          >
             {pendente ? 'Salvando…' : modoEdicao ? 'Salvar' : 'Adicionar'}
           </Button>
         </DialogFooter>

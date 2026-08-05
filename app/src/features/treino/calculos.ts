@@ -117,6 +117,57 @@ export function sinalEstagnacao(
   return melhorRecente <= melhorAnterior
 }
 
+export interface RecordeAgrupado {
+  exercicio_base_id: string
+  exercicio_nome: string
+  /** Maior 1RM já registrado para este exercício, em qualquer treino. */
+  melhor1rm: number
+  carga: number
+  reps: number
+  data: string
+}
+
+interface PrParaAgrupar {
+  exercicio_base_id: string
+  exercicio_nome: string
+  um_rm_estimado: number
+  carga: number
+  reps: number
+  data: string
+}
+
+/**
+ * Um recorde por exercício: o maior 1RM histórico (resolução 10.18).
+ *
+ * A tabela guarda cada marca batida, então um exercício tem várias linhas ao
+ * longo do tempo. Aqui fica só a maior de cada — é isso que "recorde" significa.
+ * Ordena do 1RM mais alto para o mais baixo.
+ *
+ * Antes da resolução 10.18 o PR era por exercício-dentro-de-um-treino, então o
+ * mesmo movimento em dois treinos aparecia duas vezes com marcas diferentes.
+ */
+export function recordesPorExercicio(
+  prs: readonly PrParaAgrupar[],
+): RecordeAgrupado[] {
+  const melhorPorBase = new Map<string, RecordeAgrupado>()
+
+  for (const pr of prs) {
+    const atual = melhorPorBase.get(pr.exercicio_base_id)
+    if (atual !== undefined && atual.melhor1rm >= pr.um_rm_estimado) continue
+
+    melhorPorBase.set(pr.exercicio_base_id, {
+      exercicio_base_id: pr.exercicio_base_id,
+      exercicio_nome: pr.exercicio_nome,
+      melhor1rm: pr.um_rm_estimado,
+      carga: pr.carga,
+      reps: pr.reps,
+      data: pr.data,
+    })
+  }
+
+  return [...melhorPorBase.values()].sort((a, b) => b.melhor1rm - a.melhor1rm)
+}
+
 export interface SerieComGrupo {
   grupo_muscular: string | null
   carga_real: number

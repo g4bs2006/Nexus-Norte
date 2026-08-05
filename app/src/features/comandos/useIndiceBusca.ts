@@ -26,7 +26,9 @@ async function carregarIndice(): Promise<ItemBusca[]> {
       supabase.from('categorias').select('id, nome').order('nome'),
       supabase.from('materias').select('id, nome').order('nome'),
       supabase.from('treinos').select('id, nome').order('nome'),
-      supabase.from('exercicios_treino').select('id, nome').order('nome'),
+      // Biblioteca, não exercicios_treino: buscar "Supino" deve achar UM
+      // resultado, não um por treino que o usa (resolução 10.18)
+      supabase.from('biblioteca_exercicios').select('id, nome').order('nome'),
       supabase.from('projetos').select('id, nome').order('nome'),
     ])
 

@@ -38,6 +38,7 @@ import {
   useSeries,
   useTreinos,
 } from '@/features/treino/hooks'
+import { DialogBiblioteca } from '@/features/treino/componentes/DialogBiblioteca'
 import { DialogExecucao } from '@/features/treino/componentes/DialogExecucao'
 import { DialogExercicio } from '@/features/treino/componentes/DialogExercicio'
 import { DialogFluxogramaTreino } from '@/features/treino/componentes/DialogFluxogramaTreino'
@@ -82,11 +83,6 @@ export default function TreinoPage() {
     () => new Map(listaTreinos.map((treino) => [treino.id, treino.nome])),
     [listaTreinos],
   )
-  const nomePorExercicio = useMemo(
-    () => new Map(listaExercicios.map((item) => [item.id, item.nome])),
-    [listaExercicios],
-  )
-
   /** Treinos previstos para hoje, derivados do fluxograma (plano 4.3). */
   const treinosDeHoje = useMemo(() => {
     const ocorrencias = expandirRecorrencia(listaFluxograma, {
@@ -162,6 +158,7 @@ export default function TreinoPage() {
         icone={Dumbbell}
         acoes={
           <>
+            <DialogBiblioteca />
             <DialogFluxogramaTreino treinos={listaTreinos} />
             <DialogTreino />
           </>
@@ -263,7 +260,7 @@ export default function TreinoPage() {
             </CardContent>
           </Card>
 
-          <SecaoPRs prs={prs.data ?? []} nomePorExercicio={nomePorExercicio} />
+          <SecaoPRs prs={prs.data ?? []} />
 
           {/* Volume por grupo muscular (plano 4.2) */}
           {gruposComVolume.length > 0 && (
@@ -309,9 +306,9 @@ export default function TreinoPage() {
                         <CardTitle className="truncate text-sm">
                           {treino.nome}
                         </CardTitle>
-                        {treino.tipo && (
+                        {treino.tipo_nome && (
                           <CardDescription className="capitalize">
-                            {treino.tipo}
+                            {treino.tipo_nome}
                           </CardDescription>
                         )}
                       </div>

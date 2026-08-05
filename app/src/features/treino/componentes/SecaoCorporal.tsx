@@ -66,7 +66,8 @@ export function SecaoCorporal({ registros, hoje }: SecaoCorporalProps) {
 
   async function registrar(arquivo?: File) {
     const pesoNumero = Number(peso)
-    const temPeso = peso.trim() !== '' && Number.isFinite(pesoNumero) && pesoNumero > 0
+    const temPeso =
+      peso.trim() !== '' && Number.isFinite(pesoNumero) && pesoNumero > 0
     if (!temPeso && !arquivo) return
 
     setEnviando(true)
@@ -189,12 +190,19 @@ export function SecaoCorporal({ registros, hoje }: SecaoCorporalProps) {
         {registrosOrdenados.length > 0 && (
           <ul className="divide-border divide-y border-t pt-2">
             {registrosOrdenados.slice(0, 5).map((reg) => (
-              <li key={reg.id} className="flex items-center justify-between py-1.5 text-xs">
+              <li
+                key={reg.id}
+                className="flex items-center justify-between py-1.5 text-xs"
+              >
                 <span className="text-muted-foreground tabular-nums">
                   {format(deISO(reg.data), 'dd/MM/yyyy')}
                 </span>
                 <div className="flex items-center gap-2">
-                  {reg.peso !== null && <span className="font-medium tabular-nums">{reg.peso} kg</span>}
+                  {reg.peso !== null && (
+                    <span className="font-medium tabular-nums">
+                      {reg.peso} kg
+                    </span>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"

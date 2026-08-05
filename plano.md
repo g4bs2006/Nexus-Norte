@@ -550,3 +550,39 @@ Opção A)", mas essas opções não estão definidas em nenhum ponto do documen
 Implementado o que a própria seção descreve: formulário pós-lista com total de
 questões, quais errou e tópico. Se as opções A/C tinham outro escopo, isso
 precisa ser revisitado.
+### 10.18 Biblioteca de exercícios e de tipos de treino (corrige 4.1 / 4.3) — descoberta depois da Fase 7
+`exercicios_treino` guardava `nome` e `grupo_muscular` como texto em cada linha,
+e `treinos.tipo` era texto livre. Consequências reais no banco do usuário:
+
+- 27 linhas de exercício para **21 movimentos distintos** — "Supino Inclinado"
+  no Push e no Upper eram dois registros sem relação
+- erros de digitação virando entidades separadas (`ombos`, `costas` no lugar de
+  `bíceps`), impossíveis de agregar
+- `personal_records` referenciava `exercicio_id` (a linha por treino), então o
+  gatilho comparava o 1RM **só dentro do mesmo treino**: bater 120kg no Push
+  depois de 130kg no Upper registrava um "recorde" que não era recorde
+- a paleta de comando devolvia um resultado por treino ao buscar "Supino"
+
+Duas tabelas passam a ser a fonte única:
+
+```sql
+biblioteca_exercicios (id, nome, grupo_muscular, observacoes)
+tipos_treino          (id, nome, descricao)
+```
+
+Ambas com **índice único case-insensitive** em `lower(trim(nome))` — é o que
+impede a duplicata voltar pela porta da frente. `exercicios_treino` guarda
+`exercicio_base_id` (`on delete restrict`: não se apaga um movimento com
+histórico) e `treinos.tipo_id` (`on delete set null`: o tipo é rótulo, não
+dependência). As colunas de texto foram **removidas**, não mantidas em paralelo
+— duas fontes de verdade era exatamente o problema (mesma razão de 10.17).
+
+`personal_records.exercicio_id` virou `exercicio_base_id`, e o gatilho
+`trg_registrar_pr()` resolve o exercício base a partir de `exercicios_treino`
+antes de comparar com `max(um_rm_estimado)` **de todos os treinos**. O recorde
+agora é do movimento, como sempre deveria ter sido.
+
+**Consequência na UI:** `/treino/:exercicioId` recebe o id do exercício **base**
+e agrega o histórico de todos os treinos que o usam. Editar nome ou grupo é
+função da Biblioteca; editar séries, reps e carga alvo continua no card do
+treino, porque esses valores variam legitimamente entre treinos.

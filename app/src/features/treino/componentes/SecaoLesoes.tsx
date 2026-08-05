@@ -122,7 +122,11 @@ export function SecaoLesoes({ lesoes, hoje }: SecaoLesoesProps) {
             onClick={() => void salvar()}
             disabled={pendente}
           >
-            {idEditando ? <Pencil className="size-4" /> : <Plus className="size-4" />}
+            {idEditando ? (
+              <Pencil className="size-4" />
+            ) : (
+              <Plus className="size-4" />
+            )}
             {idEditando ? 'Salvar' : 'Registrar'}
           </Button>
           {idEditando && (

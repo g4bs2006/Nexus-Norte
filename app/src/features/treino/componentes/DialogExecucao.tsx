@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label'
 import { paraISO } from '@/lib/datas'
 import { umRmEstimado } from '../calculos'
 import { useRegistrarSessao } from '../hooks'
-import type { ExercicioTreino, Treino } from '../types'
+import type { ExercicioComBase, TreinoComTipo } from '../types'
 
 interface LinhaSerie {
   exercicioId: string
@@ -25,8 +25,8 @@ interface LinhaSerie {
 }
 
 interface DialogExecucaoProps {
-  treino: Treino
-  exercicios: readonly ExercicioTreino[]
+  treino: TreinoComTipo
+  exercicios: readonly ExercicioComBase[]
   hoje: Date
 }
 
@@ -50,7 +50,8 @@ export function DialogExecucao({
     return exercicios.flatMap((exercicio) =>
       Array.from({ length: exercicio.series }, () => ({
         exercicioId: exercicio.id,
-        carga: exercicio.carga_alvo === null ? '' : String(exercicio.carga_alvo),
+        carga:
+          exercicio.carga_alvo === null ? '' : String(exercicio.carga_alvo),
         reps: exercicio.reps_alvo === null ? '' : String(exercicio.reps_alvo),
         rpe: '',
       })),

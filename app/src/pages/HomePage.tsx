@@ -61,7 +61,6 @@ import {
 import { frequenciaSemana } from '@/features/treino/calculos'
 import {
   useExecucoes,
-  useExercicios,
   useFluxogramaTreino,
   usePersonalRecords,
   useTreinos,
@@ -119,7 +118,6 @@ export default function HomePage() {
 
   // --- Treino ---------------------------------------------------------------
   const treinos = useTreinos()
-  const exercicios = useExercicios()
   const fluxogramaTreino = useFluxogramaTreino()
   const execucoesSemana = useExecucoes(semana.de, semana.ate)
   const prs = usePersonalRecords()
@@ -201,12 +199,10 @@ export default function HomePage() {
       previstos,
     )
 
+    // O PR já traz o nome do exercício base (resolução 10.18) — não precisa
+    // mais cruzar com a lista de exercícios dos treinos
     const ultimoPr = (prs.data ?? [])[0] ?? null
-    const nomeExercicio = ultimoPr
-      ? (exercicios.data ?? []).find(
-          (item) => item.id === ultimoPr.exercicio_id,
-        )?.nome
-      : undefined
+    const nomeExercicio = ultimoPr?.exercicio_nome
 
     /**
      * Severidade da semana. Sem nada previsto no fluxograma não há aderência a
@@ -233,7 +229,6 @@ export default function HomePage() {
     semana,
     execucoesSemana.data,
     prs.data,
-    exercicios.data,
     treinos.data,
   ])
 

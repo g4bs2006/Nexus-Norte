@@ -194,6 +194,29 @@ Regras de movimento que ficaram valendo:
   texto — verde em tudo que está bem esvazia o significado do verde.
 - Nenhuma informação transmitida só por cor: sempre cor mais forma ou texto.
 
+## Biblioteca de exercícios e tipos de treino
+
+Exercício e tipo de treino eram texto livre em cada linha, o que produzia
+duplicatas silenciosas: 27 registros de exercício para 21 movimentos reais,
+"Supino Inclinado" do Push sem relação nenhuma com o do Upper, e erros de
+digitação virando entidades próprias.
+
+Agora há duas tabelas de referência — `biblioteca_exercicios` e `tipos_treino` —
+com índice único **insensível a caixa e espaço** (`lower(trim(nome))`), que é o
+que impede a duplicata voltar. O treino aponta para o tipo; o exercício do treino
+aponta para o movimento base e guarda só o que varia entre treinos: séries, reps
+alvo, carga alvo e descanso.
+
+O ganho concreto está no recorde. `personal_records` passou a referenciar o
+exercício **base**, e o gatilho compara o 1RM contra o histórico de todos os
+treinos. Antes ele comparava só dentro do mesmo treino, então bater 120 kg no
+Push depois de 130 kg no Upper registrava um recorde que não era recorde.
+
+Por consequência, `/treino/:id` recebe o id do movimento base e mostra a
+progressão somando todos os treinos que o usam, e buscar "Supino" na paleta de
+comando devolve um resultado, não um por treino. Detalhes em
+[`plano.md`, resolução 10.18](./plano.md).
+
 ## Estrutura
 
 ```

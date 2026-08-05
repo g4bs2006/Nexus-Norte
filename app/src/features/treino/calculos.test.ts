@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   frequenciaSemana,
   progressaoCarga,
+  recordesPorExercicio,
   sessoesPorData,
   sinalEstagnacao,
   umRmEstimado,
@@ -146,5 +147,65 @@ describe('volumeGrupoMuscular', () => {
 
   it('devolve objeto vazio sem séries', () => {
     expect(volumeGrupoMuscular([])).toEqual({})
+  })
+})
+
+describe('recordesPorExercicio', () => {
+  /**
+   * Um PR por linha de `personal_records`; a função reduz para um por exercício
+   * base. Este caso é exatamente o bug da resolução 10.18: o mesmo movimento
+   * registrado em dois treinos aparecia duas vezes na lista de recordes.
+   */
+  const pr = (
+    base: string,
+    nome: string,
+    um_rm_estimado: number,
+    data: string,
+  ) => ({
+    exercicio_base_id: base,
+    exercicio_nome: nome,
+    um_rm_estimado,
+    carga: 100,
+    reps: 5,
+    data,
+  })
+
+  it('mantém só o melhor 1RM de cada exercício base', () => {
+    const recordes = recordesPorExercicio([
+      pr('supino', 'Supino', 110, '2026-01-10'),
+      pr('supino', 'Supino', 125, '2026-02-10'),
+      pr('supino', 'Supino', 118, '2026-03-10'),
+    ])
+
+    expect(recordes).toHaveLength(1)
+    expect(recordes[0]?.melhor1rm).toBe(125)
+    expect(recordes[0]?.data).toBe('2026-02-10')
+  })
+
+  it('não deixa um PR mais recente e mais fraco sobrescrever o melhor', () => {
+    const recordes = recordesPorExercicio([
+      pr('agacho', 'Agachamento', 140, '2026-01-10'),
+      pr('agacho', 'Agachamento', 130, '2026-05-10'),
+    ])
+
+    expect(recordes[0]?.melhor1rm).toBe(140)
+  })
+
+  it('ordena por 1RM decrescente', () => {
+    const recordes = recordesPorExercicio([
+      pr('rosca', 'Rosca', 40, '2026-01-10'),
+      pr('terra', 'Terra', 180, '2026-01-10'),
+      pr('supino', 'Supino', 120, '2026-01-10'),
+    ])
+
+    expect(recordes.map((r) => r.exercicio_base_id)).toEqual([
+      'terra',
+      'supino',
+      'rosca',
+    ])
+  })
+
+  it('devolve lista vazia sem recordes', () => {
+    expect(recordesPorExercicio([])).toEqual([])
   })
 })
