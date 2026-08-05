@@ -998,3 +998,52 @@ duas linhas, e quebrado na tela pequena.
 - `SUBPAGINAS` em `lib/pilares.ts` guarda as páginas que não são pilares. Ficam
   **fora** de `ITENS_NAVEGACAO` de propósito: aquela lista alimenta a barra inferior,
   que já tem seis alvos numa faixa — um sétimo apertaria todos.
+
+### 10.28 Exclusão sem confirmação e alvo de toque (corrige 10.1 em diante) — descoberta em uso
+
+`DialogConfirmarExclusao` existia e era usado nas entidades "pai" com cascata —
+categoria, matéria, treino, projeto, sessão. A doc dele dizia, textualmente, que
+"para exclusões simples (uma linha sem filhos) o botão direto sem confirmação
+continua sendo usado". **A regra estava errada.**
+
+O que distingue os casos não é o tamanho da cascata — é ser irreversível, e todos
+são: o sistema não tem desfazer nem lixeira. Um lançamento, uma falta ou uma série
+apagados por engano não voltam. E no celular o argumento é mais forte: esses botões
+vivem em linhas apertadas, colados no de editar, tocados com o polegar enquanto a
+lista rola.
+
+**Quatorze exclusões disparavam `mutate` direto**, sem confirmação:
+
+| O que apagava | Onde |
+| --- | --- |
+| Lançamento | `CategoriaDetalhePage` |
+| Investimento | `SecaoInvestimentos` |
+| Avaliação, falta, lista, sessão de estudo, **documento** | `AbaAvaliacoes`, `AbaFaltas`, `AbaListas`, `AbaSessoes`, `AbaDocumentos` |
+| Registro de lesão, registro corporal, exercício do treino | `SecaoLesoes`, `SecaoCorporal`, `TreinoPage` |
+| Marco, registro do diário | `ProjetoDetalhePage` (dois) |
+| Horário de aula e fluxograma de treino | `GradeFluxograma`, pelos dois chamadores |
+
+Dois casos pediam atenção além da confirmação:
+
+- **O documento apaga arquivo, não linha.** O objeto sai do Storage e não há como
+  reenviá-lo pelo app. Era o único da lista que destruía dado fora do Postgres, e
+  era um toque sem pergunta.
+- **O do `GradeFluxograma` era invisível no celular.** `size-5` (20px) com
+  `opacity-0 group-hover:opacity-100`: desenhado para mouse e quebrado no toque das
+  duas pontas — no celular não existe hover, então o alvo ficava invisível mas
+  clicável, com metade da régua do dedo. Apagar por acidente um horário que não se
+  vê é o pior arranjo possível. Agora aparece sempre no mobile com 44px e volta ao
+  hover de `sm:` para cima, onde o mouse existe e o ícone permanente poluiria a
+  grade. Ganhou `group-focus-within` junto: quem navega por teclado também precisa
+  vê-lo.
+
+**Alvo de toque.** O trigger padrão passou de `size-9` (36px) para **`size-11`
+(44px)** no mobile, a régua do HIG, voltando a 28px de `sm:` para cima. Os botões de
+editar que dividem a linha com um de excluir subiram junto — um alvo de 44px ao lado
+de um de 36px fica torto, e o de editar é tocado pelo mesmo dedo. `SecaoCorporal`
+tinha `size-6` (24px), alvo de mouse posto numa lista de toque.
+
+**Consequência aceita:** na tabela de lançamentos da categoria, o alvo maior faz a
+coluna de ações ocupar 84px de um card de ~296px, apertando a descrição. É mais um
+argumento para essa tabela virar lista de cards — alvo de dedo não cabe em coluna de
+tabela.

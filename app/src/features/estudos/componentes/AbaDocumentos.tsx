@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
-import { Download, Trash2, Upload } from 'lucide-react'
+import { Download, Upload } from 'lucide-react'
+import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -141,26 +142,28 @@ export function AbaDocumentos({ materiaId, documentos }: AbaDocumentosProps) {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="text-muted-foreground hover:text-foreground size-9 sm:size-7"
+                      className="text-muted-foreground hover:text-foreground size-11 shrink-0 sm:size-7"
                       aria-label={`Abrir ${documento.nome}`}
                       onClick={() => void abrir(documento)}
                     >
                       <Download className="size-3.5" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-muted-foreground hover:text-status-risco size-9 sm:size-7"
-                      aria-label={`Excluir ${documento.nome}`}
-                      onClick={() =>
+                    {/*
+                      O único destes que apaga um arquivo, não só uma linha: o
+                      objeto sai do Storage e não há como reenviá-lo a partir do
+                      app. Sem confirmação, um toque errado perdia o PDF.
+                    */}
+                    <DialogConfirmarExclusao
+                      titulo={`Excluir ${documento.nome}`}
+                      mensagem="O arquivo será apagado do armazenamento, não só removido da lista. Para tê-lo de volta seria preciso enviar de novo."
+                      onConfirmar={() =>
                         excluir.mutate({
                           id: documento.id,
                           storagePath: documento.storage_path,
                         })
                       }
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
+                      pendente={excluir.isPending}
+                    />
                   </div>
                 </li>
               ))}

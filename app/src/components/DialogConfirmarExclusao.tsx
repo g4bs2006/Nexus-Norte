@@ -30,11 +30,18 @@ interface DialogConfirmarExclusaoProps {
 }
 
 /**
- * Dialog genérico de confirmação de exclusão.
+ * Dialog de confirmação de exclusão. **Todo botão que apaga passa por aqui.**
  *
- * Usado em entidades "pai" cuja exclusão em cascata pode destruir dados filhos
- * (categorias, matérias, treinos, projetos). Para exclusões simples (uma linha
- * sem filhos) o botão direto sem confirmação continua sendo usado.
+ * Era usado só em entidades "pai" com cascata (categoria, matéria, treino,
+ * projeto), e a regra escrita aqui dizia que "exclusão simples" podia ser botão
+ * direto. A regra estava errada no celular: um lançamento, uma série ou uma falta
+ * apagados por engano não voltam, e o sistema não tem desfazer nem lixeira. O que
+ * distingue os casos não é o tamanho da cascata — é ser irreversível, e todos são.
+ *
+ * No mobile o argumento é mais forte ainda: esses botões viviam em linhas apertadas
+ * com 36px de alvo, colados no de editar, tocados com o polegar enquanto a lista
+ * rola. Por isso o trigger padrão tem **44px** no toque (`size-11`), a régua do HIG,
+ * e volta a 28px de `sm:` para cima, onde há mouse.
  */
 export function DialogConfirmarExclusao({
   titulo,
@@ -60,7 +67,7 @@ export function DialogConfirmarExclusao({
             size="icon"
             className={
               classeTrigger ??
-              'text-muted-foreground hover:text-status-risco size-9 sm:size-7'
+              'text-muted-foreground hover:text-status-risco size-11 shrink-0 sm:size-7'
             }
             aria-label={titulo}
           >

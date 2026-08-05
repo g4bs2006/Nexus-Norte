@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
+import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -169,21 +170,18 @@ export function SecaoLesoes({ lesoes, hoje }: SecaoLesoesProps) {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="text-muted-foreground hover:text-foreground size-9 sm:size-7"
+                    className="text-muted-foreground hover:text-foreground size-11 shrink-0 sm:size-7"
                     aria-label="Editar registro"
                     onClick={() => iniciarEdicao(lesao)}
                   >
                     <Pencil className="size-3.5" />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground hover:text-status-risco size-9 sm:size-7"
-                    aria-label="Remover registro"
-                    onClick={() => excluir.mutate(lesao.id)}
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                  <DialogConfirmarExclusao
+                    titulo="Remover registro de lesão"
+                    mensagem={`O registro de ${lesao.regiao} em ${format(deISO(lesao.data), 'dd/MM/yyyy')}, intensidade ${lesao.intensidade}/10, será apagado — junto com o histórico que ele forma.`}
+                    onConfirmar={() => excluir.mutate(lesao.id)}
+                    pendente={excluir.isPending}
+                  />
                 </div>
               </li>
             ))}

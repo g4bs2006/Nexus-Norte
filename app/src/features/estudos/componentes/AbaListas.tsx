@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
+import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -253,21 +254,18 @@ export function AbaListas({ materiaId, registros, hoje }: AbaListasProps) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-muted-foreground hover:text-foreground size-9 sm:size-7"
+                        className="text-muted-foreground hover:text-foreground size-11 shrink-0 sm:size-7"
                         aria-label="Editar registro"
                         onClick={() => iniciarEdicao(registro)}
                       >
                         <Pencil className="size-3.5" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-status-risco size-9 sm:size-7"
-                        aria-label="Remover registro"
-                        onClick={() => excluir.mutate(registro.id)}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
+                      <DialogConfirmarExclusao
+                        titulo="Remover registro de lista"
+                        mensagem={`A lista de ${format(deISO(registro.data), 'dd/MM/yyyy')} com ${registro.total_questoes} questões será removida, junto com as questões erradas anotadas nela.`}
+                        onConfirmar={() => excluir.mutate(registro.id)}
+                        pendente={excluir.isPending}
+                      />
                     </div>
                   </li>
                 )

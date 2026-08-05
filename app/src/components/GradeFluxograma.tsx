@@ -1,5 +1,4 @@
-import { Trash2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { DIAS_SEMANA } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
@@ -81,15 +80,24 @@ export function GradeFluxograma({
                       </p>
                     </div>
                     {onExcluir && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-status-risco size-5 opacity-0 transition-opacity group-hover:opacity-100"
-                        aria-label={`Remover ${item.rotulo}`}
-                        onClick={() => onExcluir(item.id)}
-                      >
-                        <Trash2 className="size-3" />
-                      </Button>
+                      /*
+                       * Era um `size-5` (20px) com `opacity-0
+                       * group-hover:opacity-100` — desenhado para mouse e quebrado
+                       * no toque das duas pontas: no celular não existe hover, então
+                       * o alvo ficava invisível mas clicável, e 20px é metade da
+                       * régua do dedo. Apagar por acidente um horário que não se vê
+                       * é o pior arranjo possível.
+                       *
+                       * Agora é visível sempre no mobile com 44px, e volta a
+                       * aparecer no hover de `sm:` para cima, onde o mouse existe e
+                       * o ícone permanente poluiria a grade.
+                       */
+                      <DialogConfirmarExclusao
+                        titulo={`Remover ${item.rotulo}`}
+                        mensagem={`${item.rotulo}, ${hora(item.horario_inicio)}–${hora(item.horario_fim)}, sai da rotina fixa da semana.`}
+                        onConfirmar={() => onExcluir(item.id)}
+                        classeTrigger="text-muted-foreground hover:text-status-risco size-11 shrink-0 sm:size-5 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+                      />
                     )}
                   </li>
                 ))}

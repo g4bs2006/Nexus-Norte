@@ -1,7 +1,6 @@
 import { useMemo, type ReactNode } from 'react'
 import { format } from 'date-fns'
-import { Trash2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import {
   Card,
   CardContent,
@@ -100,16 +99,12 @@ export function SecaoInvestimentos({
                     {formatarMoeda(item.valor)}
                   </span>
                   <DialogInvestimento hoje={hojeDate} investimento={item} />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground hover:text-status-risco size-9 sm:size-7"
-                    aria-label="Excluir investimento"
-                    onClick={() => excluir.mutate(item.id)}
-                    disabled={excluir.isPending}
-                  >
-                    <Trash2 className="size-3.5" />
-                  </Button>
+                  <DialogConfirmarExclusao
+                    titulo={`Excluir ${item.tipo}`}
+                    mensagem={`${formatarMoeda(item.valor)} de ${item.tipo} em ${format(deISO(item.data), 'dd/MM/yyyy')}. O total investido será recalculado sem ele.`}
+                    onConfirmar={() => excluir.mutate(item.id)}
+                    pendente={excluir.isPending}
+                  />
                 </div>
               </li>
             ))}

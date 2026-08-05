@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Dumbbell, Trash2 } from 'lucide-react'
+import { Dumbbell } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
 import { EstadoVazio } from '@/components/EstadoVazio'
 import { SkeletonPagina } from '@/components/Skeletons'
@@ -8,7 +8,6 @@ import {
   GradeFluxograma,
   type ItemFluxograma,
 } from '@/components/GradeFluxograma'
-import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -439,17 +438,14 @@ export default function TreinoPage() {
                                   treinoNome={treino.nome}
                                   exercicio={exercicio}
                                 />
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="text-muted-foreground hover:text-status-risco size-9 sm:size-7 shrink-0"
-                                  aria-label={`Remover ${exercicio.nome}`}
-                                  onClick={() =>
+                                <DialogConfirmarExclusao
+                                  titulo={`Remover ${exercicio.nome}`}
+                                  mensagem={`O exercício sai do treino ${treino.nome}. As séries já registradas em sessões passadas continuam no histórico.`}
+                                  onConfirmar={() =>
                                     excluirExercicio.mutate(exercicio.id)
                                   }
-                                >
-                                  <Trash2 className="size-3.5" />
-                                </Button>
+                                  pendente={excluirExercicio.isPending}
+                                />
                               </div>
                             </li>
                           ))}

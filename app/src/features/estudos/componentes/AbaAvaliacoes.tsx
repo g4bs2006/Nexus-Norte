@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus } from 'lucide-react'
+import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -271,15 +272,16 @@ export function AbaAvaliacoes({
                         : '—'}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-status-risco size-9 sm:size-7"
-                        aria-label={`Excluir ${avaliacao.nome}`}
-                        onClick={() => excluir.mutate(avaliacao.id)}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
+                      <DialogConfirmarExclusao
+                        titulo={`Excluir ${avaliacao.nome}`}
+                        mensagem={
+                          avaliacao.nota === null
+                            ? `${avaliacao.nome} sai da matéria e do cálculo da média projetada.`
+                            : `A nota ${formatarDecimal(avaliacao.nota)} de ${avaliacao.nome} será perdida e a média recalculada sem ela.`
+                        }
+                        onConfirmar={() => excluir.mutate(avaliacao.id)}
+                        pendente={excluir.isPending}
+                      />
                     </TableCell>
                   </TableRow>
                 ))}

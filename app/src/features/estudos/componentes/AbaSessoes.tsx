@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { format, subDays } from 'date-fns'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
+import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import {
   Bar,
   BarChart,
@@ -262,21 +263,18 @@ export function AbaSessoes({ materiaId, sessoes, hoje }: AbaSessoesProps) {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="text-muted-foreground hover:text-foreground size-9 sm:size-7"
+                      className="text-muted-foreground hover:text-foreground size-11 shrink-0 sm:size-7"
                       aria-label="Editar sessão"
                       onClick={() => iniciarEdicao(sessao)}
                     >
                       <Pencil className="size-3.5" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-muted-foreground hover:text-status-risco size-9 sm:size-7 shrink-0"
-                      aria-label="Remover sessão"
-                      onClick={() => excluir.mutate(sessao.id)}
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
+                    <DialogConfirmarExclusao
+                      titulo="Remover sessão de estudo"
+                      mensagem={`Os ${sessao.duracao_minutos} min de ${format(deISO(sessao.data), 'dd/MM/yyyy')} saem do total de horas da matéria e do gráfico.`}
+                      onConfirmar={() => excluir.mutate(sessao.id)}
+                      pendente={excluir.isPending}
+                    />
                   </div>
                 </li>
               ))}

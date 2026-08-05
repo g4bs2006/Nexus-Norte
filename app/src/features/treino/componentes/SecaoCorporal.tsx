@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
-import { ImageUp, Trash2 } from 'lucide-react'
+import { ImageUp } from 'lucide-react'
+import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import {
   CartesianGrid,
   Line,
@@ -204,16 +205,21 @@ export function SecaoCorporal({ registros, hoje }: SecaoCorporalProps) {
                       {reg.peso} kg
                     </span>
                   )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-muted-foreground hover:text-status-risco size-6"
-                    aria-label="Excluir registro corporal"
-                    onClick={() => excluir.mutate(reg.id)}
-                    disabled={excluir.isPending}
-                  >
-                    <Trash2 className="size-3" />
-                  </Button>
+                  {/* Era `size-6` — 24px, alvo de mouse posto numa lista de toque */}
+                  <DialogConfirmarExclusao
+                    titulo="Excluir registro corporal"
+                    mensagem={`O registro de ${format(deISO(reg.data), 'dd/MM/yyyy')}${
+                      reg.peso !== null
+                        ? ` com ${formatarDecimal(reg.peso)} kg`
+                        : ''
+                    } sai do histórico e do gráfico de evolução.${
+                      reg.foto_storage_path
+                        ? ' A foto de progresso também será apagada.'
+                        : ''
+                    }`}
+                    onConfirmar={() => excluir.mutate(reg.id)}
+                    pendente={excluir.isPending}
+                  />
                 </div>
               </li>
             ))}

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { format } from 'date-fns'
-import { ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, Pencil, Plus } from 'lucide-react'
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { PageHeader } from '@/components/PageHeader'
 import { SkeletonPagina } from '@/components/Skeletons'
@@ -345,15 +345,12 @@ export default function ProjetoDetalhePage() {
                           ))}
                         </SelectContent>
                       </Select>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-status-risco size-9 sm:size-7"
-                        aria-label={`Remover ${marco.nome}`}
-                        onClick={() => excluirMarco.mutate(marco.id)}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
+                      <DialogConfirmarExclusao
+                        titulo={`Remover ${marco.nome}`}
+                        mensagem="O marco sai do projeto e do cálculo de progresso. Se ele tinha prazo, deixa de aparecer no calendário."
+                        onConfirmar={() => excluirMarco.mutate(marco.id)}
+                        pendente={excluirMarco.isPending}
+                      />
                     </div>
                   </li>
                 ))}
@@ -467,7 +464,7 @@ export default function ProjetoDetalhePage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-muted-foreground hover:text-foreground size-9 sm:size-7 shrink-0"
+                        className="text-muted-foreground hover:text-foreground size-11 shrink-0 sm:size-7"
                         aria-label="Editar registro"
                         onClick={() => {
                           setIdLogEditando(log.id)
@@ -476,15 +473,12 @@ export default function ProjetoDetalhePage() {
                       >
                         <Pencil className="size-3.5" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-status-risco size-9 sm:size-7 shrink-0"
-                        aria-label="Remover registro"
-                        onClick={() => excluirLog.mutate(log.id)}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
+                      <DialogConfirmarExclusao
+                        titulo="Remover registro do diário"
+                        mensagem="O texto será apagado. É registro escrito à mão, então não há de onde reconstruí-lo."
+                        onConfirmar={() => excluirLog.mutate(log.id)}
+                        pendente={excluirLog.isPending}
+                      />
                     </div>
                   </li>
                 ))}

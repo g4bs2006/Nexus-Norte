@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { format } from 'date-fns'
-import { Pencil, Plus, Trash2 } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
+import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -173,21 +174,18 @@ export function AbaFaltas({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="text-muted-foreground hover:text-foreground size-9 sm:size-7"
+                      className="text-muted-foreground hover:text-foreground size-11 shrink-0 sm:size-7"
                       aria-label="Editar falta"
                       onClick={() => iniciarEdicao(falta)}
                     >
                       <Pencil className="size-3.5" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-muted-foreground hover:text-status-risco size-9 sm:size-7 shrink-0"
-                      aria-label="Remover falta"
-                      onClick={() => excluir.mutate(falta.id)}
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
+                    <DialogConfirmarExclusao
+                      titulo="Remover falta"
+                      mensagem={`A falta de ${format(deISO(falta.data), 'dd/MM/yyyy')} será removida e o total de faltas da matéria recalculado.`}
+                      onConfirmar={() => excluir.mutate(falta.id)}
+                      pendente={excluir.isPending}
+                    />
                   </div>
                 </li>
               ))}

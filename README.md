@@ -360,6 +360,24 @@ a abre. Isso tirou 63 kB gzip do carregamento da página.
 
 Detalhes em [`plano.md`, resolução 10.20](./plano.md).
 
+## Apagar dado pede confirmação
+
+**Todo botão que apaga passa por uma confirmação**, não só os que apagam entidades
+com cascata. A distinção antiga — "exclusão simples vai direto" — não se sustentava:
+o sistema não tem desfazer nem lixeira, então um lançamento, uma falta ou uma série
+apagados por engano não voltam. Eram quatorze botões disparando na hora, incluindo o
+de documento, que apaga o arquivo do armazenamento e não só a linha.
+
+Cada confirmação diz **o que se perde**, com o dado na frente: o valor e a data do
+lançamento, a nota da avaliação, os minutos da sessão. "Tem certeza?" não é
+informação.
+
+Os alvos de toque subiram para **44px no celular** e voltam a 28px no desktop. Um
+deles, o de remover horário do fluxograma, tinha 20px e só aparecia no `hover` — o
+que no celular significa invisível e clicável ao mesmo tempo.
+
+Detalhes em [`plano.md`, resolução 10.28](./plano.md).
+
 ## Estrutura
 
 ```

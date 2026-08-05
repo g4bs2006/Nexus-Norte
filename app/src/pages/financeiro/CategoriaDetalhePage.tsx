@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Trash2 } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { AnelProgresso } from '@/components/AnelProgresso'
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { PageHeader } from '@/components/PageHeader'
@@ -174,7 +174,13 @@ export default function CategoriaDetalhePage() {
                       <TableHead className="w-20 sm:w-28">Data</TableHead>
                       <TableHead>Descrição</TableHead>
                       <TableHead className="text-right">Valor</TableHead>
-                      <TableHead className="w-11 sm:w-20" />
+                      {/*
+                        84px: o alvo de excluir subiu para 44px no toque e agora
+                        divide a célula com o de editar. Aperta a descrição, e é
+                        mais um motivo para esta tabela virar lista de cards no
+                        mobile — o alvo do dedo não cabe em coluna de tabela.
+                      */}
+                      <TableHead className="w-[5.25rem] sm:w-20" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -202,18 +208,18 @@ export default function CategoriaDetalhePage() {
                               hoje={hoje}
                               lancamento={lancamento}
                             />
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-muted-foreground hover:text-status-risco size-9 sm:size-7"
-                              aria-label="Excluir lançamento"
-                              onClick={() =>
+                            <DialogConfirmarExclusao
+                              titulo="Excluir lançamento"
+                              mensagem={`${formatarMoeda(lancamento.valor)} em ${format(deISO(lancamento.data), 'dd/MM/yyyy')}${
+                                lancamento.descricao
+                                  ? ` — ${lancamento.descricao}`
+                                  : ''
+                              }. Essa ação não pode ser desfeita.`}
+                              onConfirmar={() =>
                                 excluirLancamento.mutate(lancamento.id)
                               }
-                              disabled={excluirLancamento.isPending}
-                            >
-                              <Trash2 className="size-3.5" />
-                            </Button>
+                              pendente={excluirLancamento.isPending}
+                            />
                           </div>
                         </TableCell>
                       </TableRow>
