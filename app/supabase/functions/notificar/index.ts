@@ -64,22 +64,24 @@ async function candidatasAulaTreino(agora: Date): Promise<Candidata[]> {
   const janelaInicio = paraHora(new Date(agora.getTime() + 15 * 60 * 1000))
   const janelaFim = paraHora(new Date(agora.getTime() + 20 * 60 * 1000))
 
-  const [{ data: fluxograma }, { data: excecoes }, { data: materias }] =
+  const [{ data: fluxograma }, { data: excecoes }, { data: materias }, { data: treinos }] =
     await Promise.all([
       supabase
         .from('fluxograma_semanal')
-        .select('id, dia_semana, horario_inicio, materia_id, treino_id')
+        .select('id, dia_semana, horario_inicio, horario_fim, materia_id, treino_id')
         .eq('dia_semana', diaSemana),
       supabase
         .from('excecoes_fluxograma')
         .select(
-          'fluxograma_id, data, status, nova_data, novo_horario_inicio',
+          'fluxograma_id, data, status, nova_data, novo_horario_inicio, novo_horario_fim',
         )
         .or(`data.eq.${hojeISO},nova_data.eq.${hojeISO}`),
       supabase.from('materias').select('id, nome, data_inicio, data_fim'),
+      supabase.from('treinos').select('id, nome, tipos_treino(nome)'),
     ])
 
   const materiaPorId = new Map((materias ?? []).map((m) => [m.id, m]))
+  const treinoPorId = new Map((treinos ?? []).map((t) => [t.id, t]))
   const canceladoHoje = new Set(
     (excecoes ?? [])
       .filter((e) => e.status === 'cancelado' && e.data === hojeISO)
@@ -105,6 +107,32 @@ async function candidatasAulaTreino(agora: Date): Promise<Candidata[]> {
     return true
   }
 
+  /**
+   * Nome (matéria ou treino, com o tipo do treino entre parênteses — "Push
+   * (Hipertrofia)") e o corpo com os dois horários, não só o de início.
+   */
+  function nomeECorpo(
+    regra: { materia_id: string | null; treino_id: string | null },
+    horarioInicio: string,
+    horarioFim: string | null | undefined,
+  ): { nome: string; corpo: string } {
+    const ehAula = regra.materia_id !== null
+    let nome: string
+    if (ehAula) {
+      nome = materiaPorId.get(regra.materia_id as string)?.nome ?? 'Aula'
+    } else {
+      const treino = regra.treino_id ? treinoPorId.get(regra.treino_id) : undefined
+      const tipoNome = (
+        treino?.tipos_treino as unknown as { nome: string } | null
+      )?.nome
+      nome = treino ? (tipoNome ? `${treino.nome} (${tipoNome})` : treino.nome) : 'Treino'
+    }
+    const periodo = horarioFim
+      ? `das ${horarioInicio.slice(0, 5)} às ${horarioFim.slice(0, 5)}`
+      : `às ${horarioInicio.slice(0, 5)}`
+    return { nome, corpo: `${nome} · ${periodo}` }
+  }
+
   for (const regra of fluxograma ?? []) {
     if (canceladoHoje.has(regra.id) || remarcadoParaFora.has(regra.id)) {
       continue
@@ -114,16 +142,14 @@ async function candidatasAulaTreino(agora: Date): Promise<Candidata[]> {
     if (horario < janelaInicio || horario >= janelaFim) continue
 
     const ehAula = regra.materia_id !== null
-    const nome = ehAula
-      ? (materiaPorId.get(regra.materia_id as string)?.nome ?? 'Aula')
-      : 'Treino'
+    const { corpo } = nomeECorpo(regra, horario, regra.horario_fim)
 
     candidatas.push({
       tipo: 'aula_treino',
       origemId: regra.id,
       dataReferencia: hojeISO,
       titulo: ehAula ? 'Aula em 15 minutos' : 'Treino em 15 minutos',
-      corpo: `${nome} às ${horario.slice(0, 5)}`,
+      corpo,
       rota: ehAula ? `/estudos/${regra.materia_id}` : '/treino',
     })
   }
@@ -137,16 +163,15 @@ async function candidatasAulaTreino(agora: Date): Promise<Candidata[]> {
     if (horario < janelaInicio || horario >= janelaFim) continue
 
     const ehAula = regra.materia_id !== null
-    const nome = ehAula
-      ? (materiaPorId.get(regra.materia_id as string)?.nome ?? 'Aula')
-      : 'Treino'
+    const horarioFim = excecao.novo_horario_fim ?? regra.horario_fim
+    const { corpo } = nomeECorpo(regra, horario, horarioFim)
 
     candidatas.push({
       tipo: 'aula_treino',
       origemId: regra.id,
       dataReferencia: hojeISO,
       titulo: ehAula ? 'Aula em 15 minutos (remarcada)' : 'Treino em 15 minutos (remarcado)',
-      corpo: `${nome} às ${horario.slice(0, 5)}`,
+      corpo,
       rota: ehAula ? `/estudos/${regra.materia_id}` : '/treino',
     })
   }

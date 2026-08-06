@@ -44,7 +44,13 @@ self.addEventListener('push', (evento) => {
     self.registration.showNotification(title, {
       body,
       icon: '/icon-192.png',
-      badge: '/icon-192.png',
+      // Ícone colorido (`icon`) é o que aparece expandido, dentro da
+      // notificação — mas a barra de status do Android desenha `badge` como
+      // silhueta monocromática a partir do canal alfa. Usar o ícone colorido
+      // (opaco, sem transparência real) ali também dava um quadrado branco
+      // sólido — daí este PNG à parte, só com os pontinhos e fundo
+      // transparente.
+      badge: '/badge-monocromatico.png',
       data: { rota: rota ?? '/' },
     }),
   )
