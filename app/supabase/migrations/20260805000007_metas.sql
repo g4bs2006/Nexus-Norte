@@ -10,7 +10,7 @@
 -- para saber de onde tirar o progresso real, nunca para herdar o alvo.
 -- =============================================================================
 
-create table public.metas (
+create table if not exists public.metas (
   id uuid primary key default gen_random_uuid(),
   tipo text not null check (tipo in ('numerica', 'marco', 'habito', 'livre')),
   titulo text not null,
@@ -35,7 +35,7 @@ create table public.metas (
 comment on table public.metas is
   'Meta unificada entre pilares. No máximo uma FK de pilar (categoria_id/materia_id/tipo_treino_id/projeto_id) preenchida por linha — checado na aplicação, não aqui. valor_alvo é independente de categorias.meta_mensal.';
 
-create table public.metas_checkins (
+create table if not exists public.metas_checkins (
   id uuid primary key default gen_random_uuid(),
   meta_id uuid not null references public.metas(id) on delete cascade,
   data date not null,
@@ -46,11 +46,11 @@ create table public.metas_checkins (
 comment on table public.metas_checkins is
   'Um check-in por dia por meta de hábito. feito=false representa um dia explicitamente marcado como não feito (distinto de nenhum registro).';
 
-create index metas_categoria_id_idx on public.metas(categoria_id) where categoria_id is not null;
-create index metas_materia_id_idx on public.metas(materia_id) where materia_id is not null;
-create index metas_tipo_treino_id_idx on public.metas(tipo_treino_id) where tipo_treino_id is not null;
-create index metas_projeto_id_idx on public.metas(projeto_id) where projeto_id is not null;
-create index metas_checkins_meta_id_idx on public.metas_checkins(meta_id);
+create index if not exists metas_categoria_id_idx on public.metas(categoria_id) where categoria_id is not null;
+create index if not exists metas_materia_id_idx on public.metas(materia_id) where materia_id is not null;
+create index if not exists metas_tipo_treino_id_idx on public.metas(tipo_treino_id) where tipo_treino_id is not null;
+create index if not exists metas_projeto_id_idx on public.metas(projeto_id) where projeto_id is not null;
+create index if not exists metas_checkins_meta_id_idx on public.metas_checkins(meta_id);
 
 -- -----------------------------------------------------------------------------
 -- progresso_meta: agrega o dado real do pilar linkado, no período da meta
