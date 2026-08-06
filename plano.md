@@ -1567,3 +1567,60 @@ registro com `estado: "activated"`.
 **Próxima etapa, não iniciada:** o handler de `push` em si, e o que deve
 disparar uma notificação (aula, treino, conta a vencer, prazo de meta) — fica
 pra uma conversa própria antes de implementar.
+
+### 10.42 Notificações push — os três gatilhos discutidos na 10.41
+
+Ele confirmou os três gatilhos (aula/treino, conta a vencer, prazo de prova ou
+meta) e a antecedência de cada um: 15 min antes pra aula/treino, no dia pra
+conta, 1 dia antes pra prova/meta.
+
+**Schema novo**, sem tocar nas tabelas de pilar: `push_subscriptions`
+(endpoint + chaves do protocolo Web Push, uma por navegador que autorizou) e
+`notificacoes_enviadas` (dedup — chave única `tipo`+`origem_id`+
+`data_referencia`, sem ela o cron reenviaria o mesmo aviso a cada execução).
+
+**Edge Function `notificar`** (`supabase/functions/notificar/index.ts`),
+Deno, chamada pelo `pg_cron` a cada 5 minutos via `pg_net`:
+- Aula/treino: lê `fluxograma_semanal` do dia da semana atual, cruza com
+  `excecoes_fluxograma` (cancelado sai, remarcado-pra-hoje entra por um
+  caminho à parte) e com o período da matéria (mesma regra da 10.38), numa
+  janela de 15-20 min à frente alinhada ao próprio intervalo do cron.
+  **Simplificação assumida:** não cobre remarcação em cadeia (remarcar de
+  novo o que já foi remarcado) — caso raro demais pra pagar a complexidade.
+- Conta/prova/meta: só rodam quando o relógio cai na janela das 8h — o mesmo
+  cron de 5 em 5 min serve os quatro gatilhos, sem precisar de um segundo
+  agendamento.
+- Envia via `web-push` (`npm:web-push` — Edge Functions do Supabase suportam
+  `npm:` no Deno), removendo a inscrição do banco se o navegador devolver
+  404/410 (desinstalou o app, limpou dados).
+
+**Autenticação da chamada do cron:** não usa a service role key — um segredo
+próprio (`CRON_SECRET`), gerado uma vez e guardado no **Vault** do Postgres,
+comparado contra o header `x-cron-secret`. A migration do agendamento
+(`20260806000005_cron_notificacoes.sql`) é git-safe: não tem valor nenhum de
+segredo dentro, só a referência `vault.decrypted_secrets where name =
+'cron_secret'` — o valor em si foi inserido via `execute_sql`, fora de
+qualquer arquivo versionado.
+
+**Cliente:** `features/notificacoes/` (api + hooks, sem pilar próprio, mesmo
+espírito de Metas) — pede permissão, inscreve via `PushManager`, salva
+endpoint+chaves no banco. Card na Home (`CardNotificacoes`) com os três
+estados possíveis (ativar / ativado / bloqueado nas configs do navegador).
+`sw.ts` ganhou os handlers de `push` (mostra a notificação) e
+`notificationclick` (foca uma aba já aberta e navega pra rota certa via
+`postMessage`, em vez de sempre abrir janela nova).
+
+**Verificado o que deu pra verificar nesta sessão:** a Edge Function
+implantada responde 500 (não 401) ao ser chamada com o `x-cron-secret`
+certo — confirma que a autenticação está funcionando; o 500 é esperado até as
+chaves VAPID serem configuradas. O clique real de "Ativar notificações" não
+foi testado em navegador automatizado porque o sandbox deste ambiente nega
+`Notification.permission` incondicionalmente (confirmado testando até em
+`about:blank`) — precisa ser testado num navegador de verdade.
+
+**Pendente, fora do meu alcance por aqui:** 4 segredos precisam ser
+configurados manualmente (Dashboard do Supabase ou `supabase secrets set`) —
+`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `CRON_SECRET` — e a
+`VITE_VAPID_PUBLIC_KEY` (pública, sem risco) nas variáveis de ambiente da
+Vercel. Sem tool de "definir secret de Edge Function" disponível nesta
+sessão; os valores foram passados ao usuário diretamente na conversa.

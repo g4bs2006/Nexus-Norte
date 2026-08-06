@@ -84,6 +84,7 @@ import { MiniCard } from '@/features/home/componentes/MiniCard'
 import { AvisoTreinoAberto } from '@/features/treino/componentes/AvisoTreinoAberto'
 import { IndicadorSono } from '@/features/home/componentes/IndicadorSono'
 import { SecaoMetas } from '@/features/home/componentes/SecaoMetas'
+import { CardNotificacoes } from '@/features/notificacoes/componentes/CardNotificacoes'
 
 const EVENTOS_NA_HOME = 5
 const DIAS_PROXIMOS_EVENTOS = 14
@@ -671,6 +672,8 @@ export default function HomePage() {
             )}
           </CardContent>
         </Card>
+
+        <CardNotificacoes />
 
         <p className="text-muted-foreground text-xs">
           Mês de referência: {format(deISO(inicioMes), 'MMMM yyyy')}

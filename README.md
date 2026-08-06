@@ -41,6 +41,7 @@ Calendário que amarra os quatro.
 - [Padrões compartilhados de UI](#padrões-compartilhados-de-ui)
 - [Convenções de código](#convenções-de-código)
 - [PWA](#pwa)
+- [Notificações push](#notificações-push)
 - [Deploy (Vercel)](#deploy-vercel)
 - [Segurança](#segurança)
 
@@ -667,6 +668,26 @@ por isso vive num `tsconfig.sw.json` próprio, mesmo padrão de
 `tsconfig.node.json`.
 
 Detalhes: [`plano.md`, resolução 10.41](./plano.md).
+
+## Notificações push
+
+Três gatilhos: aula/treino do fluxograma (15 min antes), conta a vencer (no
+dia) e prova ou meta com prazo (1 dia antes). Uma Edge Function
+(`supabase/functions/notificar`) verifica os três a cada 5 minutos via
+`pg_cron` + `pg_net` — sem servidor externo nenhum, tudo dentro do próprio
+Postgres.
+
+A chamada do cron se autentica com um segredo próprio guardado no
+**Vault** do Postgres, não com a service role key — a migration de
+agendamento não tem nenhum valor sensível dentro, só a referência pelo nome.
+Dedup por uma tabela (`notificacoes_enviadas`) evita reenviar o mesmo aviso a
+cada execução do cron.
+
+No cliente, `features/notificacoes/` cuida de pedir permissão, inscrever via
+`PushManager` e salvar a inscrição no banco — um card na Home
+(`CardNotificacoes`), sem tela de configuração própria ainda.
+
+Detalhes: [`plano.md`, resolução 10.42](./plano.md).
 
 ---
 

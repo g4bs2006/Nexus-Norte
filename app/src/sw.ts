@@ -25,3 +25,56 @@ self.skipWaiting()
 self.addEventListener('activate', () => {
   void self.clients.claim()
 })
+
+/**
+ * Notificações push (discussão em uso, 06/08). O payload vem da Edge
+ * Function `notificar` como JSON: `{ title, body, rota }`. `rota` é onde
+ * clicar na notificação deve levar — mesma ideia de `EventoCalendario.rota`,
+ * a página nem sempre é a Home.
+ */
+self.addEventListener('push', (evento) => {
+  if (!evento.data) return
+  const { title, body, rota } = evento.data.json() as {
+    title: string
+    body: string
+    rota?: string
+  }
+
+  evento.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      data: { rota: rota ?? '/' },
+    }),
+  )
+})
+
+/**
+ * Clique na notificação: foca uma aba já aberta do app (navegando pra rota
+ * certa) em vez de sempre abrir uma janela nova — quem já está com o Nexus
+ * aberto não precisa de uma segunda aba.
+ */
+self.addEventListener('notificationclick', (evento) => {
+  evento.notification.close()
+  const rota = (evento.notification.data as { rota?: string })?.rota ?? '/'
+
+  evento.waitUntil(
+    (async () => {
+      const clientes = await self.clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true,
+      })
+      const existente = clientes.find((cliente) => 'focus' in cliente) as
+        | WindowClient
+        | undefined
+
+      if (existente) {
+        await existente.focus()
+        existente.postMessage({ tipo: 'navegar', rota })
+      } else {
+        await self.clients.openWindow(rota)
+      }
+    })(),
+  )
+})

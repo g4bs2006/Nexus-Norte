@@ -1,6 +1,7 @@
 import { lazy } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
+import { useNavegacaoPorNotificacao } from '@/features/notificacoes/hooks'
 
 /**
  * Rotas carregadas sob demanda (plano, seção 8 — polimento de performance).
@@ -32,6 +33,8 @@ const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
 
 /** Estrutura de rotas conforme plano, seção 1.1. */
 export default function App() {
+  useNavegacaoPorNotificacao()
+
   return (
     <Routes>
       <Route element={<AppShell />}>

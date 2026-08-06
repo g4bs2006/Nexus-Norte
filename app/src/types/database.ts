@@ -813,6 +813,30 @@ export type Database = {
           },
         ]
       }
+      notificacoes_enviadas: {
+        Row: {
+          data_referencia: string
+          enviado_em: string
+          id: string
+          origem_id: string
+          tipo: string
+        }
+        Insert: {
+          data_referencia: string
+          enviado_em?: string
+          id?: string
+          origem_id: string
+          tipo: string
+        }
+        Update: {
+          data_referencia?: string
+          enviado_em?: string
+          id?: string
+          origem_id?: string
+          tipo?: string
+        }
+        Relationships: []
+      }
       personal_records: {
         Row: {
           carga: number
@@ -931,6 +955,30 @@ export type Database = {
           nome?: string
           prazo_alvo?: string | null
           status?: string
+        }
+        Relationships: []
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
         }
         Relationships: []
       }
