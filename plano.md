@@ -1421,3 +1421,55 @@ filtrar antes de passar. Teste novo cobre esse caso específico.
 Alimentação (78%), Assinaturas (7%), Lanche (7%), Bebidas - Refrigerante (6%),
 Doces (2%) — barras proporcionais, cor de cada categoria, sem a categoria de
 receita.
+
+### 10.38 Estudos: início/fim das aulas por matéria, e editar avaliação
+
+Ele pediu para registrar "que dia as aulas são" com data de início e fim. A
+primeira metade **já existia**: `DialogFluxograma` (botão "Horário" na página
+de Estudos) já deixa marcar dia da semana + horário por matéria, alimentando
+"Aulas de hoje", a grade semanal e a agenda do Calendário. Não foi construído
+de novo — só apontado onde já está.
+
+O que faltava de verdade: `materias.semestre` era texto livre ("2026.2"), sem
+data nenhuma por trás. Consequência real, discutida antes de construir: o
+fluxograma de uma matéria segue gerando "aula hoje" pra sempre, mesmo depois do
+semestre acabar, até alguém apagar o horário à mão.
+
+**Duas decisões confirmadas antes de codar:**
+1. A data mora na **matéria** (`data_inicio`/`data_fim`, ambas opcionais), não em
+   cada linha de `fluxograma_semanal` — uma matéria pode ter Segunda e Quarta na
+   grade, e duplicar a mesma data em cada linha violaria a fonte única de
+   verdade. `expandirRecorrencia`/`fluxograma_semanal` continuam sem saber de
+   período nenhum; quem cruza é a leitura da ocorrência.
+2. O efeito é **funcional**, não só informativo: fora do intervalo, a aula some
+   de "Aulas de hoje" (`EstudosPage`) e da agenda do Calendário
+   (`eventosFluxograma`) — como se o semestre tivesse mesmo acabado. A **grade
+   semanal** (tela de gerenciar horários) continua mostrando tudo, período
+   incluído ou não: ela responde "o que está cadastrado", não "o que tenho
+   hoje", e esconder o horário de quem quer revisá-lo/reativá-lo seria pior.
+
+Nova função pura `dentroDoPeriodoMateria()` em `estudos/calculos.ts`, testada.
+Em `eventos.ts` (Calendário), o mesmo cheque entrou como um parâmetro opcional
+a mais de `eventosFluxograma()` (`periodoPorMateria`, default `Map` vazio) — não
+importa `dentroDoPeriodoMateria` de Estudos porque `eventos.ts` é
+propositalmente pillar-agnostic (só trabalha com formas `Fonte*`, nunca com
+tipos de domínio de outro pilar); a checagem de 2 linhas foi duplicada em vez
+de criar essa dependência cruzada. Todos os parâmetros novos são opcionais com
+default, então nenhum teste existente de `eventosFluxograma`/`FontesCalendario`
+precisou mudar.
+
+**Editar avaliação (pedido no meio da sessão).** `AbaAvaliacoes` só deixava
+editar a nota — nome, peso e data só existiam no momento da criação; mudar
+qualquer um deles exigia apagar e recriar, perdendo a nota. Resolvido do jeito
+já estabelecido no projeto ("um editor, não dois"): o mesmo card "Nova
+avaliação" passa a servir de editor — um lápis por linha carrega os campos no
+formulário, o botão vira "Salvar", e "Cancelar" volta ao modo de criação. Sem
+diálogo novo.
+
+**Verificado no navegador, com dado real, tudo limpo depois:**
+- Horário criado para "Física IV" numa quinta (sem período) → apareceu em
+  "Aulas de hoje".
+- `data_fim` = ontem → sumiu de "Aulas de hoje" ("Nenhuma aula prevista para
+  hoje"), mas a grade semanal continuou mostrando o horário normalmente.
+- Avaliação de teste criada, editada (nome, peso 2→3, data) e conferida direto
+  no banco: os três campos gravaram certo.

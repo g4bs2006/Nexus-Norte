@@ -417,6 +417,20 @@ usando ela.
 
 Detalhes em [`plano.md`, resolução 10.37](./plano.md).
 
+## Início e fim das aulas, por matéria
+
+`materias.semestre` era texto livre, sem data por trás — o fluxograma de uma
+matéria seguia gerando "aula hoje" mesmo depois do semestre acabar. Início e
+fim ficam na matéria (não em cada horário do fluxograma, que a compartilha com
+Treino) e são opcionais: sem eles, nada muda. Com eles, a aula some de "Aulas
+de hoje" e da agenda do Calendário fora do intervalo — a grade de horários
+continua mostrando tudo, é a tela de gerenciar, não de responder "e hoje?".
+
+De quebra, editar uma avaliação (nome, peso, data) — antes só a nota era
+editável, e mudar qualquer outro campo exigia apagar e recriar.
+
+Detalhes em [`plano.md`, resolução 10.38](./plano.md).
+
 ## Apagar dado pede confirmação
 
 **Todo botão que apaga passa por uma confirmação**, não só os que apagam entidades
