@@ -177,6 +177,77 @@ describe('eventosFluxograma', () => {
     const ids = eventos.map((evento) => evento.id)
     expect(new Set(ids).size).toBe(ids.length)
   })
+
+  describe('período da matéria (discussão em uso, 06/08)', () => {
+    it('omite a ocorrência antes do início do período', () => {
+      const eventos = eventosFluxograma(
+        [aula],
+        [],
+        SEMANA,
+        MATERIAS,
+        TREINOS,
+        new Set(),
+        new Map([['m1', { data_inicio: '2026-08-04', data_fim: null }]]),
+      )
+      // A única ocorrência de `aula` na semana é 03/08 (segunda) — antes do início
+      expect(eventos).toEqual([])
+    })
+
+    it('omite a ocorrência depois do fim do período', () => {
+      const eventos = eventosFluxograma(
+        [aula],
+        [],
+        SEMANA,
+        MATERIAS,
+        TREINOS,
+        new Set(),
+        new Map([['m1', { data_inicio: null, data_fim: '2026-08-02' }]]),
+      )
+      expect(eventos).toEqual([])
+    })
+
+    it('mantém a ocorrência dentro do período', () => {
+      const eventos = eventosFluxograma(
+        [aula],
+        [],
+        SEMANA,
+        MATERIAS,
+        TREINOS,
+        new Set(),
+        new Map([
+          ['m1', { data_inicio: '2026-08-01', data_fim: '2026-08-31' }],
+        ]),
+      )
+      expect(eventos).toHaveLength(1)
+    })
+
+    it('não limita matéria ausente do mapa de período', () => {
+      const eventos = eventosFluxograma(
+        [aula],
+        [],
+        SEMANA,
+        MATERIAS,
+        TREINOS,
+        new Set(),
+        new Map(), // m1 não está aqui — sem período, sem limite
+      )
+      expect(eventos).toHaveLength(1)
+    })
+
+    it('não afeta treino, que não tem materia_id', () => {
+      const eventos = eventosFluxograma(
+        [treino],
+        [],
+        SEMANA,
+        MATERIAS,
+        TREINOS,
+        new Set(),
+        new Map([['t1', { data_inicio: '2099-01-01', data_fim: null }]]),
+      )
+      // A chave 't1' não é um materia_id — o filtro nunca olha para ela
+      expect(eventos).toHaveLength(1)
+    })
+  })
 })
 
 describe('eventosContas', () => {

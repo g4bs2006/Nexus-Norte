@@ -32,19 +32,28 @@ export function parsearQuestoesErradas(valor: string): number[] {
     .sort((a, b) => a - b)
 }
 
-export const schemaMateria = z.object({
-  nome: z.string().trim().min(1, 'Informe o nome da matéria'),
-  professor: z.string(),
-  carga_horaria_total: z.union([
-    z.number().positive('Carga horária deve ser positiva'),
-    z.nan(),
-  ]),
-  limite_faltas: z
-    .number({ message: 'Informe o limite de faltas' })
-    .int('Use um número inteiro')
-    .min(0, 'Não pode ser negativo'),
-  semestre: z.string(),
-})
+export const schemaMateria = z
+  .object({
+    nome: z.string().trim().min(1, 'Informe o nome da matéria'),
+    professor: z.string(),
+    carga_horaria_total: z.union([
+      z.number().positive('Carga horária deve ser positiva'),
+      z.nan(),
+    ]),
+    limite_faltas: z
+      .number({ message: 'Informe o limite de faltas' })
+      .int('Use um número inteiro')
+      .min(0, 'Não pode ser negativo'),
+    semestre: z.string(),
+    /** Vazio = sem limite naquele lado do período de aulas. */
+    data_inicio: z.string(),
+    data_fim: z.string(),
+  })
+  .refine(
+    (v) =>
+      v.data_inicio === '' || v.data_fim === '' || v.data_fim >= v.data_inicio,
+    { message: 'O fim deve ser depois do início', path: ['data_fim'] },
+  )
 
 export type FormularioMateria = z.infer<typeof schemaMateria>
 

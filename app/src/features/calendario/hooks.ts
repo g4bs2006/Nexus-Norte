@@ -96,6 +96,10 @@ export function useFontesCalendario(
     queryKey: [...chaves.nomes(), 'materias'],
     queryFn: api.nomesMaterias,
   })
+  const periodos = useQuery({
+    queryKey: [...chaves.nomes(), 'periodo-materias'],
+    queryFn: api.periodoMaterias,
+  })
   const treinos = useQuery({
     queryKey: [...chaves.nomes(), 'treinos'],
     queryFn: api.nomesTreinos,
@@ -112,6 +116,7 @@ export function useFontesCalendario(
     sessoesEstudo,
     materias,
     treinos,
+    periodos,
     ...(comCarga ? [sonoFeito, conclusoes] : []),
   ]
 
@@ -127,6 +132,7 @@ export function useFontesCalendario(
       sessoesEstudo: sessoesEstudo.data ?? [],
       nomePorMateria: materias.data ?? new Map<string, string>(),
       nomePorTreino: treinos.data ?? new Map<string, string>(),
+      periodoPorMateria: periodos.data,
     },
     /*
      * Fora de `fontes` de propósito: `construirEventos` não usa nenhum dos dois.

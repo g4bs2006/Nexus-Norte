@@ -37,6 +37,8 @@ const VAZIO: FormularioMateria = {
   carga_horaria_total: Number.NaN,
   limite_faltas: 0,
   semestre: '',
+  data_inicio: '',
+  data_fim: '',
 }
 
 interface DialogMateriaProps {
@@ -63,6 +65,8 @@ export function DialogMateria({ materia }: DialogMateriaProps = {}) {
         carga_horaria_total: materia.carga_horaria_total ?? Number.NaN,
         limite_faltas: materia.limite_faltas,
         semestre: materia.semestre ?? '',
+        data_inicio: materia.data_inicio ?? '',
+        data_fim: materia.data_fim ?? '',
       })
     } else if (aberto && !materia) {
       form.reset(VAZIO)
@@ -78,6 +82,8 @@ export function DialogMateria({ materia }: DialogMateriaProps = {}) {
       carga_horaria_total: numeroOuNulo(valores.carga_horaria_total),
       limite_faltas: valores.limite_faltas,
       semestre: textoOuNulo(valores.semestre),
+      data_inicio: valores.data_inicio === '' ? null : valores.data_inicio,
+      data_fim: valores.data_fim === '' ? null : valores.data_fim,
     }
 
     if (modoEdicao && materia) {
@@ -206,6 +212,38 @@ export function DialogMateria({ materia }: DialogMateriaProps = {}) {
                     <FormControl>
                       <Input placeholder="2026.2" {...field} />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <FormField
+                control={form.control}
+                name="data_inicio"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Início das aulas</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="data_fim"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fim das aulas</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormDescription className="text-[11px]">
+                      Opcional — sem data, a aula não vence.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

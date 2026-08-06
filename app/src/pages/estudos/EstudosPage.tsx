@@ -19,6 +19,7 @@ import { paraISO } from '@/lib/datas'
 import { ocorrenciasDoDia } from '@/lib/recorrencia'
 import { useExcecoes } from '@/features/fluxograma/hooks'
 import {
+  dentroDoPeriodoMateria,
   faltasRestantes,
   mediaMateria,
   mediaProjetada,
@@ -68,6 +69,30 @@ export default function EstudosPage() {
     [listaMaterias],
   )
 
+  const materiaPorId = useMemo(
+    () => new Map(listaMaterias.map((materia) => [materia.id, materia])),
+    [listaMaterias],
+  )
+
+  /**
+   * Fluxograma restrito ao que está dentro do período da matéria hoje.
+   *
+   * Só para "Aulas de hoje" — a grade semanal abaixo (`itensGrade`) continua
+   * mostrando TODOS os horários cadastrados, período incluído ou não: ela é a
+   * tela de gerenciar o fluxograma, não de responder "o que tenho hoje", e
+   * escondia o horário de quem quer revisá-lo ou reativá-lo mudando a data.
+   */
+  const fluxogramaAtivoHoje = useMemo(
+    () =>
+      listaFluxograma.filter((regra) => {
+        if (regra.materia_id === null) return true // horário de treino, não passa por aqui
+        const materia = materiaPorId.get(regra.materia_id)
+        if (!materia) return true // matéria não resolvida ainda — não esconder por engano
+        return dentroDoPeriodoMateria(hojeISO, materia)
+      }),
+    [listaFluxograma, materiaPorId, hojeISO],
+  )
+
   /**
    * A média exibida no card vem do campo-resumo `media_atual` (trigger). O
    * cálculo em TS entra apenas como fallback quando o resumo ainda está nulo —
@@ -102,22 +127,31 @@ export default function EstudosPage() {
     })
   }, [listaMaterias, listaAvaliacoes, listaFaltas, hoje])
 
-  // Aulas de hoje, derivadas do fluxograma na leitura (plano 3.4)
+  // Aulas de hoje, derivadas do fluxograma na leitura (plano 3.4) — restrito ao
+  // que está dentro do período da matéria (fluxogramaAtivoHoje)
   const checksDeHoje = useMemo(() => {
     const concluidos = new Set(conclusoes.data ?? [])
-    return ocorrenciasDoDia(listaFluxograma, hojeISO, excecoes.data ?? []).map(
-      (ocorrencia) => ({
-        fluxogramaId: ocorrencia.regra.id,
-        rotulo: nomePorMateria.get(ocorrencia.regra.materia_id) ?? 'Matéria',
-        horario: ocorrencia.regra.horario_inicio.slice(0, 5),
-        horarioFim: ocorrencia.regra.horario_fim.slice(0, 5),
-        concluido: concluidos.has(ocorrencia.regra.id),
-        remarcada: ocorrencia.remarcada,
-        // A exceção é identificada pela data de origem, não pela exibida
-        dataExcecao: ocorrencia.dataOriginal ?? ocorrencia.data,
-      }),
-    )
-  }, [listaFluxograma, hojeISO, excecoes.data, conclusoes.data, nomePorMateria])
+    return ocorrenciasDoDia(
+      fluxogramaAtivoHoje,
+      hojeISO,
+      excecoes.data ?? [],
+    ).map((ocorrencia) => ({
+      fluxogramaId: ocorrencia.regra.id,
+      rotulo: nomePorMateria.get(ocorrencia.regra.materia_id) ?? 'Matéria',
+      horario: ocorrencia.regra.horario_inicio.slice(0, 5),
+      horarioFim: ocorrencia.regra.horario_fim.slice(0, 5),
+      concluido: concluidos.has(ocorrencia.regra.id),
+      remarcada: ocorrencia.remarcada,
+      // A exceção é identificada pela data de origem, não pela exibida
+      dataExcecao: ocorrencia.dataOriginal ?? ocorrencia.data,
+    }))
+  }, [
+    fluxogramaAtivoHoje,
+    hojeISO,
+    excecoes.data,
+    conclusoes.data,
+    nomePorMateria,
+  ])
 
   /** Aulas de hoje que foram canceladas — seguem listadas, riscadas. */
   const canceladasDeHoje = useMemo(
@@ -125,7 +159,7 @@ export default function EstudosPage() {
       (excecoes.data ?? []).flatMap((excecao) => {
         if (excecao.status !== 'cancelado' || excecao.data !== hojeISO)
           return []
-        const regra = listaFluxograma.find(
+        const regra = fluxogramaAtivoHoje.find(
           (item) => item.id === excecao.fluxograma_id,
         )
         if (!regra) return []
@@ -138,7 +172,7 @@ export default function EstudosPage() {
           },
         ]
       }),
-    [excecoes.data, hojeISO, listaFluxograma, nomePorMateria],
+    [excecoes.data, hojeISO, fluxogramaAtivoHoje, nomePorMateria],
   )
 
   const itensGrade: ItemFluxograma[] = useMemo(

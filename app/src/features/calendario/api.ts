@@ -174,6 +174,25 @@ export async function nomesMaterias(): Promise<Map<string, string>> {
   return new Map((data ?? []).map((linha) => [linha.id, linha.nome]))
 }
 
+/**
+ * Início/fim das aulas de cada matéria, para `eventosFluxograma` restringir a
+ * ocorrência ao período (discussão em uso, 06/08).
+ */
+export async function periodoMaterias(): Promise<
+  Map<string, { data_inicio: string | null; data_fim: string | null }>
+> {
+  const { data, error } = await supabase
+    .from('materias')
+    .select('id, data_inicio, data_fim')
+  if (error) throw new Error(error.message)
+  return new Map(
+    (data ?? []).map((linha) => [
+      linha.id,
+      { data_inicio: linha.data_inicio, data_fim: linha.data_fim },
+    ]),
+  )
+}
+
 export async function nomesTreinos(): Promise<Map<string, string>> {
   const { data, error } = await supabase.from('treinos').select('id, nome')
   if (error) throw new Error(error.message)

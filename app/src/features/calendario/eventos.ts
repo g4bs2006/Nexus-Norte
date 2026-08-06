@@ -174,6 +174,8 @@ export interface FontesCalendario {
   /** Rótulos para resolver os ids do fluxograma. */
   nomePorMateria: ReadonlyMap<string, string>
   nomePorTreino: ReadonlyMap<string, string>
+  /** Opcional: sem ela, aula de fluxograma nunca é limitada por período. */
+  periodoPorMateria?: ReadonlyMap<string, PeriodoMateria>
 }
 
 // --- Construtores por camada ------------------------------------------------
@@ -213,6 +215,11 @@ export function chaveTreinoData(treinoId: string, data: string): string {
   return `${treinoId}@${data}`
 }
 
+export interface PeriodoMateria {
+  data_inicio: string | null
+  data_fim: string | null
+}
+
 export function eventosFluxograma(
   fluxograma: readonly FonteFluxograma[],
   excecoes: readonly ExcecaoRecorrencia[],
@@ -228,6 +235,13 @@ export function eventosFluxograma(
    * porque ela é o fato e carrega a hora que o usuário informou.
    */
   treinosFeitos: ReadonlySet<string> = new Set(),
+  /**
+   * Início/fim das aulas de cada matéria (discussão em uso, 06/08). Matéria
+   * ausente do mapa, ou com os dois lados nulos, não tem limite — mesmo
+   * comportamento de antes desta resolução. Só se aplica a `ehAula`; treino
+   * não tem período aqui (o id não bate com nenhuma chave do mapa).
+   */
+  periodoPorMateria: ReadonlyMap<string, PeriodoMateria> = new Map(),
 ): EventoCalendario[] {
   return expandirRecorrencia(fluxograma, intervalo, excecoes)
     .filter(
@@ -237,6 +251,19 @@ export function eventosFluxograma(
           chaveTreinoData(ocorrencia.regra.treino_id, ocorrencia.data),
         ),
     )
+    .filter((ocorrencia) => {
+      const materiaId = ocorrencia.regra.materia_id
+      if (materiaId === null) return true
+      const periodo = periodoPorMateria.get(materiaId)
+      if (!periodo) return true
+      if (periodo.data_inicio !== null && ocorrencia.data < periodo.data_inicio) {
+        return false
+      }
+      if (periodo.data_fim !== null && ocorrencia.data > periodo.data_fim) {
+        return false
+      }
+      return true
+    })
     .map((ocorrencia) => {
       const { regra, data, remarcada } = ocorrencia
       const ehAula = regra.materia_id !== null
@@ -512,6 +539,7 @@ export function construirEventos(
       fontes.nomePorMateria,
       fontes.nomePorTreino,
       treinosFeitos,
+      fontes.periodoPorMateria,
     ),
     ...feitos,
     ...eventosSessoesEstudo(

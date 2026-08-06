@@ -8,6 +8,7 @@ import { deISO } from '@/lib/datas'
 import type {
   Avaliacao,
   ConfigCalculoMedia,
+  Materia,
   SessaoEstudo,
   Status,
 } from './types'
@@ -184,6 +185,24 @@ export function proximaAvaliacao(
   }
 
   return melhor
+}
+
+/**
+ * A data cai dentro do período de aulas da matéria (discussão em uso, 06/08).
+ *
+ * `data_inicio`/`data_fim` são independentes e opcionais — sem um dos dois
+ * (ou os dois), aquele lado não limita nada. Matéria sem período nenhum
+ * sempre devolve `true`, preservando o comportamento de antes desta
+ * resolução: o fluxograma continua gerando aula todo dia da semana marcado,
+ * sem fim.
+ */
+export function dentroDoPeriodoMateria(
+  data: string,
+  materia: Pick<Materia, 'data_inicio' | 'data_fim'>,
+): boolean {
+  if (materia.data_inicio !== null && data < materia.data_inicio) return false
+  if (materia.data_fim !== null && data > materia.data_fim) return false
+  return true
 }
 
 /** Acerto na lista de exercícios, em percentual (plano 3.3). */

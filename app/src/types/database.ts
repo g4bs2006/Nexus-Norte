@@ -657,6 +657,8 @@ export type Database = {
         Row: {
           carga_horaria_total: number | null
           created_at: string
+          data_fim: string | null
+          data_inicio: string | null
           id: string
           limite_faltas: number
           media_atual: number | null
@@ -667,6 +669,8 @@ export type Database = {
         Insert: {
           carga_horaria_total?: number | null
           created_at?: string
+          data_fim?: string | null
+          data_inicio?: string | null
           id?: string
           limite_faltas?: number
           media_atual?: number | null
@@ -677,6 +681,8 @@ export type Database = {
         Update: {
           carga_horaria_total?: number | null
           created_at?: string
+          data_fim?: string | null
+          data_inicio?: string | null
           id?: string
           limite_faltas?: number
           media_atual?: number | null

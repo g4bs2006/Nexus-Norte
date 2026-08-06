@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  dentroDoPeriodoMateria,
   faltasRestantes,
   frequenciaEstudoSemana,
   mediaMateria,
@@ -253,6 +254,50 @@ describe('proximaAvaliacao', () => {
     expect(
       proximaAvaliacao([avaliacao({ data: '2026-07-30' })], HOJE),
     ).toBeNull()
+  })
+})
+
+describe('dentroDoPeriodoMateria', () => {
+  it('devolve true sempre quando a matéria não tem período', () => {
+    expect(
+      dentroDoPeriodoMateria('2026-08-06', {
+        data_inicio: null,
+        data_fim: null,
+      }),
+    ).toBe(true)
+  })
+
+  it('devolve false antes do início', () => {
+    expect(
+      dentroDoPeriodoMateria('2026-08-01', {
+        data_inicio: '2026-08-03',
+        data_fim: null,
+      }),
+    ).toBe(false)
+  })
+
+  it('devolve false depois do fim', () => {
+    expect(
+      dentroDoPeriodoMateria('2026-12-20', {
+        data_inicio: null,
+        data_fim: '2026-12-15',
+      }),
+    ).toBe(false)
+  })
+
+  it('inclui as duas pontas do intervalo', () => {
+    const materia = { data_inicio: '2026-08-03', data_fim: '2026-12-15' }
+    expect(dentroDoPeriodoMateria('2026-08-03', materia)).toBe(true)
+    expect(dentroDoPeriodoMateria('2026-12-15', materia)).toBe(true)
+  })
+
+  it('devolve true no meio do intervalo', () => {
+    expect(
+      dentroDoPeriodoMateria('2026-10-01', {
+        data_inicio: '2026-08-03',
+        data_fim: '2026-12-15',
+      }),
+    ).toBe(true)
   })
 })
 
