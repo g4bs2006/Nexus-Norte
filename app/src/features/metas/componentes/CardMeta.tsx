@@ -1,6 +1,8 @@
 // app/src/features/metas/componentes/CardMeta.tsx
+import { useRef } from 'react'
 import { Pencil } from 'lucide-react'
 import { BarraProgresso } from '@/components/BarraProgresso'
+import { CampoDecimal } from '@/components/CampoDecimal'
 import { CheckDia } from '@/components/CheckDia'
 import { Button } from '@/components/ui/button'
 import { paraISO } from '@/lib/datas'
@@ -22,6 +24,10 @@ interface CardMetaProps {
 
 /** Card compacto de uma meta — a forma varia por `meta.tipo`. */
 export function CardMeta({ meta, hoje }: CardMetaProps) {
+  // Guarda o valor digitado entre teclas; só grava no blur, como o campo fazia
+  // antes de trocar para CampoDecimal — CampoDecimal chama onValorChange a cada
+  // tecla, e mutar a cada tecla faria uma requisição por caractere digitado.
+  const valorDigitadoRef = useRef(meta.valor_atual_manual)
   const link = pilarDaMeta(meta)
   const classeCor = link ? CLASSE_COR_PILAR[link.pilar] : 'text-foreground'
   const usaLinkNumerico = meta.tipo === 'numerica' && link !== null
@@ -72,22 +78,20 @@ export function CardMeta({ meta, hoje }: CardMetaProps) {
                   {meta.valor_alvo ?? '—'} {meta.unidade ?? ''}
                 </span>
                 {!usaLinkNumerico && (
-                  <input
-                    type="number"
-                    step="any"
-                    defaultValue={meta.valor_atual_manual ?? ''}
-                    onBlur={(e) => {
-                      const valor = e.target.valueAsNumber
+                  <CampoDecimal
+                    valor={meta.valor_atual_manual}
+                    onValorChange={(valor) => {
+                      valorDigitadoRef.current = Number.isNaN(valor)
+                        ? null
+                        : valor
+                    }}
+                    onBlur={() => {
                       atualizar.mutate({
                         id: meta.id,
-                        dados: {
-                          valor_atual_manual: Number.isNaN(valor)
-                            ? null
-                            : valor,
-                        },
+                        dados: { valor_atual_manual: valorDigitadoRef.current },
                       })
                     }}
-                    className="border-input bg-background w-16 rounded border px-1 text-xs"
+                    className="h-6 w-16 px-1 text-xs"
                     aria-label={`Atualizar valor de ${meta.titulo}`}
                   />
                 )}

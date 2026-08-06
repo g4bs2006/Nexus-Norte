@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Pencil, Plus } from 'lucide-react'
+import { CampoDecimal } from '@/components/CampoDecimal'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -327,11 +328,9 @@ export function DialogMeta({ meta, trigger }: DialogMetaProps = {}) {
                     <FormItem>
                       <FormLabel>Alvo</FormLabel>
                       <FormControl>
-                        <Input
-                          type="number"
-                          step="any"
-                          value={Number.isNaN(field.value) ? '' : field.value}
-                          onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                        <CampoDecimal
+                          valor={field.value}
+                          onValorChange={field.onChange}
                         />
                       </FormControl>
                       <FormMessage />
