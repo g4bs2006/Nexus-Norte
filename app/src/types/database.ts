@@ -1,3 +1,8 @@
+// Gerado automaticamente a partir do schema do Supabase.
+// Regenerar com: npm run types:gen
+// NÃO editar à mão. Tipos de domínio narrowed (uniões de literais para colunas
+// text com CHECK) ficam em src/features/*/types.ts.
+
 export type Json =
   | string
   | number
