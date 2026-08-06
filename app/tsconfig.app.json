@@ -36,5 +36,9 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  // O service worker (`lib: webworker`) tem escopo global incompatível com o
+  // `DOM` do app — `self` é `ServiceWorkerGlobalScope` ali, `Window` aqui.
+  // Checado à parte em tsconfig.sw.json.
+  "exclude": ["src/sw.ts"]
 }

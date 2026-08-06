@@ -1521,3 +1521,49 @@ Verificado no navegador: clique no dia 05/08 abriu o card
 cancelado e Sono — idêntico ao que a agenda semanal mostra para o mesmo dia.
 Clique num evento na grade navega direto (sem abrir o card por engano);
 clique num evento dentro do card também navega.
+
+### 10.41 PWA de verdade — instalável e com base pra notificação
+
+Ele tinha "instalado" o app pelo Chrome e achava que já era um PWA. Não era:
+o Chrome oferece "Adicionar à tela inicial" pra **qualquer** site responsivo,
+o que cria um atalho, mas sem `manifest.json` nem service worker não é um app
+instalado de verdade — não abre em modo standalone garantido, não tem shell
+cacheado, e principalmente **não tem como notificar**: push no Android exige
+service worker.
+
+Instalado `vite-plugin-pwa`, com `strategies: 'injectManifest'` em vez do
+`generateSW` padrão — de propósito: o service worker vai ganhar um listener
+de `push` na próxima etapa, e o modo automático não deixa escrever handler
+nenhum ali. `src/sw.ts` é o código-fonte; hoje só pré-cacheia o shell
+(`precacheAndRoute(self.__WB_MANIFEST)`) e assume controle imediato
+(`skipWaiting`/`clients.claim`).
+
+Ícones gerados a partir do próprio favicon (os quatro círculos por pilar,
+fundo `#37352f`) em três tamanhos — `icon-192`, `icon-512` e uma versão
+**maskable** com o conteúdo reduzido a 75% dentro de um fundo full-bleed sem
+cantos arredondados, porque o Android aplica a própria máscara e cantos
+arredondados nossos por cima da máscara do sistema cortariam errado.
+Rasterizados com o Chromium do Playwright (screenshot de uma página com o
+SVG), sem adicionar dependência de imagem ao projeto.
+
+`self.__WB_MANIFEST` tem `lib: webworker`, incompatível com o `DOM` do resto
+do app (`self` é `ServiceWorkerGlobalScope` ali, `Window` aqui) — por isso
+`src/sw.ts` ganhou um `tsconfig.sw.json` próprio, excluído de
+`tsconfig.app.json` e referenciado na raiz, mesmo padrão de
+`tsconfig.node.json`.
+
+`registerType: 'autoUpdate'`: atualiza sozinho, sem perguntar — é um app de
+um usuário só, não um app de terceiros onde uma atualização inesperada no
+meio de uma tarefa incomodaria vários usuários diferentes. `vercel.json`
+ganhou `no-cache` em `/sw.js` e `/manifest.webmanifest`, mesmo motivo do
+`/index.html`: sem isso, o CDN poderia servir um service worker desatualizado
+e a atualização nunca chegaria.
+
+**Verificado servindo o build de produção** (`npm run preview`, não o dev
+server): manifest responde 200 com `lang: pt-BR` certo, os quatro ícones
+respondem 200, e `navigator.serviceWorker.getRegistration()` devolve o
+registro com `estado: "activated"`.
+
+**Próxima etapa, não iniciada:** o handler de `push` em si, e o que deve
+disparar uma notificação (aula, treino, conta a vencer, prazo de meta) — fica
+pra uma conversa própria antes de implementar.

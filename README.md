@@ -40,6 +40,7 @@ Calendário que amarra os quatro.
 - [Tour pelos pilares](#tour-pelos-pilares)
 - [Padrões compartilhados de UI](#padrões-compartilhados-de-ui)
 - [Convenções de código](#convenções-de-código)
+- [PWA](#pwa)
 - [Deploy (Vercel)](#deploy-vercel)
 - [Segurança](#segurança)
 
@@ -645,6 +646,27 @@ Detalhes: [`plano.md`, resolução 10.30](./plano.md).
   padrão semanal e o cliente expande em ocorrências datadas (resolução
   10.5).
 - **`dia_semana` segue `Date.getDay()`**: 0 = domingo … 6 = sábado.
+
+---
+
+## PWA
+
+Instalável de verdade — não é só "Adicionar à tela inicial" do Chrome (que
+funciona pra qualquer site responsivo, mas não abre em modo standalone
+garantido e não tem service worker nenhum). `vite-plugin-pwa` com
+`strategies: 'injectManifest'`: o service worker (`src/sw.ts`) hoje só
+pré-cacheia o shell, mas o modo `injectManifest` — em vez do `generateSW`
+automático — é o que deixa escrever um handler de `push` mais adiante.
+
+Ícones gerados a partir do próprio favicon (quatro círculos por pilar), com
+uma versão *maskable* (conteúdo reduzido a 75%, fundo full-bleed sem cantos)
+pro Android não cortar errado ao aplicar a própria máscara de ícone.
+
+`src/sw.ts` tem `lib: webworker`, incompatível com o `DOM` do resto do app —
+por isso vive num `tsconfig.sw.json` próprio, mesmo padrão de
+`tsconfig.node.json`.
+
+Detalhes: [`plano.md`, resolução 10.41](./plano.md).
 
 ---
 

@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Service worker de dev do vite-plugin-pwa (injectManifest gera aqui em `npm run dev`)
+dev-dist
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
+import { registerSW } from 'virtual:pwa-register'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
 import { ConfiguracaoAusente } from '@/components/ConfiguracaoAusente'
@@ -11,6 +12,16 @@ import { queryClient } from '@/lib/queryClient'
 import '@/lib/locale'
 import App from './App'
 import './index.css'
+
+/**
+ * Registra o service worker (`registerType: 'autoUpdate'` — atualiza sozinho,
+ * sem pedir confirmação: é um app de um usuário só, não um app de terceiros
+ * onde uma atualização inesperada no meio de uma tarefa incomodaria vários).
+ * Fora do `if` de configuração abaixo de propósito: instalável mesmo na tela
+ * `ConfiguracaoAusente`, que é onde quem esqueceu o `.env.local` mais precisa
+ * ver o problema — não faz sentido condicionar o app shell a isso.
+ */
+registerSW({ immediate: true })
 
 const container = document.getElementById('root')
 if (!container) throw new Error('Elemento #root não encontrado no index.html')
