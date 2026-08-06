@@ -49,6 +49,14 @@ import {
 
 const TIPOS = Object.keys(ROTULOS_TIPO_META) as TipoMeta[]
 
+/**
+ * Sentinela de "sem vínculo".
+ *
+ * `SelectItem` do Radix recusa valor vazio, então o vazio do formulário
+ * precisa de um representante — o mesmo padrão usado em `DialogLancamento`.
+ */
+const SEM_VINCULO = 'nenhum'
+
 const VAZIO: FormularioMeta = {
   tipo: 'numerica',
   titulo: '',
@@ -253,20 +261,23 @@ export function DialogMeta({ meta, trigger }: DialogMetaProps = {}) {
                   <FormItem>
                     <FormLabel>Vínculo (opcional)</FormLabel>
                     <Select
-                      value={field.value}
+                      value={field.value === '' ? SEM_VINCULO : field.value}
                       onValueChange={(valor) => {
-                        field.onChange(valor)
+                        field.onChange(valor === SEM_VINCULO ? '' : valor)
                         form.setValue('entidadeId', '')
                       }}
                     >
                       <FormControl>
                         <SelectTrigger className="w-full">
-                          <SelectValue />
+                          <SelectValue placeholder="Nenhum" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {PILARES_LINK.map((valor) => (
-                          <SelectItem key={valor} value={valor}>
+                          <SelectItem
+                            key={valor}
+                            value={valor === '' ? SEM_VINCULO : valor}
+                          >
                             {valor === ''
                               ? 'Nenhum'
                               : valor.charAt(0).toUpperCase() + valor.slice(1)}

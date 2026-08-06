@@ -83,7 +83,7 @@ export function DialogListaMetas({
                   mensagem={`"${meta.titulo}" será removida permanentemente.`}
                   pendente={excluir.isPending}
                   onConfirmar={() => excluir.mutateAsync(meta.id)}
-                  classeTrigger="text-muted-foreground hover:text-status-risco absolute top-1 right-1 size-6"
+                  classeTrigger="text-muted-foreground hover:text-status-risco absolute bottom-1 right-1 size-6"
                 />
               </div>
             ))}

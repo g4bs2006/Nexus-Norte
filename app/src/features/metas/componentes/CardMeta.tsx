@@ -6,7 +6,12 @@ import { Button } from '@/components/ui/button'
 import { paraISO } from '@/lib/datas'
 import { cn } from '@/lib/utils'
 import { checkinsNaSemana, progressoNumerico, streakAtual } from '../calculos'
-import { useAlternarCheckin, useCheckinsMeta, useProgressoMeta } from '../hooks'
+import {
+  useAlternarCheckin,
+  useAtualizarMeta,
+  useCheckinsMeta,
+  useProgressoMeta,
+} from '../hooks'
 import { CLASSE_COR_PILAR, pilarDaMeta, type Meta } from '../types'
 import { DialogMeta } from './DialogMeta'
 
@@ -24,6 +29,7 @@ export function CardMeta({ meta, hoje }: CardMetaProps) {
   const progresso = useProgressoMeta(meta.id, usaLinkNumerico)
   const checkins = useCheckinsMeta(meta.id, meta.tipo === 'habito')
   const alternarCheckin = useAlternarCheckin()
+  const atualizar = useAtualizarMeta()
 
   const hojeISO = paraISO(hoje)
 
@@ -60,22 +66,51 @@ export function CardMeta({ meta, hoje }: CardMetaProps) {
                 valor={percentual ?? 0}
                 rotulo={`Progresso de ${meta.titulo}`}
               />
-              <span className="text-muted-foreground text-xs">
-                {valorAtual === null ? '—' : valorAtual} /{' '}
-                {meta.valor_alvo ?? '—'} {meta.unidade ?? ''}
-              </span>
+              <div className="flex items-center gap-1">
+                <span className="text-muted-foreground text-xs">
+                  {valorAtual === null ? '—' : valorAtual} /{' '}
+                  {meta.valor_alvo ?? '—'} {meta.unidade ?? ''}
+                </span>
+                {!usaLinkNumerico && (
+                  <input
+                    type="number"
+                    step="any"
+                    defaultValue={meta.valor_atual_manual ?? ''}
+                    onBlur={(e) => {
+                      const valor = e.target.valueAsNumber
+                      atualizar.mutate({
+                        id: meta.id,
+                        dados: {
+                          valor_atual_manual: Number.isNaN(valor)
+                            ? null
+                            : valor,
+                        },
+                      })
+                    }}
+                    className="border-input bg-background w-16 rounded border px-1 text-xs"
+                    aria-label={`Atualizar valor de ${meta.titulo}`}
+                  />
+                )}
+              </div>
             </>
           )
         })()}
 
       {meta.tipo === 'marco' && (
-        <span className="text-muted-foreground text-xs">
-          {meta.concluida
-            ? 'Concluída'
-            : meta.data_alvo
-              ? `Prazo ${meta.data_alvo}`
-              : 'Sem prazo'}
-        </span>
+        <>
+          <CheckDia
+            id={`meta-concluida-${meta.id}`}
+            marcado={meta.concluida}
+            onAlternar={(concluida) => {
+              atualizar.mutate({ id: meta.id, dados: { concluida } })
+            }}
+          >
+            Concluída
+          </CheckDia>
+          <span className="text-muted-foreground text-xs">
+            {meta.data_alvo ? `Prazo ${meta.data_alvo}` : 'Sem prazo'}
+          </span>
+        </>
       )}
 
       {meta.tipo === 'habito' &&
@@ -104,9 +139,15 @@ export function CardMeta({ meta, hoje }: CardMetaProps) {
         })()}
 
       {meta.tipo === 'livre' && (
-        <span className="text-muted-foreground text-xs">
-          {meta.concluida ? 'Concluída' : 'Em aberto'}
-        </span>
+        <CheckDia
+          id={`meta-concluida-${meta.id}`}
+          marcado={meta.concluida}
+          onAlternar={(concluida) => {
+            atualizar.mutate({ id: meta.id, dados: { concluida } })
+          }}
+        >
+          Concluída
+        </CheckDia>
       )}
     </div>
   )
