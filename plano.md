@@ -1494,3 +1494,30 @@ empilhados. Acrescentada no wrapper de conteúdo principal de:
 Nenhum CSS novo, nenhuma lógica nova — só estender o que já existia para onde
 faltava. Verificado no navegador (não só visualmente — `getComputedStyle`
 confirmando `animationName: "surgir"` no primeiro filho de cada página).
+
+### 10.40 Vista de mês: clicar no dia abre um card de detalhe
+
+Ele pediu uma vista mensal — que **já existia** (botão "Mês" ao lado de
+"Semana" no Calendário, grade do FullCalendar carregada sob demanda) — só que
+ele não sabia. Uma vez mostrada, o pedido virou outro: a grade de mês só
+mostra 2–3 eventos por célula (`dayMaxEvents`) sem horário; clicar no **dia**
+(não num evento) deveria abrir um card com o detalhe completo daquele dia.
+
+Instalado `@fullcalendar/interaction` (só ele tinha `dateClick`; os plugins
+já presentes — `dayGrid`/`timeGrid` — não expõem esse evento). `GradeMes`
+ganhou `onClicarDia`, distinto de `onClicarEvento`: clicar num evento
+continua navegando direto pra rota (não abre o card); clicar no número do
+dia ou área vazia da célula é que abre o card.
+
+O card **reaproveita `Agenda`** passando um array de um dia só, em vez de um
+componente novo — a mesma leitura de rotina-em-filete/prazo-em-bloco/feito/
+cancelado que a vista semanal já usa, sem risco de divergir dela na próxima
+mudança. `dias`/`eventosPorData` já eram computados em `CalendarioPage` para
+o intervalo inteiro do mês visível — nenhuma consulta nova, só reaproveitar o
+que a página já buscava.
+
+Verificado no navegador: clique no dia 05/08 abriu o card
+"Quarta-feira, 5 de agosto" com os dois marcos, Pull às 11:00, Legs
+cancelado e Sono — idêntico ao que a agenda semanal mostra para o mesmo dia.
+Clique num evento na grade navega direto (sem abrir o card por engano);
+clique num evento dentro do card também navega.

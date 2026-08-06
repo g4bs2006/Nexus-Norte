@@ -1,7 +1,9 @@
 import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
+import interactionPlugin from '@fullcalendar/interaction'
 import ptBrLocale from '@fullcalendar/core/locales/pt-br'
+import type { DateClickArg } from '@fullcalendar/interaction'
 import type { DatesSetArg, EventClickArg } from '@fullcalendar/core'
 import { Card, CardContent } from '@/components/ui/card'
 import { paraISO } from '@/lib/datas'
@@ -12,6 +14,8 @@ interface GradeMesProps {
   eventos: readonly EventoCalendario[]
   onMudarDatas: (de: string, ate: string) => void
   onClicarEvento: (id: string) => void
+  /** Clique no número do dia (não num evento) — abre o detalhe daquele dia. */
+  onClicarDia: (data: string) => void
 }
 
 /**
@@ -29,6 +33,7 @@ export function GradeMes({
   eventos,
   onMudarDatas,
   onClicarEvento,
+  onClicarDia,
 }: GradeMesProps) {
   const telaEstreita = useMediaQuery('(width < 40rem)')
 
@@ -66,11 +71,15 @@ export function GradeMes({
     onClicarEvento(arg.event.id)
   }
 
+  function aoClicarDia(arg: DateClickArg) {
+    onClicarDia(paraISO(arg.date))
+  }
+
   return (
     <Card>
       <CardContent className="calendario-nexus">
         <FullCalendar
-          plugins={[dayGridPlugin, timeGridPlugin]}
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           initialView="dayGridMonth"
           locale={ptBrLocale}
           headerToolbar={{
@@ -82,6 +91,7 @@ export function GradeMes({
           events={eventosFullCalendar}
           datesSet={aoMudarDatas}
           eventClick={aoClicarEvento}
+          dateClick={aoClicarDia}
           firstDay={1}
           height="auto"
           nowIndicator

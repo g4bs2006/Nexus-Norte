@@ -462,6 +462,17 @@ O cancelado continua listado, riscado, com botão de restaurar. A remarcação
 
 Detalhes: [`plano.md`, resolução 10.19](./plano.md).
 
+#### Vista de mês: card de detalhe ao clicar no dia
+
+A grade de mês (FullCalendar, atrás do botão "Mês") só mostra 2–3 eventos por
+célula, sem horário. Clicar no **dia** (não num evento) abre um card com o
+detalhe completo — reaproveita `Agenda` com um array de um dia só, a mesma
+leitura da vista semanal, em vez de um componente novo que divergiria dela na
+próxima mudança. Clicar num evento continua navegando direto pra rota, sem
+abrir o card.
+
+Detalhes: [`plano.md`, resolução 10.40](./plano.md).
+
 </details>
 
 <details>

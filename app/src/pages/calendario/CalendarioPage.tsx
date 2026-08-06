@@ -7,13 +7,19 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { inicioSemana, paraISO } from '@/lib/datas'
+import { deISO, inicioSemana, paraISO } from '@/lib/datas'
 import { cn } from '@/lib/utils'
 import {
   COR_CAMADA,
@@ -22,7 +28,7 @@ import {
   type CamadaCalendario,
   type EventoCalendario,
 } from '@/features/calendario/eventos'
-import { cargaPorDia } from '@/features/calendario/carga'
+import { cargaPorDia, type DiaCarga } from '@/features/calendario/carga'
 import { useFontesCalendario } from '@/features/calendario/hooks'
 import { Agenda } from '@/features/calendario/componentes/Agenda'
 import { FaixaCarga } from '@/features/calendario/componentes/FaixaCarga'
@@ -54,6 +60,15 @@ export default function CalendarioPage() {
   /** Segunda-feira da semana visível na agenda. */
   const [ancora, setAncora] = useState(() => inicioSemana(hoje))
   const [diaFocado, setDiaFocado] = useState(() => paraISO(hoje))
+
+  /**
+   * Dia clicado na grade de mês, para o card de detalhe. A grade de mês
+   * mostra no máximo 2-3 eventos por célula (`dayMaxEvents`) e nem o horário
+   * de cada um — o card reaproveita `Agenda` com um único dia, em vez de um
+   * layout novo, para não divergir de como a agenda semanal já apresenta o
+   * mesmo dado.
+   */
+  const [diaDetalhado, setDiaDetalhado] = useState<string | null>(null)
 
   /**
    * Intervalo do mês, controlado pelo próprio FullCalendar via `datesSet`. Fica
@@ -318,10 +333,52 @@ export default function CalendarioPage() {
               const rota = rotaPorId.get(id)
               if (rota) navegar(rota)
             }}
+            onClicarDia={setDiaDetalhado}
           />
         </Suspense>
       )}
+
+      <DialogDia
+        data={diaDetalhado}
+        dias={dias}
+        eventosPorData={eventosPorData}
+        onOpenChange={(aberto) => {
+          if (!aberto) setDiaDetalhado(null)
+        }}
+      />
     </>
+  )
+}
+
+interface DialogDiaProps {
+  /** `null` = fechado. */
+  data: string | null
+  dias: readonly DiaCarga[]
+  eventosPorData: ReadonlyMap<string, readonly EventoCalendario[]>
+  onOpenChange: (aberto: boolean) => void
+}
+
+/**
+ * Card de detalhe do dia, aberto ao clicar no número do dia na grade de mês.
+ *
+ * Reaproveita `Agenda` com um array de um dia só — a mesma leitura (rotina em
+ * filete, prazo em bloco sólido, feito/cancelado) que a vista semanal já usa,
+ * em vez de um segundo componente que divergiria dela na primeira mudança.
+ */
+function DialogDia({ data, dias, eventosPorData, onOpenChange }: DialogDiaProps) {
+  const dia = data ? dias.find((item) => item.data === data) : undefined
+
+  return (
+    <Dialog open={data !== null} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="capitalize">
+            {data ? format(deISO(data), "EEEE, d 'de' MMMM") : ''}
+          </DialogTitle>
+        </DialogHeader>
+        {dia && <Agenda dias={[dia]} eventosPorData={eventosPorData} />}
+      </DialogContent>
+    </Dialog>
   )
 }
 
