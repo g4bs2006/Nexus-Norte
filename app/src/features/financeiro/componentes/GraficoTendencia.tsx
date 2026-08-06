@@ -3,11 +3,13 @@ import {
   Area,
   AreaChart,
   CartesianGrid,
+  Legend,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
+  type TooltipContentProps,
 } from 'recharts'
 import {
   Card,
@@ -23,13 +25,75 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ESTILO_TOOLTIP, pontoFinal } from '@/components/grafico'
+import { EIXO, ESTILO_TOOLTIP, pontoFinal } from '@/components/grafico'
 import { formatarMoeda, rotuloMes } from '@/lib/datas'
-import { metaEfetiva } from '../calculos'
+import { metaEfetiva, tendenciaMensal } from '../calculos'
 import type { ResumoMensal } from '../api'
 import type { Categoria } from '../types'
 
 const TODAS = 'todas'
+
+interface PontoGrafico {
+  mes: string
+  gasto: number
+  receita: number
+  saldo: number
+}
+
+interface ConteudoTooltipProps extends TooltipContentProps<number, string> {
+  mostrarReceita: boolean
+  rotuloGasto: string
+}
+
+/**
+ * Tooltip customizado: o saldo não é uma série desenhada no gráfico (a área
+ * de receita já mostra a diferença visualmente), mas ainda é útil como
+ * número exato — ler no dado do ponto em vez de recalcular no componente.
+ */
+function ConteudoTooltip({
+  active,
+  payload,
+  label,
+  mostrarReceita,
+  rotuloGasto,
+}: ConteudoTooltipProps) {
+  if (!active || !payload || payload.length === 0) return null
+  const ponto = payload[0]?.payload as PontoGrafico | undefined
+  if (!ponto) return null
+
+  return (
+    <div
+      style={ESTILO_TOOLTIP}
+      className="min-w-[9rem] space-y-1 px-2.5 py-1.5"
+    >
+      <p className="font-medium">{label}</p>
+      <p className="flex justify-between gap-3">
+        <span style={{ color: 'var(--chart-1)' }}>{rotuloGasto}</span>
+        <span className="tabular-nums">{formatarMoeda(ponto.gasto)}</span>
+      </p>
+      {mostrarReceita && (
+        <>
+          <p className="flex justify-between gap-3">
+            <span style={{ color: 'var(--chart-2)' }}>Receita</span>
+            <span className="tabular-nums">
+              {formatarMoeda(ponto.receita)}
+            </span>
+          </p>
+          <p className="text-muted-foreground flex justify-between gap-3 border-t pt-1">
+            <span>Saldo</span>
+            <span
+              className={
+                ponto.saldo < 0 ? 'text-status-risco tabular-nums' : 'tabular-nums'
+              }
+            >
+              {formatarMoeda(ponto.saldo)}
+            </span>
+          </p>
+        </>
+      )}
+    </div>
+  )
+}
 
 interface GraficoTendenciaProps {
   meses: readonly string[]
@@ -57,23 +121,27 @@ export function GraficoTendencia({
     [despesas],
   )
 
+  const idsReceita = useMemo(
+    () =>
+      new Set(
+        categorias.filter((c) => c.natureza === 'receita').map((c) => c.id),
+      ),
+    [categorias],
+  )
+
+  // A série de receita só aparece na visão agregada ("todas as despesas"):
+  // comparar o gasto de UMA categoria com a renda inteira nesse mesmo
+  // traçado confundiria mais do que ajudaria — a visão de categoria única
+  // continua só gasto x meta, como antes.
+  const mostrarReceita = selecionada === TODAS
+
   const dados = useMemo(() => {
-    const relevantes = resumo.filter((linha) =>
-      selecionada === TODAS
-        ? idsDespesa.has(linha.categoria_id)
-        : linha.categoria_id === selecionada,
+    const idsGasto =
+      selecionada === TODAS ? idsDespesa : new Set([selecionada])
+    return tendenciaMensal(resumo, meses, idsGasto, idsReceita).map(
+      (ponto) => ({ ...ponto, mes: rotuloMes(ponto.mes) }),
     )
-
-    const porMes = new Map<string, number>()
-    for (const linha of relevantes) {
-      porMes.set(linha.mes, (porMes.get(linha.mes) ?? 0) + linha.total)
-    }
-
-    return meses.map((mes) => ({
-      mes: rotuloMes(mes),
-      gasto: porMes.get(mes) ?? 0,
-    }))
-  }, [resumo, meses, selecionada, idsDespesa])
+  }, [resumo, meses, selecionada, idsDespesa, idsReceita])
 
   // Meta de referência: para a visão "todas", a soma das metas; para uma
   // categoria, a sua meta. Resolvida com a receita do mês CORRENTE — metas
@@ -94,8 +162,14 @@ export function GraficoTendencia({
     <Card>
       <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
         <div className="space-y-1.5">
-          <CardTitle className="text-base">Tendência de gasto</CardTitle>
-          <CardDescription>Últimos 6 meses, comparado à meta.</CardDescription>
+          <CardTitle className="text-base">
+            {mostrarReceita ? 'Tendência de gasto e receita' : 'Tendência de gasto'}
+          </CardTitle>
+          <CardDescription>
+            {mostrarReceita
+              ? 'Últimos 6 meses — gasto, receita e meta.'
+              : 'Últimos 6 meses, comparado à meta.'}
+          </CardDescription>
         </div>
         <Select value={selecionada} onValueChange={setSelecionada}>
           <SelectTrigger className="w-[11rem] shrink-0" size="sm">
@@ -131,29 +205,44 @@ export function GraficoTendencia({
                   stopOpacity={0}
                 />
               </linearGradient>
+              <linearGradient id="areaReceita" x1="0" y1="0" x2="0" y2="1">
+                <stop
+                  offset="0%"
+                  stopColor="var(--chart-2)"
+                  stopOpacity={0.18}
+                />
+                <stop
+                  offset="100%"
+                  stopColor="var(--chart-2)"
+                  stopOpacity={0}
+                />
+              </linearGradient>
             </defs>
             <CartesianGrid
               strokeDasharray="3 3"
               vertical={false}
               stroke="var(--border)"
             />
-            <XAxis
-              dataKey="mes"
-              tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
-              stroke="var(--border)"
-            />
+            <XAxis dataKey="mes" tick={EIXO.tick} stroke={EIXO.stroke} />
             <YAxis
-              tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
-              stroke="var(--border)"
+              tick={EIXO.tick}
+              stroke={EIXO.stroke}
               width={64}
               tickFormatter={(valor: number) =>
                 valor >= 1000 ? `${Math.round(valor / 1000)}k` : String(valor)
               }
             />
             <Tooltip
-              formatter={(valor) => formatarMoeda(Number(valor))}
-              contentStyle={ESTILO_TOOLTIP}
+              content={
+                <ConteudoTooltip
+                  mostrarReceita={mostrarReceita}
+                  rotuloGasto={
+                    selecionada === TODAS ? 'Gasto total' : 'Gasto'
+                  }
+                />
+              }
             />
+            {mostrarReceita && <Legend wrapperStyle={{ fontSize: 12 }} />}
             {meta !== null && (
               <ReferenceLine
                 y={meta}
@@ -170,6 +259,7 @@ export function GraficoTendencia({
             <Area
               type="monotone"
               dataKey="gasto"
+              name={selecionada === TODAS ? 'Gasto total' : 'Gasto'}
               stroke="var(--chart-1)"
               strokeWidth={2}
               fill="url(#areaTendencia)"
@@ -178,6 +268,18 @@ export function GraficoTendencia({
               dot={pontoFinal(dados.length, 'var(--chart-1)')}
               activeDot={{ r: 5, stroke: 'var(--card)', strokeWidth: 2 }}
             />
+            {mostrarReceita && (
+              <Area
+                type="monotone"
+                dataKey="receita"
+                name="Receita"
+                stroke="var(--chart-2)"
+                strokeWidth={2}
+                fill="url(#areaReceita)"
+                dot={pontoFinal(dados.length, 'var(--chart-2)')}
+                activeDot={{ r: 5, stroke: 'var(--card)', strokeWidth: 2 }}
+              />
+            )}
           </AreaChart>
         </ResponsiveContainer>
       </CardContent>

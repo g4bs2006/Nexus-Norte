@@ -9,6 +9,7 @@ import {
   rankingGastos,
   saldoProjetadoFimMes,
   statusDiario,
+  tendenciaMensal,
   totaisDoMes,
   totaisDoPeriodo,
 } from './calculos'
@@ -246,6 +247,71 @@ describe('totaisDoPeriodo', () => {
       saldo: 0,
       quantidade: 0,
     })
+  })
+})
+
+describe('tendenciaMensal', () => {
+  const resumo = [
+    { categoria_id: 'salario', mes: '2026-07-01', total: 5000 },
+    { categoria_id: 'mercado', mes: '2026-07-01', total: 800 },
+    { categoria_id: 'lazer', mes: '2026-07-01', total: 200 },
+    { categoria_id: 'salario', mes: '2026-08-01', total: 5200 },
+    { categoria_id: 'mercado', mes: '2026-08-01', total: 900 },
+  ]
+  const idsReceita = new Set(['salario'])
+
+  it('soma gasto (por ids) e receita por mês, e calcula o saldo', () => {
+    const idsGasto = new Set(['mercado', 'lazer'])
+    const pontos = tendenciaMensal(
+      resumo,
+      ['2026-07-01', '2026-08-01'],
+      idsGasto,
+      idsReceita,
+    )
+
+    expect(pontos).toEqual([
+      { mes: '2026-07-01', gasto: 1000, receita: 5000, saldo: 4000 },
+      { mes: '2026-08-01', gasto: 900, receita: 5200, saldo: 4300 },
+    ])
+  })
+
+  it('filtra o gasto por uma única categoria sem afetar a receita', () => {
+    const pontos = tendenciaMensal(
+      resumo,
+      ['2026-07-01', '2026-08-01'],
+      new Set(['lazer']),
+      idsReceita,
+    )
+
+    expect(pontos).toEqual([
+      { mes: '2026-07-01', gasto: 200, receita: 5000, saldo: 4800 },
+      { mes: '2026-08-01', gasto: 0, receita: 5200, saldo: 5200 },
+    ])
+  })
+
+  it('devolve zeros para mês sem dado nenhum, sem inventar o mês', () => {
+    const pontos = tendenciaMensal(
+      [],
+      ['2026-07-01'],
+      new Set(['x']),
+      new Set(['y']),
+    )
+    expect(pontos).toEqual([
+      { mes: '2026-07-01', gasto: 0, receita: 0, saldo: 0 },
+    ])
+  })
+
+  it('saldo fica negativo quando o gasto passa a receita', () => {
+    const pontos = tendenciaMensal(
+      [
+        { categoria_id: 'salario', mes: '2026-08-01', total: 1000 },
+        { categoria_id: 'mercado', mes: '2026-08-01', total: 1500 },
+      ],
+      ['2026-08-01'],
+      new Set(['mercado']),
+      new Set(['salario']),
+    )
+    expect(pontos[0]?.saldo).toBe(-500)
   })
 })
 

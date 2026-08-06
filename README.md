@@ -393,6 +393,19 @@ sequência e progresso da semana.
 
 Detalhes em [`plano.md`, resoluções 10.32 a 10.34](./plano.md).
 
+## Tendência do Financeiro ganha receita e saldo
+
+O Financeiro tinha um gráfico só — despesa contra a meta, nos últimos 6 meses —
+e nenhuma visão de receita ao longo do tempo nem de saldo (sobrando mais ou
+menos, mês a mês). O gráfico de tendência agora desenha as duas áreas quando a
+visão é "todas as despesas": despesa e receita, com o espaço entre elas
+comunicando o saldo visualmente, e o número exato (gasto, receita, saldo) no
+tooltip. Olhando uma categoria específica, a visão volta a ser só aquela
+categoria contra a meta — misturar renda total com uma categoria só confundiria
+mais do que ajudaria.
+
+Detalhes em [`plano.md`, resolução 10.35](./plano.md).
+
 ## Apagar dado pede confirmação
 
 **Todo botão que apaga passa por uma confirmação**, não só os que apagam entidades

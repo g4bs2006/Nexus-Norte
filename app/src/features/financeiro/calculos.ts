@@ -165,6 +165,61 @@ export function metaTotalDespesas(
     .reduce((total, c) => total + (metaEfetiva(c, receitaDoMes) ?? 0), 0)
 }
 
+// --- Gráfico de tendência (melhoria de gráficos, 06/08) ---------------------
+
+export interface PontoTendencia {
+  /** ISO do primeiro dia do mês — formatação de exibição fica no componente. */
+  mes: string
+  gasto: number
+  receita: number
+  /** Receita menos gasto do mês — não é uma série própria na UI, é o que o
+   *  espaço entre as duas áreas do gráfico já mostra; calculado aqui para o
+   *  tooltip não reimplementar a subtração. */
+  saldo: number
+}
+
+/**
+ * Série mensal de gasto (filtrado por `idsGasto`) e receita total, para o
+ * gráfico de tendência.
+ *
+ * Antes o gráfico só somava despesa — não havia como ver se a receita estava
+ * subindo ou caindo, nem se a diferença entre as duas estava melhorando. A
+ * receita soma sempre TODAS as categorias de receita, independente do filtro
+ * de despesa: mesmo olhando uma categoria só, "que fração da minha renda essa
+ * categoria consome" é uma pergunta válida. A UI decide quando desenhar a
+ * série de receita — aqui ela sempre volta calculada.
+ */
+export function tendenciaMensal(
+  resumo: readonly { categoria_id: string; mes: string; total: number }[],
+  meses: readonly string[],
+  idsGasto: ReadonlySet<string>,
+  idsReceita: ReadonlySet<string>,
+): PontoTendencia[] {
+  const gastoPorMes = new Map<string, number>()
+  const receitaPorMes = new Map<string, number>()
+
+  for (const linha of resumo) {
+    if (idsGasto.has(linha.categoria_id)) {
+      gastoPorMes.set(
+        linha.mes,
+        (gastoPorMes.get(linha.mes) ?? 0) + linha.total,
+      )
+    }
+    if (idsReceita.has(linha.categoria_id)) {
+      receitaPorMes.set(
+        linha.mes,
+        (receitaPorMes.get(linha.mes) ?? 0) + linha.total,
+      )
+    }
+  }
+
+  return meses.map((mes) => {
+    const gasto = gastoPorMes.get(mes) ?? 0
+    const receita = receitaPorMes.get(mes) ?? 0
+    return { mes, gasto, receita, saldo: receita - gasto }
+  })
+}
+
 // --- Lista de lançamentos (resolução 10.23) ---------------------------------
 
 /** Campos de que o agrupamento depende. */

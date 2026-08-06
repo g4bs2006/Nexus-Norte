@@ -1300,3 +1300,43 @@ Sem cor nova no design system — `registro_corporal` vive dentro do pilar Trein
 (97kg, antes da meta), progresso = 0. Inserido um segundo peso (94.5kg) no dia da
 meta — progresso passou a 2.5, e o card mostrou "Perder 12kg — 2.5 / 12 Kg". Meta
 de teste e peso de teste removidos depois de confirmado.
+
+### 10.35 Tendência do Financeiro ganha receita e saldo (só mostrava gasto)
+
+Diagnóstico: o Financeiro inteiro tinha **um gráfico só** (`GraficoTendencia`,
+reaproveitado na Home do pilar e no detalhe de categoria) — o resto é anel/barra/
+número. E esse gráfico só somava despesa: não havia como ver se a receita estava
+subindo ou caindo, nem se a diferença entre as duas estava melhorando ou piorando
+mês a mês — a mesma classe de lacuna que motivou a 10.31 no Calendário (mostrar só
+uma face do dado).
+
+Extraída a agregação, que vivia solta dentro do `useMemo` do componente, para uma
+função pura testada: `tendenciaMensal()` em `calculos.ts`, recebendo os ids de
+categoria a somar como gasto e como receita e devolvendo `{ mes, gasto, receita,
+saldo }` por mês — a receita soma sempre todas as categorias de receita,
+independente do filtro de despesa selecionado.
+
+**Receita só aparece na visão "todas as despesas".** Comparar o gasto de uma
+categoria única com a renda inteira no mesmo traçado confundiria mais do que
+ajudaria; a visão de categoria única continua exatamente como antes (só gasto x
+meta). Sem série nova de "saldo" no gráfico — o espaço entre as duas áreas
+(despesa em `--chart-1`, receita em `--chart-2`, mesmas cores já usadas em outros
+gráficos do app) já mostra isso visualmente. O saldo exato mora no tooltip
+customizado, junto com gasto e receita, calculado a partir do próprio ponto de
+dado — não recalculado no componente.
+
+Faxina de bônus: os eixos passaram a usar a constante `EIXO` de
+`components/grafico.tsx`, que existia desde o Bloco E e nenhum gráfico do app usava
+(cada um repetia o mesmo `tick`/`stroke` na mão).
+
+**Verificado no navegador:** com "todas as despesas", o card mostra "Tendência de
+gasto e receita", duas áreas com legenda, e o tooltip lista Gasto total, Receita e
+Saldo (ex.: `R$ 162,46` / `R$ 275,00` / `R$ 112,54`). Trocando para uma categoria
+específica, o título volta a "Tendência de gasto", a legenda e a área de receita
+desaparecem — só a série de despesa contra a meta, como antes.
+
+**Ainda em aberto, não decidido:** a linha de meta usa a receita do mês *corrente*
+para os 6 meses inteiros (comentário no código já registra isso) — imprecisa para
+meses passados se a meta é percentual e a receita variou. E falta uma visão de
+**composição** (quanto cada categoria pesa no total de despesa) — nenhum gráfico
+do pilar responde isso hoje.
