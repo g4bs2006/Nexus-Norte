@@ -83,6 +83,7 @@ import { useFontesCalendario } from '@/features/calendario/hooks'
 import { MiniCard } from '@/features/home/componentes/MiniCard'
 import { AvisoTreinoAberto } from '@/features/treino/componentes/AvisoTreinoAberto'
 import { IndicadorSono } from '@/features/home/componentes/IndicadorSono'
+import { SecaoMetas } from '@/features/home/componentes/SecaoMetas'
 
 const EVENTOS_NA_HOME = 5
 const DIAS_PROXIMOS_EVENTOS = 14
@@ -620,6 +621,8 @@ export default function HomePage() {
           horasMeta={sono.horasMeta}
           acao={<DialogSono hoje={hoje} />}
         />
+
+        <SecaoMetas hoje={hoje} />
 
         {/* Atalho para o calendário (plano 7.1) */}
         <Card>
