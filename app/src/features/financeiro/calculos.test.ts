@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   agruparPorDia,
+  composicaoGastos,
   gastoDisponivelGeral,
   gastoDisponivelPlanejado,
   metaEfetiva,
@@ -13,7 +14,7 @@ import {
   totaisDoMes,
   totaisDoPeriodo,
 } from './calculos'
-import type { Categoria } from './types'
+import type { Categoria, NaturezaCategoria } from './types'
 
 function categoria(parcial: Partial<Categoria>): Categoria {
   return {
@@ -247,6 +248,69 @@ describe('totaisDoPeriodo', () => {
       saldo: 0,
       quantidade: 0,
     })
+  })
+})
+
+describe('composicaoGastos', () => {
+  const cat = (
+    nome: string,
+    total: number,
+    cor: string | null = null,
+    natureza: NaturezaCategoria = 'despesa',
+  ) => ({
+    id: nome,
+    nome,
+    total_gasto_mes: total,
+    cor,
+    natureza,
+  })
+
+  it('ordena do maior para o menor e calcula o percentual do total', () => {
+    const resultado = composicaoGastos([
+      cat('Mercado', 400, '#ff0000'),
+      cat('Transporte', 100),
+      cat('Lazer', 500, '#00ff00'),
+    ])
+
+    expect(resultado.map((e) => e.nome)).toEqual([
+      'Lazer',
+      'Mercado',
+      'Transporte',
+    ])
+    expect(resultado[0]).toMatchObject({
+      nome: 'Lazer',
+      total: 500,
+      cor: '#00ff00',
+      percentual: 50,
+    })
+    expect(resultado[2]?.percentual).toBeCloseTo(10)
+  })
+
+  it('exclui categoria de receita mesmo com total_gasto_mes preenchido', () => {
+    const resultado = composicaoGastos([
+      cat('Mercado', 200),
+      cat('Salário', 5000, null, 'receita'),
+    ])
+    expect(resultado.map((e) => e.nome)).toEqual(['Mercado'])
+    expect(resultado[0]?.percentual).toBe(100)
+  })
+
+  it('exclui categoria sem gasto no mês', () => {
+    const resultado = composicaoGastos([cat('Mercado', 200), cat('Lazer', 0)])
+    expect(resultado.map((e) => e.nome)).toEqual(['Mercado'])
+    expect(resultado[0]?.percentual).toBe(100)
+  })
+
+  it('respeita o limite', () => {
+    const resultado = composicaoGastos(
+      [cat('A', 300), cat('B', 200), cat('C', 100)],
+      2,
+    )
+    expect(resultado).toHaveLength(2)
+  })
+
+  it('devolve vazio sem categoria com gasto', () => {
+    expect(composicaoGastos([cat('Mercado', 0)])).toEqual([])
   })
 })
 

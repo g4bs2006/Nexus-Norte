@@ -42,6 +42,7 @@ import { CardCategoria } from '@/features/financeiro/componentes/CardCategoria'
 import { ChecksDiarios } from '@/features/financeiro/componentes/ChecksDiarios'
 import { GradePlanejamentoSemanal } from '@/features/financeiro/componentes/GradePlanejamentoSemanal'
 import { GraficoTendencia } from '@/features/financeiro/componentes/GraficoTendencia'
+import { SecaoComposicaoGastos } from '@/features/financeiro/componentes/SecaoComposicaoGastos'
 import { SecaoAtencao } from '@/features/financeiro/componentes/SecaoAtencao'
 import { SecaoInvestimentos } from '@/features/financeiro/componentes/SecaoInvestimentos'
 import { DialogCategoria } from '@/features/financeiro/componentes/DialogCategoria'
@@ -236,6 +237,8 @@ export default function FinanceiroPage() {
               ))}
             </div>
           </section>
+
+          <SecaoComposicaoGastos categorias={listaCategorias} />
 
           <GraficoTendencia
             meses={meses}

@@ -1377,3 +1377,47 @@ ter usado `tsc -b` ou `npm run build` desde a primeira vez, não `tsc --noEmit`.
 **Mudança de processo, não só de código:** doravante, verificar tipos deste
 projeto significa `npx tsc -b` (ou `npm run build`) — nunca `tsc --noEmit` solto,
 que só funcionaria se apontado direto para `tsconfig.app.json`.
+
+### 10.37 Composição de gasto por categoria — "pra onde vai o dinheiro"
+
+Segunda parte da melhoria de gráficos do Financeiro (10.35 foi a primeira). O
+grid de `CardCategoria` mostra cada categoria contra a própria meta, mas nenhuma
+tela deixava comparar categorias entre si — não dava para ver de cara que uma
+categoria é 40% do gasto do mês só olhando os anéis, um por um.
+
+Achado antes de escrever qualquer UI: a função de cálculo pra isso **já existia
+e já tinha teste** — `rankingGastos()`, top N categorias por valor gasto — só
+que nunca tinha sido usada em nenhum componente. Código morto, escrito e
+testado, sem UI.
+
+Discutido a forma antes de construir (ele escolheu): lista ranqueada com barra
+proporcional ao gasto, em vez de barra única empilhada ou anel/donut — reaproveita
+a pastilha colorida por categoria que `ListaLancamentos` já usa (`categoria.cor`),
+só com o comprimento passando a significar algo, e é a opção que menos foge do
+estilo "lista densa" do resto do pilar. Donut foi descartado por nunca ter sido
+usado no app nem uma vez (`PieChart` do recharts, zero ocorrências) e ficar mais
+colorido/decorativo que o resto do Financeiro.
+
+`rankingGastos<T>` virou genérico (antes fixo em `EntradaRanking`) para que
+`composicaoGastos()` — a função nova — consiga carregar `cor` e devolver
+`percentual` sem perder tipo no meio do caminho. `percentual` reaproveita
+`progressoCategoria()`: a mesma razão usada pra "quanto da meta já foi gasto"
+serve aqui como "quanto do total de despesas essa categoria representa", com o
+total de despesas no lugar da meta — zero cálculo novo além da soma do total.
+
+`BarraProgresso` ganhou a prop `cor` (cor CSS livre, precedência sobre
+`classeCor`) — faltava nela o que `AnelProgresso` já tinha, pelo mesmo motivo:
+`categorias.cor` é texto livre no banco, não pode virar classe Tailwind estática.
+
+**Bug pego no navegador antes de commitar:** a primeira versão passava
+`listaCategorias` (receita + despesa) pro componente sem filtrar, e uma
+categoria de receita ("Almoço - Receita", `total_gasto_mes` = 75 porque a coluna
+existe pra qualquer natureza) apareceu na composição de despesa. Corrigido
+filtrando por `natureza === 'despesa'` **dentro** de `composicaoGastos` — mesma
+defesa que `metaTotalDespesas` já faz, em vez de confiar que todo chamador vai
+filtrar antes de passar. Teste novo cobre esse caso específico.
+
+**Verificado no navegador com o dado real:** card "Pra onde vai o dinheiro" com
+Alimentação (78%), Assinaturas (7%), Lanche (7%), Bebidas - Refrigerante (6%),
+Doces (2%) — barras proporcionais, cor de cada categoria, sem a categoria de
+receita.

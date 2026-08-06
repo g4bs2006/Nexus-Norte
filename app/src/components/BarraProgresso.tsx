@@ -9,6 +9,12 @@ interface BarraProgressoProps {
    * Sem valor, usa a cor de texto padrão.
    */
   classeCor?: string
+  /**
+   * Cor CSS explícita do preenchimento. Tem precedência sobre `classeCor` e
+   * existe para campos de cor livres no banco (ex: `categorias.cor`), que não
+   * podem virar classe Tailwind estática — mesmo motivo de `AnelProgresso`.
+   */
+  cor?: string | undefined
   className?: string
   /** Rótulo acessível — a barra é informativa, não decorativa. */
   rotulo?: string
@@ -24,6 +30,7 @@ interface BarraProgressoProps {
 export function BarraProgresso({
   valor,
   classeCor,
+  cor,
   className,
   rotulo,
 }: BarraProgressoProps) {
@@ -45,9 +52,9 @@ export function BarraProgresso({
       <div
         className={cn(
           'h-full rounded-full transition-[width] duration-700 ease-out',
-          classeCor ?? 'bg-foreground/70',
+          !cor && (classeCor ?? 'bg-foreground/70'),
         )}
-        style={{ width: `${preenchido}%` }}
+        style={{ width: `${preenchido}%`, backgroundColor: cor }}
       />
     </div>
   )

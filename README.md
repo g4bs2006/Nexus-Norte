@@ -406,6 +406,17 @@ mais do que ajudaria.
 
 Detalhes em [`plano.md`, resolução 10.35](./plano.md).
 
+## Pra onde vai o dinheiro
+
+O grid de categorias mostra cada uma contra a própria meta, mas nenhuma tela
+deixava comparar categorias entre si. Uma lista ranqueada, do maior gasto pro
+menor, com barra proporcional colorida pela cor da própria categoria — mesmo
+padrão de identificação por cor que a lista de lançamentos já usa. A função de
+cálculo (`rankingGastos`) já existia no código, testada, sem nenhuma tela
+usando ela.
+
+Detalhes em [`plano.md`, resolução 10.37](./plano.md).
+
 ## Apagar dado pede confirmação
 
 **Todo botão que apaga passa por uma confirmação**, não só os que apagam entidades

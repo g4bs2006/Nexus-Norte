@@ -95,12 +95,68 @@ export interface EntradaRanking {
   total: number
 }
 
-/** Top N categorias por valor gasto (plano 2.2). */
-export function rankingGastos(
-  entradas: readonly EntradaRanking[],
+/**
+ * Top N categorias por valor gasto (plano 2.2).
+ *
+ * Genérica em `T` para que `composicaoGastos` (abaixo) consiga passar campos
+ * extras (`cor`) e recebê-los de volta no resultado — sem isso o retorno
+ * ficaria estreitado a `EntradaRanking[]` e perderia o que não está nela.
+ */
+export function rankingGastos<T extends EntradaRanking>(
+  entradas: readonly T[],
   limite = 5,
-): EntradaRanking[] {
+): T[] {
   return [...entradas].sort((a, b) => b.total - a.total).slice(0, limite)
+}
+
+export interface EntradaComposicao extends EntradaRanking {
+  cor: string | null
+  /** % do total de despesas do mês. `null` só quando não há despesa nenhuma. */
+  percentual: number | null
+}
+
+/**
+ * Como o gasto do mês se distribui entre categorias, do maior para o menor —
+ * "pra onde vai o dinheiro" (melhoria de gráficos, 06/08).
+ *
+ * Reaproveita `rankingGastos` (ordena e corta) e `progressoCategoria` (a
+ * mesma razão usada para "quanto da meta já foi gasto" serve aqui como
+ * "quanto do total de despesas essa categoria representa" — o total de
+ * despesas no lugar da meta). Categoria sem gasto no mês não entra: a
+ * pergunta é "pra onde foi", e uma linha em 0% não responde nada.
+ *
+ * Filtra por `natureza === 'despesa'` internamente — mesma defesa que
+ * `metaTotalDespesas` já faz — em vez de confiar que todo chamador vai
+ * filtrar antes de passar. Uma categoria de receita ("Almoço - Receita")
+ * chegou a entrar aqui na primeira versão porque a página passou a lista
+ * inteira sem filtrar.
+ */
+export function composicaoGastos(
+  categorias: readonly Pick<
+    Categoria,
+    'id' | 'nome' | 'total_gasto_mes' | 'cor' | 'natureza'
+  >[],
+  limite = 5,
+): EntradaComposicao[] {
+  const comGasto = categorias.filter(
+    (c) => c.natureza === 'despesa' && c.total_gasto_mes > 0,
+  )
+  const totalDespesas = comGasto.reduce((t, c) => t + c.total_gasto_mes, 0)
+
+  const ranking = rankingGastos(
+    comGasto.map((c) => ({
+      categoria_id: c.id,
+      nome: c.nome,
+      total: c.total_gasto_mes,
+      cor: c.cor,
+    })),
+    limite,
+  )
+
+  return ranking.map((entrada) => ({
+    ...entrada,
+    percentual: progressoCategoria(entrada.total, totalDespesas),
+  }))
 }
 
 export interface ParametrosSaldoProjetado {
