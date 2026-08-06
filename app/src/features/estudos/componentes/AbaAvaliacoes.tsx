@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
-import { Plus } from 'lucide-react'
+import { Pencil, Plus, X } from 'lucide-react'
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -47,6 +47,10 @@ export function AbaAvaliacoes({
   const [nome, setNome] = useState('')
   const [peso, setPeso] = useState('1')
   const [data, setData] = useState('')
+  // Mesmo formulário serve para criar e editar (um editor, não dois) — não
+  // nulo enquanto uma avaliação existente está sendo editada, em vez de
+  // criada. O id basta; os outros campos do card já vêm do estado acima.
+  const [editandoId, setEditandoId] = useState<string | null>(null)
 
   const tipoMedia = config?.tipo ?? 'ponderada'
   const [notaManual, setNotaManual] = useState(
@@ -55,20 +59,36 @@ export function AbaAvaliacoes({
       : String(config.nota_manual),
   )
 
-  async function adicionar() {
+  function limparFormulario() {
+    setEditandoId(null)
+    setNome('')
+    setPeso('1')
+    setData('')
+  }
+
+  function iniciarEdicao(avaliacao: Avaliacao) {
+    setEditandoId(avaliacao.id)
+    setNome(avaliacao.nome)
+    setPeso(formatarDecimal(avaliacao.peso))
+    setData(avaliacao.data ?? '')
+  }
+
+  async function salvar() {
     const pesoNumero = parseDecimal(peso)
     if (nome.trim() === '' || !Number.isFinite(pesoNumero) || pesoNumero <= 0) {
       return
     }
-    await criar.mutateAsync({
-      materia_id: materiaId,
+    const dados = {
       nome: nome.trim(),
       peso: pesoNumero,
       data: data === '' ? null : data,
-    })
-    setNome('')
-    setPeso('1')
-    setData('')
+    }
+    if (editandoId) {
+      await atualizar.mutateAsync({ id: editandoId, dados })
+    } else {
+      await criar.mutateAsync({ materia_id: materiaId, ...dados })
+    }
+    limparFormulario()
   }
 
   /** Salva a nota ao sair do campo — evita mutation a cada tecla. */
@@ -161,9 +181,14 @@ export function AbaAvaliacoes({
         </CardContent>
       </Card>
 
-      {/* Nova avaliação */}
-      <Card>
+      {/* Nova avaliação — o mesmo card edita quando `editandoId` está setado */}
+      <Card className={editandoId ? 'border-estudos/50' : undefined}>
         <CardContent className="flex flex-wrap items-end gap-2">
+          {editandoId && (
+            <p className="text-estudos w-full text-xs font-medium">
+              Editando avaliação
+            </p>
+          )}
           <div className="min-w-[10rem] flex-1 space-y-1.5">
             <Label className="text-xs" htmlFor="nova-avaliacao">
               Avaliação
@@ -201,13 +226,24 @@ export function AbaAvaliacoes({
               onChange={(evento) => setData(evento.target.value)}
             />
           </div>
+          {editandoId && (
+            <Button
+              size="sm"
+              variant="ghost"
+              type="button"
+              onClick={limparFormulario}
+            >
+              <X className="size-4" />
+              Cancelar
+            </Button>
+          )}
           <Button
             size="sm"
-            onClick={() => void adicionar()}
-            disabled={criar.isPending}
+            onClick={() => void salvar()}
+            disabled={criar.isPending || atualizar.isPending}
           >
-            <Plus className="size-4" />
-            Adicionar
+            {!editandoId && <Plus className="size-4" />}
+            {editandoId ? 'Salvar' : 'Adicionar'}
           </Button>
         </CardContent>
       </Card>
@@ -280,6 +316,16 @@ export function AbaAvaliacoes({
                       aria-label={`Nota de ${avaliacao.nome}`}
                     />
 
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-8 shrink-0 sm:size-6"
+                      aria-label={`Editar ${avaliacao.nome}`}
+                      onClick={() => iniciarEdicao(avaliacao)}
+                    >
+                      <Pencil className="size-3.5 sm:size-3" />
+                    </Button>
+
                     <DialogConfirmarExclusao
                       titulo={`Excluir ${avaliacao.nome}`}
                       mensagem={
@@ -287,7 +333,13 @@ export function AbaAvaliacoes({
                           ? `${avaliacao.nome} sai da matéria e do cálculo da média projetada.`
                           : `A nota ${formatarDecimal(avaliacao.nota)} de ${avaliacao.nome} será perdida e a média recalculada sem ela.`
                       }
-                      onConfirmar={() => excluir.mutate(avaliacao.id)}
+                      onConfirmar={() => {
+                        excluir.mutate(avaliacao.id)
+                        // Sem isto, excluir a avaliação que está no formulário
+                        // deixaria "Salvar" chamando atualizar() com um id que
+                        // não existe mais.
+                        if (editandoId === avaliacao.id) limparFormulario()
+                      }}
                       pendente={excluir.isPending}
                     />
                   </li>
