@@ -1207,3 +1207,59 @@ não foi pedida — a barra continua respondendo "quanto a rotina compromete".
 **Verificado no navegador** contra o dado real: a quarta passou a ler
 `✓ 11:00 Pull` + `18:00 Legs (cancelado)`, a terça mostra `Push` sem hora em vez de
 uma hora inventada, o anel saiu da terça e a quarta deixou de somar 1h.
+
+### 10.32 Metas — meta unificada entre pilares (spec própria) — feature nova
+
+Hoje "meta" existia fragmentada e sem lugar único: `categorias.meta_mensal`
+(Financeiro), `marcos_projeto` (Projetos), `personal_records` (Treino) — nada em
+Estudos ou Sono, e nenhuma tela mostrava tudo que o usuário está perseguindo
+independente do pilar.
+
+Nova tabela `metas` (um dado, 4 formas via `tipo`: `numerica`, `marco`, `habito`,
+`livre`) + `metas_checkins` (check-in diário de hábito, presença = feito, no mesmo
+espírito de `conclusoes_fluxograma`/`execucoes_pulados`). No máximo uma FK de pilar
+(`categoria_id`/`materia_id`/`tipo_treino_id`/`projeto_id`) por linha, checado na
+aplicação — `metas.valor_alvo` é **independente** de `categorias.meta_mensal`, o
+vínculo só serve para buscar o progresso real, nunca para herdar o alvo.
+
+Progresso de meta numérica linkada vem da função `progresso_meta()` (RPC), que
+espelha `progresso_categoria`/`calcular_media_materia`: soma `lancamentos` da
+categoria, `sessoes_estudo.duracao_minutos` da matéria, contagem de
+`execucoes_treino` do tipo, ou % de `marcos_projeto` concluídos — sempre entre
+`data_inicio` (coluna própria, não `criada_em::date`, que resolveria no timezone do
+servidor) e `data_alvo` (ou hoje, se `data_alvo` for nulo). Meta numérica sem link
+usa `valor_atual_manual`, editado direto no card. Meta de hábito calcula streak e
+progresso da semana client-side, puro e testado (`features/metas/calculos.ts`).
+
+Sem rota nova, sem item em `BottomNav`/`Sidebar` — vive inteira como seção na Home
+(`SecaoMetas`), com destaque das ~4 metas mais próximas do prazo e "Ver todas"
+abrindo lista em tela cheia (`DialogListaMetas`).
+
+**Pendência de processo encontrada depois do merge:** a migração
+(`20260805000007_metas.sql` + ajustes em `20260805000008_metas_ajustes.sql`) tinha
+sido aplicada direto no banco, sem passar por `apply_migration` — o schema estava
+certo, mas o histórico de migração do Supabase não sabia disso. A próxima
+`db push` teria tentado reaplicar `000008`, que não é idempotente (`add column`
+sem `if not exists`), e quebraria em "column already exists". Reparado inserindo as
+duas linhas correspondentes em `supabase_migrations.schema_migrations` — nenhum
+dado ou schema mudou, só o rastro.
+
+### 10.33 Metas reproduzia a vírgula do teclado brasileiro (corrige 10.26) — descoberta em uso
+
+O campo "Alvo" de `DialogMeta` e a edição rápida de `valor_atual_manual` em
+`CardMeta` usavam `<input type="number">` + `valueAsNumber` — exatamente o bug da
+10.26: no teclado numérico em português o separador é vírgula, `type="number"`
+rejeita, e o campo chega vazio ao formulário. A ironia é que `CampoDecimal`
+(`components/CampoDecimal.tsx`) e `lib/numeros.ts` foram criados **na mesma leva de
+mudanças** que trouxe Metas, e já estavam em uso em `DialogLancamento`,
+`DialogCategoria`, `DialogInvestimento` — só não chegaram aos dois campos de Metas.
+
+Trocado nos dois lugares por `CampoDecimal`. Na edição rápida do card, o commit
+continua só no blur (como antes) — `CampoDecimal` chama `onValorChange` a cada
+tecla, e mutar a cada tecla faria uma requisição por caractere digitado; o valor
+digitado fica num ref até o campo perder o foco.
+
+**Verificado no navegador:** digitar `87,5` no campo Alvo mantém a vírgula na tela
+(antes ficaria vazio) e grava `87.5` no banco; digitar `45,2` na edição rápida do
+card grava `45.2` só ao sair do campo. `frequencia_alvo` (vezes por semana)
+continua `type="number"` — é inteiro, sem separador, fora da regra da 10.26.

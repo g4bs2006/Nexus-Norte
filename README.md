@@ -374,6 +374,22 @@ horário em vez de ganhar um número derivado de quando o registro terminou.
 
 Detalhes em [`plano.md`, resoluções 10.20 e 10.31](./plano.md).
 
+## Metas
+
+"Meta" existia espalhada e sem lugar único — orçamento de categoria no Financeiro,
+marco de projeto, recorde pessoal no Treino — e nada em Estudos ou Sono. Um dado só
+(`metas`), quatro formas (numérica, marco, hábito, livre), vínculo opcional com
+qualquer pilar. Sem rota nova: a seção vive na Home, com as metas mais próximas do
+prazo em destaque e uma lista completa atrás de "Ver todas".
+
+Meta numérica linkada a um pilar calcula o progresso real via RPC
+(`progresso_meta`) — soma de lançamentos, minutos de estudo, execuções de treino ou
+% de marcos concluídos, conforme o vínculo. Sem link, o valor é digitado à mão no
+próprio card. Meta de hábito registra check-in diário e calcula sequência e
+progresso da semana.
+
+Detalhes em [`plano.md`, resoluções 10.32 e 10.33](./plano.md).
+
 ## Apagar dado pede confirmação
 
 **Todo botão que apaga passa por uma confirmação**, não só os que apagam entidades
