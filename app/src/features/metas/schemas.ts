@@ -22,6 +22,7 @@ export const PILARES_LINK = [
   'estudos',
   'treino',
   'projetos',
+  'corporal',
 ] as const
 
 export const schemaMeta = z
@@ -55,9 +56,12 @@ export const schemaMeta = z
     message: 'Informe quantas vezes por semana',
     path: ['frequencia_alvo'],
   })
-  .refine((v) => v.pilarLink === '' || v.entidadeId !== '', {
-    message: 'Selecione o item vinculado',
-    path: ['entidadeId'],
-  })
+  .refine(
+    (v) =>
+      v.pilarLink === '' ||
+      v.pilarLink === 'corporal' || // sem entidade para escolher — é o histórico de peso, não um item
+      v.entidadeId !== '',
+    { message: 'Selecione o item vinculado', path: ['entidadeId'] },
+  )
 
 export type FormularioMeta = z.infer<typeof schemaMeta>

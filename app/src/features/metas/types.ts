@@ -19,16 +19,22 @@ export const ROTULOS_TIPO_META: Record<TipoMeta, string> = {
   livre: 'Livre',
 }
 
-export type PilarMeta = 'financeiro' | 'estudos' | 'treino' | 'projetos'
+export type PilarMeta = 'financeiro' | 'estudos' | 'treino' | 'projetos' | 'corporal'
 
-export type PilarLinkMeta = { pilar: PilarMeta; id: string } | null
+/**
+ * `id` é `null` para o vínculo com peso corporal: `registro_corporal` não é uma
+ * entidade escolhível (categoria, matéria...), é peso ao longo do tempo — não há
+ * "qual" registro linkar, só "usar o histórico de peso ou não".
+ */
+export type PilarLinkMeta = { pilar: PilarMeta; id: string | null } | null
 
-/** No máximo uma FK de pilar é preenchida por meta — a primeira encontrada vence. */
+/** No máximo um vínculo de pilar por meta — o primeiro encontrado vence. */
 export function pilarDaMeta(meta: Meta): PilarLinkMeta {
   if (meta.categoria_id) return { pilar: 'financeiro', id: meta.categoria_id }
   if (meta.materia_id) return { pilar: 'estudos', id: meta.materia_id }
   if (meta.tipo_treino_id) return { pilar: 'treino', id: meta.tipo_treino_id }
   if (meta.projeto_id) return { pilar: 'projetos', id: meta.projeto_id }
+  if (meta.usa_peso_corporal) return { pilar: 'corporal', id: null }
   return null
 }
 
@@ -37,4 +43,16 @@ export const CLASSE_COR_PILAR: Record<PilarMeta, string> = {
   estudos: 'text-estudos',
   treino: 'text-treino',
   projetos: 'text-projetos',
+  // Peso corporal não é um pilar próprio no design system — vive dentro de
+  // Treino (registro_corporal aparece em SecaoCorporal.tsx), então reaproveita
+  // a cor em vez de inventar uma quinta.
+  corporal: 'text-treino',
+}
+
+export const ROTULOS_PILAR_LINK: Record<PilarMeta, string> = {
+  financeiro: 'Financeiro',
+  estudos: 'Estudos',
+  treino: 'Treino',
+  projetos: 'Projetos',
+  corporal: 'Peso corporal',
 }

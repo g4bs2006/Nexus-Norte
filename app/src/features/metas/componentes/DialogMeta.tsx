@@ -42,6 +42,7 @@ import {
 } from '../schemas'
 import {
   pilarDaMeta,
+  ROTULOS_PILAR_LINK,
   ROTULOS_TIPO_META,
   type Meta,
   type PilarMeta,
@@ -139,6 +140,7 @@ export function DialogMeta({ meta, trigger }: DialogMetaProps = {}) {
       materia_id: link === 'estudos' ? valores.entidadeId : null,
       tipo_treino_id: link === 'treino' ? valores.entidadeId : null,
       projeto_id: link === 'projetos' ? valores.entidadeId : null,
+      usa_peso_corporal: link === 'corporal',
 
       valor_alvo: Number.isNaN(valores.valor_alvo) ? null : valores.valor_alvo,
       unidade: textoOuNulo(valores.unidade),
@@ -281,7 +283,7 @@ export function DialogMeta({ meta, trigger }: DialogMetaProps = {}) {
                           >
                             {valor === ''
                               ? 'Nenhum'
-                              : valor.charAt(0).toUpperCase() + valor.slice(1)}
+                              : ROTULOS_PILAR_LINK[valor]}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -291,7 +293,7 @@ export function DialogMeta({ meta, trigger }: DialogMetaProps = {}) {
                 )}
               />
 
-              {pilarLink !== '' && (
+              {pilarLink !== '' && pilarLink !== 'corporal' && (
                 <FormField
                   control={form.control}
                   name="entidadeId"

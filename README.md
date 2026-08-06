@@ -383,12 +383,15 @@ qualquer pilar. Sem rota nova: a seção vive na Home, com as metas mais próxim
 prazo em destaque e uma lista completa atrás de "Ver todas".
 
 Meta numérica linkada a um pilar calcula o progresso real via RPC
-(`progresso_meta`) — soma de lançamentos, minutos de estudo, execuções de treino ou
-% de marcos concluídos, conforme o vínculo. Sem link, o valor é digitado à mão no
-próprio card. Meta de hábito registra check-in diário e calcula sequência e
-progresso da semana.
+(`progresso_meta`) — soma de lançamentos, minutos de estudo, execuções de treino,
+% de marcos concluídos, ou variação de peso corporal, conforme o vínculo. Peso
+corporal é o único vínculo que não é uma FK para uma entidade (categoria, matéria…)
+— é peso ao longo do tempo, então o progresso é a diferença entre o peso antes da
+meta e o peso mais recente, não uma soma no período. Sem link, o valor é digitado
+à mão no próprio card. Meta de hábito registra check-in diário e calcula
+sequência e progresso da semana.
 
-Detalhes em [`plano.md`, resoluções 10.32 e 10.33](./plano.md).
+Detalhes em [`plano.md`, resoluções 10.32 a 10.34](./plano.md).
 
 ## Apagar dado pede confirmação
 

@@ -703,6 +703,7 @@ export type Database = {
           tipo_treino_id: string | null
           titulo: string
           unidade: string | null
+          usa_peso_corporal: boolean
           valor_alvo: number | null
           valor_atual_manual: number | null
         }
@@ -722,6 +723,7 @@ export type Database = {
           tipo_treino_id?: string | null
           titulo: string
           unidade?: string | null
+          usa_peso_corporal?: boolean
           valor_alvo?: number | null
           valor_atual_manual?: number | null
         }
@@ -741,6 +743,7 @@ export type Database = {
           tipo_treino_id?: string | null
           titulo?: string
           unidade?: string | null
+          usa_peso_corporal?: boolean
           valor_alvo?: number | null
           valor_atual_manual?: number | null
         }
@@ -1296,7 +1299,7 @@ export type CompositeTypes<
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    ? DefaultSchema["CompositeTypes"][CompositeTypeName]
     : never
 
 export const Constants = {

@@ -1263,3 +1263,40 @@ digitado fica num ref até o campo perder o foco.
 (antes ficaria vazio) e grava `87.5` no banco; digitar `45,2` na edição rápida do
 card grava `45.2` só ao sair do campo. `frequencia_alvo` (vezes por semana)
 continua `type="number"` — é inteiro, sem separador, fora da regra da 10.26.
+
+### 10.34 Meta numérica ganha vínculo com peso corporal — feature nova
+
+Ele criou uma meta "Perder 12kg" e vinculou a um **tipo de treino** — a única
+opção disponível que parecia próxima de Treino. O vínculo com tipo de treino
+calcula **contagem de sessões concluídas**, não peso: a meta ia mostrar
+"2 / 12 Kg" onde 2 é número de treinos, sem relação nenhuma com quilos perdidos.
+Não existia vínculo com `registro_corporal` porque essa tabela não é uma entidade
+escolhível como categoria/matéria/tipo de treino/projeto — é peso ao longo do
+tempo, uma linha por dia, sem FK para nada.
+
+Vínculo novo: `metas.usa_peso_corporal boolean`, não mais um `uuid references` —
+não há "qual" registro escolher, só "usar o histórico de peso ou não". Mesma
+regra dos outros quatro vínculos: no máximo um por meta, checado na aplicação.
+
+Semântica de `valor_alvo` confirmada com o usuário: **quilos a perder desde o
+início da meta** (delta), não peso final absoluto — bate com a meta já criada
+(alvo=12 para "Perder 12kg"). `progresso_meta()` calcula
+`peso_inicial - peso_atual`, onde:
+- `peso_inicial` = peso mais recente **estritamente antes** de `data_inicio`;
+- `peso_atual` = peso mais recente até `data_alvo` (ou hoje, sem prazo).
+
+**Bug pego testando com dado real, antes de ir para produção:** a primeira versão
+usava `data <= data_inicio` para `peso_inicial`. Registrar um peso no mesmo dia em
+que a meta foi criada fazia `peso_inicial` e `peso_atual` caírem no mesmo
+registro — delta sempre 0, mesmo tendo perdido peso de verdade desde uma pesagem
+anterior. Corrigido para `data < data_inicio` (estritamente antes): a linha de
+base fica fixa no que já era conhecido quando a meta nasceu, e qualquer pesagem
+a partir daquele dia (inclusive) conta como progresso.
+
+Sem cor nova no design system — `registro_corporal` vive dentro do pilar Treino
+(`SecaoCorporal.tsx`), então o vínculo reaproveita `text-treino`.
+
+**Verificado no navegador contra o banco real:** com um só registro de peso
+(97kg, antes da meta), progresso = 0. Inserido um segundo peso (94.5kg) no dia da
+meta — progresso passou a 2.5, e o card mostrou "Perder 12kg — 2.5 / 12 Kg". Meta
+de teste e peso de teste removidos depois de confirmado.
