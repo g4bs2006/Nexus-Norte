@@ -40,7 +40,12 @@ interface PontoGrafico {
   saldo: number
 }
 
-interface ConteudoTooltipProps extends TooltipContentProps<number, string> {
+// Sem generics explícitos: <Tooltip> não é genérico na sua assinatura JSX
+// (usa os defaults ValueType/NameType do recharts internamente), então o
+// `props` que a função de `content` recebe também vem nesses defaults —
+// narrowing para <number, string> aqui só criava incompatibilidade de tipo
+// entre o que o Tooltip passa e o que este componente declarava aceitar.
+interface ConteudoTooltipProps extends TooltipContentProps {
   mostrarReceita: boolean
   rotuloGasto: string
 }
@@ -233,14 +238,13 @@ export function GraficoTendencia({
               }
             />
             <Tooltip
-              content={
+              content={(props) => (
                 <ConteudoTooltip
+                  {...props}
                   mostrarReceita={mostrarReceita}
-                  rotuloGasto={
-                    selecionada === TODAS ? 'Gasto total' : 'Gasto'
-                  }
+                  rotuloGasto={selecionada === TODAS ? 'Gasto total' : 'Gasto'}
                 />
-              }
+              )}
             />
             {mostrarReceita && <Legend wrapperStyle={{ fontSize: 12 }} />}
             {meta !== null && (

@@ -1340,3 +1340,40 @@ para os 6 meses inteiros (comentário no código já registra isso) — imprecis
 meses passados se a meta é percentual e a receita variou. E falta uma visão de
 **composição** (quanto cada categoria pesa no total de despesa) — nenhum gráfico
 do pilar responde isso hoje.
+
+### 10.36 Build da Vercel quebrado nos dois últimos commits — `tsc --noEmit` não checava nada
+
+Ele reportou erro de build na Vercel nos commits `c2370cd` e `9ee7057`. Rodei
+`npx tsc -b` (o comando real do `npm run build`, `tsc -b && vite build`) e apareceram
+**dois erros de verdade** que eu tinha dado como "typecheck limpo" nas duas sessões
+anteriores — porque validei com `npx tsc --noEmit` solto, que lê o `tsconfig.json`
+da raiz. Esse arquivo tem `"files": []` e só referencia os sub-projetos
+(`tsconfig.app.json`/`tsconfig.node.json`) — **não checava nenhum arquivo**, sempre
+saía limpo porque não havia nada para checar. `npm run build` (e portanto a Vercel)
+usa `tsc -b`, que constrói os sub-projetos de verdade. Erro meu de processo: devia
+ter usado `tsc -b` ou `npm run build` desde a primeira vez, não `tsc --noEmit`.
+
+**Os dois erros:**
+
+1. `database.ts` — a última cláusula do helper `CompositeTypes<>` (regenerado via
+   MCP `generate_typescript_types` na sessão do vínculo de peso corporal) indexava
+   por `CompositeTypeName` em vez de `PublicCompositeTypeNameOrOptions`, igual ao
+   padrão do helper `Enums<>` uma linha acima. Como o schema não tem nenhum tipo
+   composto (`CompositeTypes: { [_ in never]: never }`), o TS simplifica isso para
+   `{}` e indexar por um parâmetro genérico solto quebra ("Type 'CompositeTypeName'
+   cannot be used to index type '{}'"). O texto que saiu do MCP já vinha assim — não
+   bati contra o arquivo committado antes de escrever por cima.
+2. `GraficoTendencia.tsx` — passar `content={<ConteudoTooltip .../>}` para o
+   `Tooltip` do recharts (sessão dos gráficos do Financeiro) não tipa: JSX exige
+   todas as props obrigatórias na criação do elemento, mas o recharts injeta
+   `active`/`payload`/`label` depois, via `cloneElement` em runtime — o TS não sabe
+   disso. Corrigido usando a forma de função que o `content` também aceita
+   (`content={(props) => <ConteudoTooltip {...props} ... />}`), e soltando o
+   generic de `ConteudoTooltipProps` (era `TooltipContentProps<number, string>`,
+   virou `TooltipContentProps` sem argumento) — `<Tooltip>` não é genérico na
+   assinatura JSX, então o `props` que a função recebe já vem nos defaults
+   `ValueType`/`NameType` do recharts, não em `<number, string>`.
+
+**Mudança de processo, não só de código:** doravante, verificar tipos deste
+projeto significa `npx tsc -b` (ou `npm run build`) — nunca `tsc --noEmit` solto,
+que só funcionaria se apontado direto para `tsconfig.app.json`.
