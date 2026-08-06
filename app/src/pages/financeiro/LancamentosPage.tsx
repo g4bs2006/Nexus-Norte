@@ -154,7 +154,7 @@ export default function LancamentosPage() {
         }
       />
 
-      <div className="space-y-4">
+      <div className="surgir-grupo space-y-4">
         <Card>
           <CardContent className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

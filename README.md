@@ -563,6 +563,10 @@ faltava era **resposta**.
   esvazia o significado do verde.
 - Nenhuma informação transmitida só por cor: sempre cor mais forma ou texto.
 
+A entrada orquestrada (`surgir-grupo`) tinha ficado só nas 4 páginas-hub —
+faltava nas páginas de detalhe e em Treino. Estendida para todas (resolução
+10.39): mesma classe, sem CSS novo.
+
 </details>
 
 <details>

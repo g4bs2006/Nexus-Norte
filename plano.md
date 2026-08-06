@@ -1473,3 +1473,24 @@ diálogo novo.
   hoje"), mas a grade semanal continuou mostrando o horário normalmente.
 - Avaliação de teste criada, editada (nome, peso 2→3, data) e conferida direto
   no banco: os três campos gravaram certo.
+
+### 10.39 Entrada orquestrada faltava em 7 páginas (correção da 10.31)
+
+Ele reparou que algumas páginas não animavam ao abrir — citou a página
+individual da matéria como exemplo. Não era um bug de lógica: `surgir-grupo`
+(a animação de entrada do Bloco A, ver README) tinha sido aplicada só nas
+**4 páginas-hub** (Home, Financeiro, Estudos, Projetos), na grade principal de
+cada uma. As páginas de detalhe/sub-página, e o próprio Treino (que por ter
+layout de lista vertical em vez de grid nunca ganhou a classe), ficaram de
+fora — inconsistência de aplicação do brief, não uma decisão.
+
+`surgir-grupo` não depende de `grid`: anima os filhos diretos de qualquer
+container (`& > *`), então funciona igual num `space-y-6` de Cards
+empilhados. Acrescentada no wrapper de conteúdo principal de:
+`MateriaDetalhePage`, `CategoriaDetalhePage`, `ProjetoDetalhePage`,
+`ExercicioDetalhePage`, `LancamentosPage`, `CalendarioPage` (vista agenda) e
+`TreinoPage`.
+
+Nenhum CSS novo, nenhuma lógica nova — só estender o que já existia para onde
+faltava. Verificado no navegador (não só visualmente — `getComputedStyle`
+confirmando `animationName: "surgir"` no primeiro filho de cada página).

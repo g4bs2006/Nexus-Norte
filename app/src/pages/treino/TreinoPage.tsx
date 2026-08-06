@@ -216,7 +216,7 @@ export default function TreinoPage() {
           acao={<DialogTreino />}
         />
       ) : (
-        <div className="space-y-6">
+        <div className="surgir-grupo space-y-6">
           {/* Treino de hoje (plano 4.3) */}
           <Card>
             <CardHeader>

@@ -242,7 +242,7 @@ export default function CalendarioPage() {
       )}
 
       {vista === 'agenda' ? (
-        <div className="space-y-4">
+        <div className="surgir-grupo space-y-4">
           <Card>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between gap-2">

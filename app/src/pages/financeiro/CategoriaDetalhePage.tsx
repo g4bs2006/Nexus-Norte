@@ -118,7 +118,7 @@ export default function CategoriaDetalhePage() {
         }
       />
 
-      <div className="space-y-6">
+      <div className="surgir-grupo space-y-6">
         <Card>
           <CardContent className="flex items-center gap-5">
             <AnelProgresso
