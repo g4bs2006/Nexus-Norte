@@ -22,3 +22,9 @@ graphify-out/
 
 # Previews gerados do design system (rode design-system/gerar.py)
 design-system/out/
+
+# Estado local do Claude Code — worktrees e config de sessão
+.claude/
+
+# Cache local da CLI do Supabase
+app/supabase/.temp/
