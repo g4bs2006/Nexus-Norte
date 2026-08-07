@@ -17,7 +17,12 @@ import {
   HORIZONTE_PROJECAO_PADRAO,
   MESES_MEDIA_VARIAVEL,
 } from '@/lib/constants'
-import { mediaVariavelPorCategoria, projetarFluxoCaixa } from '../projecao'
+import {
+  categoriasElegiveisParaMediaVariavel,
+  mediaVariavelPorCategoria,
+  mesesComHistorico,
+  projetarFluxoCaixa,
+} from '../projecao'
 import type { ProjecaoMensal } from '../projecao'
 import type { ResumoMensal } from '../api'
 import type { Categoria } from '../types'
@@ -111,22 +116,22 @@ export function SecaoProjecao({
   mesesResumo,
 }: SecaoProjecaoProps) {
   const categoriasVariaveis = useMemo(
-    () =>
-      new Set(
-        categorias
-          .filter((c) => c.natureza === 'despesa' && c.tipo === 'variavel')
-          .map((c) => c.id),
-      ),
-    [categorias],
+    () => categoriasElegiveisParaMediaVariavel(categorias, compromissos),
+    [categorias, compromissos],
   )
 
-  const mediaVariavel = useMemo(() => {
-    const janela = mesesResumo.slice(-MESES_MEDIA_VARIAVEL)
-    return mediaVariavelPorCategoria(resumo, categoriasVariaveis, janela)
-  }, [resumo, categoriasVariaveis, mesesResumo])
+  const janela = useMemo(
+    () => mesesResumo.slice(-MESES_MEDIA_VARIAVEL),
+    [mesesResumo],
+  )
+
+  const mediaVariavel = useMemo(
+    () => mediaVariavelPorCategoria(resumo, categoriasVariaveis, janela),
+    [resumo, categoriasVariaveis, janela],
+  )
 
   const historicoInsuficiente =
-    mesesResumo.length < MESES_MEDIA_VARIAVEL &&
+    mesesComHistorico(resumo, janela) < MESES_MEDIA_VARIAVEL &&
     Object.keys(mediaVariavel).length > 0
 
   const projecao = useMemo(

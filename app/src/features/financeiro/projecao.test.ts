@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   calcularParcelas,
+  categoriasElegiveisParaMediaVariavel,
   mediaVariavelPorCategoria,
+  mesesComHistorico,
   projetarFluxoCaixa,
   type CompromissoDetalhado,
   type ParceladaDetalhada,
@@ -94,6 +96,52 @@ describe('mediaVariavelPorCategoria', () => {
       ['2026-05-01', '2026-06-01', '2026-07-01'],
     )
     expect(resultado.v1).toBe(90)
+  })
+})
+
+describe('categoriasElegiveisParaMediaVariavel', () => {
+  it('exclui categoria variável que já tem compromisso recorrente vinculado', () => {
+    const categorias = [
+      { id: 'energia', natureza: 'despesa', tipo: 'variavel' },
+      { id: 'lanche', natureza: 'despesa', tipo: 'variavel' },
+    ]
+    const compromissos = [{ categoria_id: 'energia' }]
+    const resultado = categoriasElegiveisParaMediaVariavel(categorias, compromissos)
+    expect(resultado).toEqual(new Set(['lanche']))
+  })
+
+  it('ignora categorias fixas e de receita, com ou sem compromisso', () => {
+    const categorias = [
+      { id: 'aluguel', natureza: 'despesa', tipo: 'fixo' },
+      { id: 'salario', natureza: 'receita', tipo: null },
+    ]
+    const resultado = categoriasElegiveisParaMediaVariavel(categorias, [])
+    expect(resultado.size).toBe(0)
+  })
+})
+
+describe('mesesComHistorico', () => {
+  it('conta só os meses da janela que aparecem no resumo', () => {
+    const resumo = [
+      { mes: '2026-08-01' },
+      { mes: '2026-08-01' }, // categoria diferente, mesmo mês — não deve contar 2x
+    ]
+    const resultado = mesesComHistorico(resumo, [
+      '2026-06-01',
+      '2026-07-01',
+      '2026-08-01',
+    ])
+    expect(resultado).toBe(1)
+  })
+
+  it('devolve o tamanho da janela quando todos os meses têm dado', () => {
+    const resumo = [{ mes: '2026-07-01' }, { mes: '2026-08-01' }]
+    const resultado = mesesComHistorico(resumo, ['2026-07-01', '2026-08-01'])
+    expect(resultado).toBe(2)
+  })
+
+  it('devolve 0 quando a janela é toda vazia', () => {
+    expect(mesesComHistorico([], ['2026-08-01'])).toBe(0)
   })
 })
 

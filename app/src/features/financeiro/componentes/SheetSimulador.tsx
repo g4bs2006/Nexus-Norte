@@ -32,7 +32,9 @@ import { EIXO, ESTILO_TOOLTIP } from '@/components/grafico'
 import { formatarMoeda, rotuloMes } from '@/lib/datas'
 import { MESES_MEDIA_VARIAVEL } from '@/lib/constants'
 import {
+  categoriasElegiveisParaMediaVariavel,
   mediaVariavelPorCategoria,
+  mesesComHistorico,
   projetarFluxoCaixa,
 } from '../projecao'
 import { DialogParcelada } from './DialogParcelada'
@@ -86,19 +88,19 @@ export function SheetSimulador({
   )
 
   const categoriasVariaveis = useMemo(
-    () =>
-      new Set(
-        categorias
-          .filter((c) => c.natureza === 'despesa' && c.tipo === 'variavel')
-          .map((c) => c.id),
-      ),
-    [categorias],
+    () => categoriasElegiveisParaMediaVariavel(categorias, compromissos),
+    [categorias, compromissos],
   )
 
-  const mediaVariavel = useMemo(() => {
-    const janela = mesesResumo.slice(-MESES_MEDIA_VARIAVEL)
-    return mediaVariavelPorCategoria(resumo, categoriasVariaveis, janela)
-  }, [resumo, categoriasVariaveis, mesesResumo])
+  const janela = useMemo(
+    () => mesesResumo.slice(-MESES_MEDIA_VARIAVEL),
+    [mesesResumo],
+  )
+
+  const mediaVariavel = useMemo(
+    () => mediaVariavelPorCategoria(resumo, categoriasVariaveis, janela),
+    [resumo, categoriasVariaveis, janela],
+  )
 
   const compraValida =
     categoriaId !== '' && !Number.isNaN(valorTotal) && valorTotal > 0
@@ -159,7 +161,7 @@ export function SheetSimulador({
       : `Reduz o saldo projetado em ${formatarMoeda(Math.abs(diferenca))} ao longo de ${HORIZONTE_SIMULACAO} meses, sem levar o acumulado a negativo.`
     : 'Preencha os campos da compra para ver o efeito na projeção.'
 
-  const historicoCurto = mesesResumo.length < MESES_MEDIA_VARIAVEL
+  const historicoCurto = mesesComHistorico(resumo, janela) < MESES_MEDIA_VARIAVEL
 
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>

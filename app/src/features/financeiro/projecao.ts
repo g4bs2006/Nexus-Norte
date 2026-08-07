@@ -261,3 +261,48 @@ export function mediaVariavelPorCategoria(
   }
   return resultado
 }
+
+/**
+ * Categorias de despesa variável elegíveis para a média histórica.
+ *
+ * Exclui as que já têm compromisso recorrente vinculado: o futuro delas já
+ * vem do compromisso, e somar as duas contaria o mesmo custo duas vezes —
+ * bug real encontrado em uso ("Energia" ficou marcada `variavel` depois de
+ * ganhar um compromisso fixo de R$350, e a projeção passou a somar R$350 +
+ * a média variável da mesma conta). Defesa dentro da função, não só no
+ * cadastro — mesmo raciocínio de `composicaoGastos` (filtra por dentro em
+ * vez de confiar que quem chama já filtrou).
+ */
+export function categoriasElegiveisParaMediaVariavel(
+  categorias: readonly { id: string; natureza: string; tipo: string | null }[],
+  compromissos: readonly { categoria_id: string }[],
+): Set<string> {
+  const comCompromisso = new Set(compromissos.map((c) => c.categoria_id))
+  return new Set(
+    categorias
+      .filter(
+        (c) =>
+          c.natureza === 'despesa' &&
+          c.tipo === 'variavel' &&
+          !comCompromisso.has(c.id),
+      )
+      .map((c) => c.id),
+  )
+}
+
+/**
+ * Quantos meses da janela pedida têm de fato alguma linha em `resumo`.
+ *
+ * Não confundir com `janela.length`, que é sempre o tamanho fixo pedido
+ * (bug real: comparar `mesesResumo.length < MESES_MEDIA_VARIAVEL` dá sempre
+ * falso, porque `mesesResumo` já nasce com esse tamanho — o aviso de
+ * "histórico curto" nunca aparecia). O que importa é quantos desses meses
+ * têm dado de verdade, não quantos foram pedidos.
+ */
+export function mesesComHistorico(
+  resumo: readonly { mes: string }[],
+  janela: readonly string[],
+): number {
+  const presentes = new Set(resumo.map((r) => r.mes))
+  return janela.filter((mes) => presentes.has(mes)).length
+}
