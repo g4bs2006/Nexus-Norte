@@ -39,6 +39,18 @@ interface DialogCompromissoProps {
   categorias: readonly Categoria[]
   /** Se passado, o dialog abre em modo de edição. */
   compromisso?: CompromissoDetalhado
+  /** Pré-preenche a partir de uma simulação confirmada (resolução 10.47.4). */
+  valoresIniciais?: Partial<FormularioCompromisso>
+  trigger?: React.ReactNode
+}
+
+const VAZIO: FormularioCompromisso = {
+  descricao: '',
+  categoria_id: '',
+  valor: Number.NaN,
+  dia_mes: Number.NaN,
+  data_inicio: '',
+  data_fim: '',
 }
 
 /**
@@ -51,24 +63,17 @@ interface DialogCompromissoProps {
 export function DialogCompromisso({
   categorias,
   compromisso,
+  valoresIniciais,
+  trigger,
 }: DialogCompromissoProps) {
   const modoEdicao = Boolean(compromisso)
   const [aberto, setAberto] = useState(false)
   const criar = useCriarCompromisso()
   const atualizar = useAtualizarCompromisso()
 
-  const vazio: FormularioCompromisso = {
-    descricao: '',
-    categoria_id: '',
-    valor: Number.NaN,
-    dia_mes: Number.NaN,
-    data_inicio: '',
-    data_fim: '',
-  }
-
   const form = useForm<FormularioCompromisso>({
     resolver: zodResolver(schemaCompromisso),
-    defaultValues: vazio,
+    defaultValues: { ...VAZIO, ...valoresIniciais },
   })
 
   useEffect(() => {
@@ -82,7 +87,7 @@ export function DialogCompromisso({
         data_fim: compromisso.data_fim ?? '',
       })
     } else if (aberto && !compromisso) {
-      form.reset(vazio)
+      form.reset({ ...VAZIO, ...valoresIniciais })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aberto, compromisso])
@@ -104,28 +109,29 @@ export function DialogCompromisso({
     } else {
       await criar.mutateAsync(dados)
     }
-    form.reset(vazio)
+    form.reset({ ...VAZIO, ...valoresIniciais })
     setAberto(false)
   }
 
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild>
-        {modoEdicao ? (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="size-11 sm:size-7"
-            aria-label="Editar compromisso"
-          >
-            <Pencil className="size-3.5" />
-          </Button>
-        ) : (
-          <Button size="sm" variant="secondary">
-            <Plus className="size-4" />
-            Compromisso
-          </Button>
-        )}
+        {trigger ??
+          (modoEdicao ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="size-11 sm:size-7"
+              aria-label="Editar compromisso"
+            >
+              <Pencil className="size-3.5" />
+            </Button>
+          ) : (
+            <Button size="sm" variant="secondary">
+              <Plus className="size-4" />
+              Compromisso
+            </Button>
+          ))}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

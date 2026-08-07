@@ -55,6 +55,23 @@ export const MESES_MEDIA_VARIAVEL = 3
 export const HORIZONTE_PROJECAO_PADRAO = 6
 
 /**
+ * Piso do horizonte do simulador (resolução 10.47.1). O horizonte real é
+ * `max(HORIZONTE_MINIMO, numeroParcelas + 1)` — o `+1` mostra ao menos um
+ * mês depois da última parcela, para ficar visível o alívio no fluxo quando
+ * ela sai. Compromisso hipotético sem `data_fim` também cai neste piso: não
+ * existe "última parcela" para ancorar uma janela maior.
+ */
+export const HORIZONTE_MINIMO = 6
+
+/**
+ * Limite de comprometimento (parcelas + compromissos de despesa do mês ÷
+ * receita prevista do mês) a partir do qual o veredicto do simulador passa
+ * de 🟢 para 🟡, mesmo com o saldo acumulado nunca ficando negativo
+ * (resolução 10.47.7).
+ */
+export const LIMITE_COMPROMETIMENTO_PADRAO = 30
+
+/**
  * Dias da semana na convenção de `Date.getDay()` — 0 = domingo.
  * Alinhado com `planejamento_sono.dia_semana` e `fluxograma_semanal.dia_semana`.
  */

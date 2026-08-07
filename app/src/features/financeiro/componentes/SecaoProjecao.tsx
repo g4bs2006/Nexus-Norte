@@ -1,9 +1,10 @@
 import { useMemo } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import {
+  Area,
   CartesianGrid,
+  ComposedChart,
   Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -19,7 +20,7 @@ import {
 } from '@/lib/constants'
 import {
   categoriasElegiveisParaMediaVariavel,
-  mediaVariavelPorCategoria,
+  estimativaVariavelPorCategoria,
   mesesComHistorico,
   projetarFluxoCaixa,
 } from '../projecao'
@@ -44,21 +45,36 @@ interface SecaoProjecaoProps {
 
 interface PontoGrafico {
   mes: string
-  saldoAcumulado: number
+  media: number
+  pessimista: number
+  /** Base invisível da faixa empilhada — sempre o menor dos dois valores. */
+  faixaBase: number
+  /** Altura da faixa colorida — a distância entre média e pessimista. */
+  faixaAltura: number
   fonte: ProjecaoMensal['fonte']
 }
 
 interface ConteudoTooltipProps extends TooltipContentProps {
   pontos: readonly ProjecaoMensal[]
+  pontosPessimistas: readonly ProjecaoMensal[]
 }
 
-function ConteudoTooltip({ active, payload, label, pontos }: ConteudoTooltipProps) {
+function ConteudoTooltip({
+  active,
+  payload,
+  label,
+  pontos,
+  pontosPessimistas,
+}: ConteudoTooltipProps) {
   if (!active || !payload || payload.length === 0) return null
   const rotulo = String(label)
   const indice = payload[0]?.payload
     ? (payload[0].payload as PontoGrafico)
     : undefined
   const ponto = pontos.find((p) => rotuloMes(p.mes) === indice?.mes)
+  const pessimista = pontosPessimistas.find(
+    (p) => rotuloMes(p.mes) === indice?.mes,
+  )
   if (!ponto) return null
 
   return (
@@ -76,7 +92,7 @@ function ConteudoTooltip({ active, payload, label, pontos }: ConteudoTooltipProp
       </p>
       {ponto.variavelEstimado > 0 && (
         <p className="flex justify-between gap-3">
-          <span>Variável (estimado)</span>
+          <span>Variável (média)</span>
           <span className="tabular-nums">
             {formatarMoeda(ponto.variavelEstimado)}
           </span>
@@ -94,6 +110,20 @@ function ConteudoTooltip({ active, payload, label, pontos }: ConteudoTooltipProp
           {formatarMoeda(ponto.saldoAcumulado)}
         </span>
       </p>
+      {pessimista && pessimista.saldoAcumulado !== ponto.saldoAcumulado && (
+        <p className="text-muted-foreground flex justify-between gap-3">
+          <span>Se o mês for ruim</span>
+          <span
+            className={
+              pessimista.saldoAcumulado < 0
+                ? 'text-status-atencao tabular-nums'
+                : 'tabular-nums'
+            }
+          >
+            {formatarMoeda(pessimista.saldoAcumulado)}
+          </span>
+        </p>
+      )}
     </div>
   )
 }
@@ -125,15 +155,24 @@ export function SecaoProjecao({
     [mesesResumo],
   )
 
-  const mediaVariavel = useMemo(
-    () => mediaVariavelPorCategoria(resumo, categoriasVariaveis, janela),
+  const estimativaVariavel = useMemo(
+    () => estimativaVariavelPorCategoria(resumo, categoriasVariaveis, janela),
     [resumo, categoriasVariaveis, janela],
   )
 
   const historicoInsuficiente =
     mesesComHistorico(resumo, janela) < MESES_MEDIA_VARIAVEL &&
-    Object.keys(mediaVariavel).length > 0
+    Object.keys(estimativaVariavel.media).length > 0
 
+  const lancamentosTipados = lancamentosDoMes as {
+    valor: number
+    data: string
+    categoria_natureza: 'receita' | 'despesa'
+  }[]
+
+  // Duas passagens pelo mesmo motor (10.47.6): a média sozinha, apresentada
+  // como linha sólida, dá à projeção uma precisão que ela não tem — a
+  // pergunta que importa não é "cabe na média?", é "cabe se o mês for ruim?".
   const projecao = useMemo(
     () =>
       projetarFluxoCaixa({
@@ -141,23 +180,43 @@ export function SecaoProjecao({
         meses: HORIZONTE_PROJECAO_PADRAO,
         compromissos,
         parcelas: parceladas,
-        lancamentosRealizados: lancamentosDoMes as {
-          valor: number
-          data: string
-          categoria_natureza: 'receita' | 'despesa'
-        }[],
-        mediaVariavelPorCategoria: mediaVariavel,
+        lancamentosRealizados: lancamentosTipados,
+        mediaVariavelPorCategoria: estimativaVariavel.media,
       }),
-    [hoje, compromissos, parceladas, lancamentosDoMes, mediaVariavel],
+    [hoje, compromissos, parceladas, lancamentosTipados, estimativaVariavel],
+  )
+
+  const projecaoPessimista = useMemo(
+    () =>
+      projetarFluxoCaixa({
+        hoje,
+        meses: HORIZONTE_PROJECAO_PADRAO,
+        compromissos,
+        parcelas: parceladas,
+        lancamentosRealizados: lancamentosTipados,
+        mediaVariavelPorCategoria: estimativaVariavel.pior,
+      }),
+    [hoje, compromissos, parceladas, lancamentosTipados, estimativaVariavel],
   )
 
   const mesComSaldoNegativo = projecao.find((p) => p.saldoAcumulado < 0)
+  // Só relevante quando a média não já acusou o mesmo problema — "às vezes
+  // aperta" é uma notícia diferente de "aperta de qualquer forma".
+  const mesComSaldoNegativoPessimista = mesComSaldoNegativo
+    ? undefined
+    : projecaoPessimista.find((p) => p.saldoAcumulado < 0)
 
-  const dadosGrafico: PontoGrafico[] = projecao.map((p) => ({
-    mes: rotuloMes(p.mes),
-    saldoAcumulado: p.saldoAcumulado,
-    fonte: p.fonte,
-  }))
+  const dadosGrafico: PontoGrafico[] = projecao.map((p, indice) => {
+    const pessimista = projecaoPessimista[indice]?.saldoAcumulado ?? p.saldoAcumulado
+    return {
+      mes: rotuloMes(p.mes),
+      media: p.saldoAcumulado,
+      pessimista,
+      faixaBase: Math.min(p.saldoAcumulado, pessimista),
+      faixaAltura: Math.abs(p.saldoAcumulado - pessimista),
+      fonte: p.fonte,
+    }
+  })
 
   return (
     <div className="space-y-4">
@@ -169,6 +228,22 @@ export function SecaoProjecao({
               No ritmo atual, o saldo acumulado fica negativo em{' '}
               <strong>{rotuloMes(mesComSaldoNegativo.mes)}</strong> (
               {formatarMoeda(mesComSaldoNegativo.saldoAcumulado)}).
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Negativo só no pessimista, não na média (10.47.6): é uma notícia
+          diferente — "depende do mês", não "vai faltar". */}
+      {mesComSaldoNegativoPessimista && (
+        <Card className="border-status-atencao/40">
+          <CardContent className="text-status-atencao flex items-start gap-2 text-sm">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+            <p>
+              Na média o saldo se mantém positivo, mas depende do mês: se o
+              variável vier como o pior mês recente,{' '}
+              <strong>{rotuloMes(mesComSaldoNegativoPessimista.mes)}</strong>{' '}
+              fica negativo.
             </p>
           </CardContent>
         </Card>
@@ -186,7 +261,7 @@ export function SecaoProjecao({
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={dadosGrafico} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
+            <ComposedChart data={dadosGrafico} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
               <XAxis dataKey="mes" tick={EIXO.tick} stroke={EIXO.stroke} />
               <YAxis
@@ -199,13 +274,43 @@ export function SecaoProjecao({
                     : String(valor)
                 }
               />
-              <Tooltip content={(props) => <ConteudoTooltip {...props} pontos={projecao} />} />
-              {/* Uma linha só: o trecho projetado ainda é a mesma série, só
-                  visualmente diferenciado — duas <Line> criaria uma
+              <Tooltip
+                content={(props) => (
+                  <ConteudoTooltip
+                    {...props}
+                    pontos={projecao}
+                    pontosPessimistas={projecaoPessimista}
+                  />
+                )}
+              />
+              {/* Faixa entre média e pessimista (10.47.6): duas Area
+                  empilhadas — a primeira é a base invisível (o menor dos
+                  dois valores), a segunda é a distância entre eles, colorida.
+                  É o idioma padrão do Recharts pra "faixa entre duas linhas",
+                  que não existe como componente único. */}
+              <Area
+                type="monotone"
+                dataKey="faixaBase"
+                stackId="banda"
+                stroke="none"
+                fill="transparent"
+                isAnimationActive={false}
+              />
+              <Area
+                type="monotone"
+                dataKey="faixaAltura"
+                stackId="banda"
+                stroke="none"
+                fill="var(--chart-1)"
+                fillOpacity={0.12}
+                isAnimationActive={false}
+              />
+              {/* Uma linha só pra média: o trecho projetado ainda é a mesma
+                  série, só visualmente diferenciado — duas <Line> criaria uma
                   descontinuidade falsa no ponto de corte. */}
               <Line
                 type="monotone"
-                dataKey="saldoAcumulado"
+                dataKey="media"
                 stroke="var(--chart-1)"
                 strokeWidth={2}
                 dot={(props: { cx?: number; cy?: number; index?: number }) => {
@@ -227,8 +332,12 @@ export function SecaoProjecao({
                   )
                 }}
               />
-            </LineChart>
+            </ComposedChart>
           </ResponsiveContainer>
+          <p className="text-muted-foreground mt-2 text-xs">
+            A faixa sombreada mostra a diferença entre o gasto variável médio
+            e o pior mês recente daquela categoria.
+          </p>
         </CardContent>
       </Card>
 

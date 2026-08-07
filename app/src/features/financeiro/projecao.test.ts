@@ -1,12 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import {
+  aplicarCortes,
   calcularParcelas,
+  calcularVeredicto,
   categoriasElegiveisParaMediaVariavel,
+  estimativaVariavelPorCategoria,
+  horizonteCompromissoHipotetico,
+  horizonteSimulacao,
   mediaVariavelPorCategoria,
   mesesComHistorico,
   projetarFluxoCaixa,
+  resumirCenario,
   type CompromissoDetalhado,
   type ParceladaDetalhada,
+  type ProjecaoMensal,
 } from './projecao'
 
 function compromisso(
@@ -239,5 +246,176 @@ describe('projetarFluxoCaixa', () => {
     // 100 (real, 300/3) + 300 (hipotética, 900/3)
     expect(resultado[1]?.comprometido).toBe(400)
     expect(parcelasReais).toHaveLength(1)
+  })
+
+  it('compromissoHipotetico de receita aumenta a receita prevista só dentro do intervalo, sem mutar o array recebido', () => {
+    const compromissosReais = [compromisso({ id: 'real', valor: 1000 })]
+    const resultado = projetarFluxoCaixa({
+      hoje: '2026-08-10',
+      meses: 6,
+      compromissos: compromissosReais,
+      parcelas: [],
+      lancamentosRealizados: [],
+      mediaVariavelPorCategoria: {},
+      compromissoHipotetico: compromisso({
+        id: 'freela',
+        categoria_natureza: 'receita',
+        valor: 800,
+        data_inicio: '2026-09-01',
+        data_fim: '2026-12-31',
+      }),
+    })
+
+    // set/out/nov/dez (índices 1-4): +800 de freela em cima dos 1000 reais
+    expect(resultado[1]?.receitaPrevista).toBe(1800)
+    expect(resultado[4]?.receitaPrevista).toBe(1800)
+    // jan (índice 5): fora do intervalo do freela, só o compromisso real
+    expect(resultado[5]?.receitaPrevista).toBe(1000)
+    expect(compromissosReais).toHaveLength(1)
+  })
+})
+
+describe('horizonteSimulacao', () => {
+  it('nunca fica abaixo do piso mesmo com poucas parcelas', () => {
+    expect(horizonteSimulacao(1)).toBe(6)
+    expect(horizonteSimulacao(3)).toBe(6)
+  })
+
+  it('cobre a última parcela mais um mês além dela', () => {
+    // 12x: última parcela no mês 11 (0-indexado); +1 mostra o alívio depois
+    expect(horizonteSimulacao(12)).toBe(13)
+  })
+
+  it('sem número de parcelas (compromisso sem data_fim) cai no piso', () => {
+    expect(horizonteSimulacao(null)).toBe(6)
+  })
+})
+
+describe('horizonteCompromissoHipotetico', () => {
+  it('sem data_fim cai no piso', () => {
+    expect(horizonteCompromissoHipotetico('2026-08-10', null)).toBe(6)
+  })
+
+  it('cobre o fim do compromisso mais um mês além dele', () => {
+    // ago → dez = 4 meses de diferença; +1 mostra o mês depois de acabar
+    expect(horizonteCompromissoHipotetico('2026-08-10', '2026-12-31')).toBe(5 + 1)
+  })
+})
+
+describe('estimativaVariavelPorCategoria', () => {
+  it('devolve média e pior mês por categoria', () => {
+    const resumo = [
+      { categoria_id: 'v1', mes: '2026-06-01', total: 100 },
+      { categoria_id: 'v1', mes: '2026-07-01', total: 300 },
+      { categoria_id: 'v1', mes: '2026-08-01', total: 200 },
+    ]
+    const resultado = estimativaVariavelPorCategoria(
+      resumo,
+      new Set(['v1']),
+      ['2026-06-01', '2026-07-01', '2026-08-01'],
+    )
+    expect(resultado.media.v1).toBe(200) // (100+300+200)/3
+    expect(resultado.pior.v1).toBe(300)
+  })
+})
+
+describe('aplicarCortes', () => {
+  it('reduz só as categorias com corte informado', () => {
+    const resultado = aplicarCortes(
+      { delivery: 200, energia: 350 },
+      { delivery: 30 },
+    )
+    expect(resultado.delivery).toBe(140)
+    expect(resultado.energia).toBe(350)
+  })
+
+  it('nunca produz valor negativo, mesmo com corte acima de 100', () => {
+    const resultado = aplicarCortes({ delivery: 200 }, { delivery: 150 })
+    expect(resultado.delivery).toBe(0)
+  })
+
+  it('ignora corte negativo em vez de aumentar a estimativa', () => {
+    const resultado = aplicarCortes({ delivery: 200 }, { delivery: -50 })
+    expect(resultado.delivery).toBe(200)
+  })
+})
+
+describe('calcularVeredicto', () => {
+  function ponto(parcial: Partial<ProjecaoMensal>): ProjecaoMensal {
+    return {
+      mes: '2026-09-01',
+      receitaPrevista: 1000,
+      comprometido: 100,
+      variavelEstimado: 0,
+      saldoDoMes: 900,
+      saldoAcumulado: 900,
+      fonte: 'projetado',
+      ...parcial,
+    }
+  }
+
+  it('cabe quando o saldo nunca é negativo e o comprometimento fica sob o limite', () => {
+    expect(calcularVeredicto([ponto({})])).toBe('cabe')
+  })
+
+  it('aperta quando passa do limite de comprometimento mas o saldo se mantém positivo', () => {
+    const resultado = calcularVeredicto([
+      ponto({ comprometido: 400, saldoAcumulado: 600 }), // 40% > 30%
+    ])
+    expect(resultado).toBe('aperta')
+  })
+
+  it('não cabe quando qualquer mês fecha com acumulado negativo, mesmo com comprometimento baixo', () => {
+    const resultado = calcularVeredicto([
+      ponto({ comprometido: 50, saldoAcumulado: -10 }),
+    ])
+    expect(resultado).toBe('nao_cabe')
+  })
+
+  it('ignora mês com receita prevista zero no cálculo de comprometimento', () => {
+    const resultado = calcularVeredicto([
+      ponto({ receitaPrevista: 0, comprometido: 500, saldoAcumulado: 0 }),
+    ])
+    expect(resultado).toBe('cabe')
+  })
+})
+
+describe('resumirCenario', () => {
+  const projecaoBase: ProjecaoMensal[] = [
+    {
+      mes: '2026-09-01',
+      receitaPrevista: 1000,
+      comprometido: 100,
+      variavelEstimado: 0,
+      saldoDoMes: 900,
+      saldoAcumulado: 900,
+      fonte: 'projetado',
+    },
+    {
+      mes: '2026-10-01',
+      receitaPrevista: 1000,
+      comprometido: 100,
+      variavelEstimado: 0,
+      saldoDoMes: 900,
+      saldoAcumulado: 1800,
+      fonte: 'projetado',
+    },
+  ]
+
+  it('linha de base não soma total pago', () => {
+    const resumo = resumirCenario('Base', projecaoBase, null)
+    expect(resumo.totalPago).toBe(0)
+    expect(resumo.piorSaldoAcumulado).toBe(900)
+    expect(resumo.mesDoPiorSaldo).toBe('2026-09-01')
+    expect(resumo.ficaNegativo).toBe(false)
+  })
+
+  it('cenário com compra soma o total das parcelas', () => {
+    const resumo = resumirCenario(
+      'À vista',
+      projecaoBase,
+      parcelada({ valor_total: 300, numero_parcelas: 1 }),
+    )
+    expect(resumo.totalPago).toBe(300)
   })
 })
