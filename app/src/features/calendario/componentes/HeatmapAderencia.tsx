@@ -19,6 +19,9 @@ const ROTULO_NIVEL: Record<CelulaAderencia['nivel'], string> = {
 
 interface HeatmapAderenciaProps {
   celulas: readonly CelulaAderencia[]
+  /** Dia tocado/clicado — pra quem chama mostrar o detalhe abaixo da grade. */
+  onSelecionar?: (celula: CelulaAderencia) => void
+  selecionado?: string
 }
 
 /**
@@ -31,8 +34,17 @@ interface HeatmapAderenciaProps {
  * Alinhado por semana (domingo no topo), no mesmo idioma de heatmap de
  * contribuição que já é familiar — células em branco completam a primeira
  * semana para o primeiro dia cair na linha certa.
+ *
+ * `title` sozinho não serve: tooltip por hover não existe no toque, que é
+ * onde este app é mais usado. Cada célula também é um `<button>` — toque ou
+ * teclado chamam `onSelecionar`, e quem chama decide onde mostrar o detalhe
+ * (não faz sentido popover flutuante em cima de um quadrado de 10px).
  */
-export function HeatmapAderencia({ celulas }: HeatmapAderenciaProps) {
+export function HeatmapAderencia({
+  celulas,
+  onSelecionar,
+  selecionado,
+}: HeatmapAderenciaProps) {
   if (celulas.length === 0) return null
 
   const primeiroDiaSemana = deISO(celulas[0]!.data).getDay()
@@ -43,21 +55,33 @@ export function HeatmapAderencia({ celulas }: HeatmapAderenciaProps) {
       <div
         className="grid gap-[3px]"
         style={{
-          gridTemplateRows: 'repeat(7, 0.65rem)',
+          gridTemplateRows: 'repeat(7, 0.7rem)',
           gridAutoFlow: 'column',
-          gridAutoColumns: '0.65rem',
+          gridAutoColumns: '0.7rem',
         }}
       >
         {preenchimento.map((_, indice) => (
           <span key={`vazio-${indice}`} aria-hidden />
         ))}
-        {celulas.map((celula) => (
-          <span
-            key={celula.data}
-            title={`${format(deISO(celula.data), 'dd/MM/yyyy')} — ${ROTULO_NIVEL[celula.nivel]}`}
-            className={cn('rounded-[2px]', CLASSE_NIVEL[celula.nivel])}
-          />
-        ))}
+        {celulas.map((celula) => {
+          const rotulo = `${format(deISO(celula.data), 'dd/MM/yyyy')} — ${ROTULO_NIVEL[celula.nivel]}`
+          return (
+            <button
+              key={celula.data}
+              type="button"
+              title={rotulo}
+              aria-label={rotulo}
+              aria-pressed={celula.data === selecionado}
+              onClick={() => onSelecionar?.(celula)}
+              className={cn(
+                'rounded-[2px] transition-[outline] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring',
+                CLASSE_NIVEL[celula.nivel],
+                celula.data === selecionado &&
+                  'outline-foreground outline-2 outline-offset-1',
+              )}
+            />
+          )
+        })}
       </div>
     </div>
   )

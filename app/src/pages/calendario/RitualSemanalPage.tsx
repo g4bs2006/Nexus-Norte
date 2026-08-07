@@ -88,23 +88,37 @@ export default function RitualSemanalPage() {
         icone={CalendarCheck}
       />
 
-      <div className="mb-4 flex items-center gap-1.5">
+      {/*
+        No mobile as abas viram só o número: "3. Estudo e treino" quebra
+        linha de forma desigual em quatro botões de largura igual, e o texto
+        picado por hifenização é pior que não ter texto nenhum. O nome do
+        passo atual sai como legenda abaixo, numa linha só — a partir de
+        `sm:` sobra espaço e o botão volta a carregar o próprio nome.
+      */}
+      <div className="mb-1.5 flex items-center gap-1.5">
         {PASSOS.map((nome, indice) => (
           <button
             key={nome}
             type="button"
             onClick={() => setPasso(indice)}
+            aria-current={indice === passo ? 'step' : undefined}
             className={cn(
-              'flex-1 rounded-md border px-2 py-1.5 text-xs font-medium transition-colors',
+              'flex-1 rounded-md border py-2 text-xs font-medium transition-colors sm:px-2 sm:py-1.5',
               indice === passo
                 ? 'border-foreground bg-accent'
                 : 'border-border text-muted-foreground hover:bg-accent/50',
             )}
           >
-            {indice + 1}. {nome}
+            <span className="sm:hidden">{indice + 1}</span>
+            <span className="hidden sm:inline">
+              {indice + 1}. {nome}
+            </span>
           </button>
         ))}
       </div>
+      <p className="text-muted-foreground mb-4 text-sm sm:hidden">
+        Passo {passo + 1} de {PASSOS.length}: {PASSOS[passo]}
+      </p>
 
       {passo === 0 && <PassoSono />}
       {passo === 1 && (
@@ -115,9 +129,20 @@ export default function RitualSemanalPage() {
       )}
       {passo === 3 && <PassoFinanceiro semanaInicio={semanaInicioISO} />}
 
+      {/*
+        h-11 (44px) no mobile — é a ação repetida da tela, mesmo alvo de toque
+        que o resto do app usa pra isso (resolução 10.28/10.29). Não é barra
+        fixa: a barra inferior de navegação dos pilares já ocupa a borda de
+        baixo da tela (`BottomNav`, `fixed bottom-0`), e sobrepor duas barras
+        fixas ali criaria disputa de z-index sem ganho real — o usuário já
+        rolou até aqui para ler o passo, rolar mais um pouco pra confirmar
+        não é o mesmo atrito da 10.29 (aquele era sobre o diálogo abrir longe
+        do polegar, não sobre o fim de uma leitura).
+      */}
       <div className="mt-4 flex items-center justify-between">
         <Button
           variant="ghost"
+          className="h-11 px-4 sm:h-8 sm:px-2.5"
           disabled={passo === 0}
           onClick={() => setPasso((p) => Math.max(0, p - 1))}
         >
@@ -125,12 +150,16 @@ export default function RitualSemanalPage() {
           Voltar
         </Button>
         {passo < PASSOS.length - 1 ? (
-          <Button onClick={() => setPasso((p) => p + 1)}>
+          <Button
+            className="h-11 px-4 sm:h-8 sm:px-2.5"
+            onClick={() => setPasso((p) => p + 1)}
+          >
             Próximo
             <ChevronRight className="size-4" />
           </Button>
         ) : (
           <Button
+            className="h-11 px-4 sm:h-8 sm:px-2.5"
             onClick={() => void concluir()}
             disabled={salvarCheck.isPending}
           >
@@ -156,39 +185,50 @@ function PassoSono() {
       <CardHeader>
         <CardTitle className="text-base">Metas de sono por dia</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-2">
+      <CardContent className="space-y-3 sm:space-y-2">
         {ORDEM_DIAS.map((dia) => {
           const atual = porDia.get(dia)
           return (
-            <div key={dia} className="flex items-center gap-2">
-              <span className="text-muted-foreground w-20 shrink-0 text-sm">
+            /*
+              Empilha no mobile: rótulo + os dois horários somam ~400px numa
+              linha só (5rem + 7rem + "até" + 7rem + gaps), acima da largura
+              útil de um iPhone comum. A partir de `sm:` volta a caber numa
+              linha, então reverte pro layout original.
+            */
+            <div
+              key={dia}
+              className="border-border space-y-1.5 border-b pb-3 last:border-0 last:pb-0 sm:flex sm:items-center sm:gap-2 sm:space-y-0 sm:border-0 sm:pb-0"
+            >
+              <span className="text-muted-foreground text-sm font-medium sm:w-20 sm:shrink-0 sm:font-normal">
                 {DIAS_SEMANA[dia]}
               </span>
-              <Input
-                type="time"
-                className="w-28"
-                defaultValue={atual?.hora_dormir_alvo?.slice(0, 5) ?? '23:00'}
-                onBlur={(e) =>
-                  salvar.mutate({
-                    dia_semana: dia,
-                    hora_dormir_alvo: e.target.value,
-                    hora_acordar_alvo: atual?.hora_acordar_alvo?.slice(0, 5) ?? '07:00',
-                  })
-                }
-              />
-              <span className="text-muted-foreground text-xs">até</span>
-              <Input
-                type="time"
-                className="w-28"
-                defaultValue={atual?.hora_acordar_alvo?.slice(0, 5) ?? '07:00'}
-                onBlur={(e) =>
-                  salvar.mutate({
-                    dia_semana: dia,
-                    hora_dormir_alvo: atual?.hora_dormir_alvo?.slice(0, 5) ?? '23:00',
-                    hora_acordar_alvo: e.target.value,
-                  })
-                }
-              />
+              <div className="flex items-center gap-2">
+                <Input
+                  type="time"
+                  className="w-full sm:w-28"
+                  defaultValue={atual?.hora_dormir_alvo?.slice(0, 5) ?? '23:00'}
+                  onBlur={(e) =>
+                    salvar.mutate({
+                      dia_semana: dia,
+                      hora_dormir_alvo: e.target.value,
+                      hora_acordar_alvo: atual?.hora_acordar_alvo?.slice(0, 5) ?? '07:00',
+                    })
+                  }
+                />
+                <span className="text-muted-foreground shrink-0 text-xs">até</span>
+                <Input
+                  type="time"
+                  className="w-full sm:w-28"
+                  defaultValue={atual?.hora_acordar_alvo?.slice(0, 5) ?? '07:00'}
+                  onBlur={(e) =>
+                    salvar.mutate({
+                      dia_semana: dia,
+                      hora_dormir_alvo: atual?.hora_dormir_alvo?.slice(0, 5) ?? '23:00',
+                      hora_acordar_alvo: e.target.value,
+                    })
+                  }
+                />
+              </div>
             </div>
           )
         })}
@@ -436,7 +476,7 @@ function PassoEstudoTreino({
         <CardTitle className="text-base">Onde encaixar estudo e treino</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-7">
+        <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
           {dias.map((dia) => (
             <div key={dia.data} className="rounded-md border p-2 text-center">
               <p className="text-muted-foreground text-[10px] tracking-wide uppercase">

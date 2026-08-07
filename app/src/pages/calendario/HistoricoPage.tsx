@@ -25,6 +25,7 @@ import {
 } from '@/features/calendario/planejador'
 import { HeatmapAderencia } from '@/features/calendario/componentes/HeatmapAderencia'
 import { horasEntre } from '@/features/sono/calculos'
+import type { CelulaAderencia } from '@/features/calendario/planejador'
 
 const TODAS = 'todas'
 const CAMADAS_FILTRO = Object.keys(ROTULO_CAMADA) as CamadaCalendario[]
@@ -44,6 +45,9 @@ export default function HistoricoPage() {
   const hoje = useMemo(() => new Date(), [])
   const hojeISO = paraISO(hoje)
   const [camada, setCamada] = useState<CamadaCalendario | typeof TODAS>(TODAS)
+  const [celulaSelecionada, setCelulaSelecionada] = useState<CelulaAderencia | null>(
+    null,
+  )
 
   const intervalo = useMemo(
     () => ({ de: paraISO(subDays(hoje, DIAS_JANELA)), ate: hojeISO }),
@@ -148,8 +152,12 @@ export default function HistoricoPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <HeatmapAderencia celulas={celulas} />
-            <div className="text-muted-foreground mt-2 flex items-center gap-3 text-[11px]">
+            <HeatmapAderencia
+              celulas={celulas}
+              selecionado={celulaSelecionada?.data}
+              onSelecionar={setCelulaSelecionada}
+            />
+            <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
               <span className="flex items-center gap-1">
                 <span className="bg-status-ok size-2.5 rounded-[2px]" /> em dia
               </span>
@@ -160,6 +168,29 @@ export default function HistoricoPage() {
                 <span className="bg-muted size-2.5 rounded-[2px]" /> sem rotina
               </span>
             </div>
+            {/*
+              Toque não tem hover: o `title` da célula não aparece no
+              celular, então o detalhe do dia escolhido mora aqui embaixo,
+              numa linha que sempre existe (com um texto de convite quando
+              nada foi tocado ainda) — não um popover flutuante em cima de um
+              quadrado de 10px.
+            */}
+            <p className="text-muted-foreground mt-3 border-t pt-3 text-xs">
+              {celulaSelecionada ? (
+                <>
+                  <strong className="text-foreground">
+                    {format(deISO(celulaSelecionada.data), "dd/MM/yyyy — EEEE")}
+                  </strong>
+                  :{' '}
+                  {celulaSelecionada.nivel === 'ok' && 'rotina em dia'}
+                  {celulaSelecionada.nivel === 'falha' && 'ficou algo sem check'}
+                  {celulaSelecionada.nivel === 'sem-rotina' && 'sem rotina prevista'}
+                  {celulaSelecionada.nivel === 'futuro' && 'ainda não chegou'}
+                </>
+              ) : (
+                'Toque num quadrado pra ver o dia.'
+              )}
+            </p>
           </CardContent>
         </Card>
 

@@ -146,11 +146,19 @@ export function FaixaCarga({
                 {format(data, 'dd')}
               </span>
 
-              {/* Tempo livre (resolução 10.48.1) — "quinta tem 3h20" é a
-                  resposta que se procura ao olhar a semana. Omitido em zero:
-                  dia sem folga já está dito pela barra cheia. */}
+              {/*
+                Tempo livre (resolução 10.48.1) — "quinta tem 3h20" é a
+                resposta que se procura ao olhar a semana. Omitido em zero:
+                dia sem folga já está dito pela barra cheia.
+
+                Escondido no menor breakpoint: a coluna do dia já empilha sete
+                elementos num `flex-1` de ~50px em tela de 375px, e a Agenda
+                logo abaixo mostra o mesmo número com mais espaço para
+                respirar. Volta a partir de `sm:`, onde a coluna tem folga de
+                verdade.
+              */}
               {dia.minutosLivres > 0 && (
-                <span className="text-muted-foreground/70 font-mono text-[9px] tabular-nums">
+                <span className="text-muted-foreground/70 hidden font-mono text-[9px] tabular-nums sm:inline">
                   {formatarCarga(dia.minutosLivres)}
                 </span>
               )}
