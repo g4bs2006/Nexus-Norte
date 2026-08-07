@@ -6,6 +6,7 @@ import {
   eventosContas,
   eventosExecucoesTreino,
   eventosFluxograma,
+  eventosLivres,
   eventosMarcos,
   eventosSessoesEstudo,
   eventosSono,
@@ -416,6 +417,70 @@ describe('eventosMarcos', () => {
   })
 })
 
+describe('eventosLivres', () => {
+  it('vira dia inteiro quando não tem horário', () => {
+    const eventos = eventosLivres(
+      [
+        {
+          id: 'e1',
+          titulo: 'Dentista',
+          descricao: null,
+          data: '2026-08-06',
+          hora_inicio: null,
+          hora_fim: null,
+        },
+      ],
+      SEMANA,
+    )
+
+    expect(eventos).toHaveLength(1)
+    expect(eventos[0]?.diaInteiro).toBe(true)
+    expect(eventos[0]?.inicio).toBe('2026-08-06')
+    expect(eventos[0]?.fim).toBeUndefined()
+    expect(eventos[0]?.camada).toBe('evento')
+    expect(eventos[0]?.tipo).toBe('evento')
+    expect(eventos[0]?.origemId).toBe('e1')
+  })
+
+  it('carrega início e fim quando tem horário', () => {
+    const eventos = eventosLivres(
+      [
+        {
+          id: 'e2',
+          titulo: 'Reunião',
+          descricao: 'Alinhamento do projeto',
+          data: '2026-08-06',
+          hora_inicio: '14:00:00',
+          hora_fim: '15:00:00',
+        },
+      ],
+      SEMANA,
+    )
+
+    expect(eventos[0]?.diaInteiro).toBe(false)
+    expect(eventos[0]?.inicio).toBe('2026-08-06T14:00:00')
+    expect(eventos[0]?.fim).toBe('2026-08-06T15:00:00')
+  })
+
+  it('ignora evento fora do intervalo', () => {
+    expect(
+      eventosLivres(
+        [
+          {
+            id: 'e3',
+            titulo: 'Fora',
+            descricao: null,
+            data: '2026-08-20',
+            hora_inicio: null,
+            hora_fim: null,
+          },
+        ],
+        SEMANA,
+      ),
+    ).toEqual([])
+  })
+})
+
 describe('construirEventos', () => {
   it('agrega todas as camadas e gera ids únicos', () => {
     const fontes: FontesCalendario = {
@@ -471,6 +536,7 @@ describe('construirEventos', () => {
       ],
       execucoesTreino: [],
       sessoesEstudo: [],
+      eventosLivres: [],
       nomePorMateria: MATERIAS,
       nomePorTreino: TREINOS,
     }
@@ -494,6 +560,7 @@ describe('construirEventos', () => {
       marcos: [],
       execucoesTreino: [],
       sessoesEstudo: [],
+      eventosLivres: [],
       nomePorMateria: new Map(),
       nomePorTreino: new Map(),
     }
@@ -850,6 +917,7 @@ describe('reconciliação entre previsto e realizado', () => {
     planejamentoSono: [],
     marcos: [],
     sessoesEstudo: [],
+    eventosLivres: [],
     nomePorMateria: MATERIAS,
     nomePorTreino: TREINOS,
   } as const

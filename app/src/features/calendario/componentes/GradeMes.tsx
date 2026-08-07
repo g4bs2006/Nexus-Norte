@@ -20,6 +20,20 @@ interface GradeMesProps {
   onClicarEvento: (id: string) => void
   /** Clique no número do dia (não num evento) — abre o detalhe daquele dia. */
   onClicarDia: (data: string) => void
+  /**
+   * Vista inicial do FullCalendar (resolução "criar eventos", ago/2026).
+   *
+   * O componente sempre teve as duas — `timeGridWeek` já vinha configurada
+   * no `headerToolbar`, só inacessível de fora. Promovê-la a vista de
+   * primeira classe é só decidir com QUAL das duas ele nasce; o toggle interno
+   * do próprio FullCalendar continua deixando trocar para a outra sem sair
+   * da página.
+   *
+   * O React só lê `initialView` na montagem — mudar a prop sozinha não move
+   * o calendário. Quem usa este componente precisa forçar remount (`key`)
+   * quando quiser trocar a vista inicial de fora.
+   */
+  initialView?: 'dayGridMonth' | 'timeGridWeek'
 }
 
 /**
@@ -39,6 +53,7 @@ export function GradeMes({
   onMudarDatas,
   onClicarEvento,
   onClicarDia,
+  initialView = 'dayGridMonth',
 }: GradeMesProps) {
   const telaEstreita = useMediaQuery('(width < 40rem)')
 
@@ -90,7 +105,7 @@ export function GradeMes({
       <CardContent className="calendario-nexus">
         <FullCalendar
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-          initialView="dayGridMonth"
+          initialView={initialView}
           locale={ptBrLocale}
           headerToolbar={{
             left: 'prev,next today',

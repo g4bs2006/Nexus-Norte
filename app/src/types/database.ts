@@ -327,6 +327,36 @@ export type Database = {
           },
         ]
       }
+      eventos_calendario: {
+        Row: {
+          created_at: string
+          data: string
+          descricao: string | null
+          hora_fim: string | null
+          hora_inicio: string | null
+          id: string
+          titulo: string
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          descricao?: string | null
+          hora_fim?: string | null
+          hora_inicio?: string | null
+          id?: string
+          titulo: string
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          descricao?: string | null
+          hora_fim?: string | null
+          hora_inicio?: string | null
+          id?: string
+          titulo?: string
+        }
+        Relationships: []
+      }
       excecoes_fluxograma: {
         Row: {
           data: string

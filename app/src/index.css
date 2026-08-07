@@ -36,6 +36,8 @@
     --color-sono-soft: var(--sono-soft);
     --color-trabalho: var(--trabalho);
     --color-trabalho-soft: var(--trabalho-soft);
+    --color-evento: var(--evento);
+    --color-evento-soft: var(--evento-soft);
 
     /* Semáforo de status (🟢/🟡/🔴) usado pelos pilares */
     --color-status-ok: var(--status-ok);
@@ -129,6 +131,10 @@
        sono — tom neutro, deliberadamente sem parentesco com nenhum pilar. */
     --trabalho: #6b7f8f;
     --trabalho-soft: #eef1f3;
+    /* Evento avulso sem pilar (resolução "criar eventos", ago/2026) — rosa,
+       hue ainda não usado por nenhum pilar. */
+    --evento: #b8688a;
+    --evento-soft: #faeef2;
 
     /* Status — deliberadamente distinto das cores de pilar.
        O verde de "ok" era o mesmo hex do Financeiro, então saldo positivo e
@@ -190,6 +196,8 @@
     --sono-soft: #2d2a1e;
     --trabalho: #93aab8;
     --trabalho-soft: #232a30;
+    --evento: #d98fae;
+    --evento-soft: #2f232a;
 
     --status-ok: #6cc0a5;
     --status-atencao: #d9bc5c;

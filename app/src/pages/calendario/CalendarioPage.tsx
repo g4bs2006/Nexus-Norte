@@ -36,6 +36,7 @@ import {
   type EventoCalendario,
 } from '@/features/calendario/eventos'
 import { cargaPorDia, formatarCarga, type DiaCarga } from '@/features/calendario/carga'
+import type { EventoLivre } from '@/features/eventos/api'
 import { useFontesCalendario } from '@/features/calendario/hooks'
 import {
   detectarConflitos,
@@ -66,7 +67,20 @@ const GradeMes = lazy(() =>
 
 const CAMADAS = Object.keys(ROTULO_CAMADA) as CamadaCalendario[]
 
-type Vista = 'agenda' | 'mes'
+/**
+ * `'grade'` é a mesma `GradeMes` de `'mes'`, só nascendo em `timeGridWeek`
+ * (resolução "criar eventos", ago/2026) — a "planilha de dias e horas" que
+ * faltava, sem duplicar componente: o FullCalendar já tinha as duas vistas,
+ * só a segunda vivia escondida dentro do toggle interno do "Mês".
+ */
+type Vista = 'agenda' | 'mes' | 'grade'
+
+/** "Horas" e não "Semana em grade": o botão precisa caber sem quebrar linha. */
+const ROTULO_VISTA: Record<Vista, string> = {
+  agenda: 'Semana',
+  mes: 'Mês',
+  grade: 'Horas',
+}
 
 export default function CalendarioPage() {
   const hoje = useMemo(() => new Date(), [])
@@ -188,6 +202,12 @@ export default function CalendarioPage() {
     [eventos],
   )
 
+  /** Registro completo dos eventos avulsos, para a edição inline (Agenda). */
+  const eventosLivresPorId = useMemo(
+    () => new Map(fontes.eventosLivres.map((e) => [e.id, e])),
+    [fontes.eventosLivres],
+  )
+
   const refsDia = useRef(new Map<string, HTMLLIElement>())
 
   const registrarDia = useCallback(
@@ -291,9 +311,9 @@ export default function CalendarioPage() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Alternador de vista: dois estados, então dois botões e não um menu */}
+            {/* Alternador de vista: três estados, então botões e não um menu */}
             <div className="border-border flex items-center rounded-md border p-0.5">
-              {(['agenda', 'mes'] as const).map((opcao) => (
+              {(['agenda', 'mes', 'grade'] as const).map((opcao) => (
                 <Button
                   key={opcao}
                   size="sm"
@@ -305,7 +325,7 @@ export default function CalendarioPage() {
                     vista === opcao && 'bg-accent text-foreground',
                   )}
                 >
-                  {opcao === 'agenda' ? 'Semana' : 'Mês'}
+                  {ROTULO_VISTA[opcao]}
                 </Button>
               ))}
             </div>
@@ -389,6 +409,7 @@ export default function CalendarioPage() {
                 eventosPorData={eventosPorData}
                 selecionado={diaFocado}
                 refDia={registrarDia}
+                eventosLivresPorId={eventosLivresPorId}
               />
             </CardContent>
           </Card>
@@ -397,6 +418,10 @@ export default function CalendarioPage() {
         <div className="surgir-grupo">
           <Suspense fallback={<Skeleton className="h-[32rem] w-full" />}>
             <GradeMes
+              // Remonta ao trocar de vista: `initialView` só é lido na
+              // montagem do FullCalendar.
+              key={vista}
+              initialView={vista === 'grade' ? 'timeGridWeek' : 'dayGridMonth'}
               eventos={visiveisFiltrados}
               dias={dias}
               onMudarDatas={(de, ate) =>
@@ -406,7 +431,19 @@ export default function CalendarioPage() {
               }
               onClicarEvento={(id) => {
                 const rota = rotaPorId.get(id)
-                if (rota) navegar(rota)
+                if (rota) {
+                  navegar(rota)
+                  return
+                }
+                /*
+                 * Evento avulso não tem rota — não há para onde navegar. Abre
+                 * o detalhe do dia, de onde dá para editar (mesmo caminho do
+                 * clique no número do dia).
+                 */
+                const evento = eventos.find((e) => e.id === id)
+                if (evento?.camada === 'evento') {
+                  setDiaDetalhado(evento.inicio.slice(0, 10))
+                }
               }}
               onClicarDia={setDiaDetalhado}
             />
@@ -504,6 +541,7 @@ export default function CalendarioPage() {
         data={diaDetalhado}
         dias={dias}
         eventosPorData={eventosPorData}
+        eventosLivresPorId={eventosLivresPorId}
         onOpenChange={(aberto) => {
           if (!aberto) setDiaDetalhado(null)
         }}
@@ -517,6 +555,7 @@ interface DialogDiaProps {
   data: string | null
   dias: readonly DiaCarga[]
   eventosPorData: ReadonlyMap<string, readonly EventoCalendario[]>
+  eventosLivresPorId: ReadonlyMap<string, EventoLivre>
   onOpenChange: (aberto: boolean) => void
 }
 
@@ -526,8 +565,18 @@ interface DialogDiaProps {
  * Reaproveita `Agenda` com um array de um dia só — a mesma leitura (rotina em
  * filete, prazo em bloco sólido, feito/cancelado) que a vista semanal já usa,
  * em vez de um segundo componente que divergiria dela na primeira mudança.
+ *
+ * O "+" (resolução 10.48.2, agora também alcançável daqui) é o mesmo
+ * `DialogCriarNoDia` da agenda semanal — a grade de mês nunca teve como criar
+ * porque `Agenda` era a única superfície com o botão embutido.
  */
-function DialogDia({ data, dias, eventosPorData, onOpenChange }: DialogDiaProps) {
+function DialogDia({
+  data,
+  dias,
+  eventosPorData,
+  eventosLivresPorId,
+  onOpenChange,
+}: DialogDiaProps) {
   const dia = data ? dias.find((item) => item.data === data) : undefined
 
   return (
@@ -538,7 +587,13 @@ function DialogDia({ data, dias, eventosPorData, onOpenChange }: DialogDiaProps)
             {data ? format(deISO(data), "EEEE, d 'de' MMMM") : ''}
           </DialogTitle>
         </DialogHeader>
-        {dia && <Agenda dias={[dia]} eventosPorData={eventosPorData} />}
+        {dia && (
+          <Agenda
+            dias={[dia]}
+            eventosPorData={eventosPorData}
+            eventosLivresPorId={eventosLivresPorId}
+          />
+        )}
       </DialogContent>
     </Dialog>
   )

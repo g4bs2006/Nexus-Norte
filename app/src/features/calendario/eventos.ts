@@ -16,7 +16,7 @@ import type { PilarId } from '@/lib/pilares'
  * ser pilar, sem entrada na sidebar. Trabalho ocupa tempo, mas não tem
  * métrica, meta nem sub-página — não justifica virar `PilarId`.
  */
-export type CamadaCalendario = PilarId | 'sono' | 'trabalho'
+export type CamadaCalendario = PilarId | 'sono' | 'trabalho' | 'evento'
 
 /**
  * Tipo do evento, mais específico que a camada.
@@ -36,6 +36,12 @@ export type TipoEvento =
   | 'estudo'
   /** Bloco de trabalho ou outro rótulo livre (resolução 10.48.0). */
   | 'trabalho'
+  /**
+   * Compromisso avulso sem pilar, criado direto no calendário (resolução
+   * "criar eventos", ago/2026) — dentista, reunião, o que não é rotina de
+   * nenhum outro módulo.
+   */
+  | 'evento'
 
 /**
  * Tipos que representam prazo, e não rotina.
@@ -43,7 +49,12 @@ export type TipoEvento =
  * São os que valem destaque: têm data marcada, acontecem uma vez e passam. Aula
  * e treino se repetem toda semana; listá-los junto afogaria as provas.
  */
-const TIPOS_IMPORTANTES: readonly TipoEvento[] = ['prova', 'conta', 'marco']
+const TIPOS_IMPORTANTES: readonly TipoEvento[] = [
+  'prova',
+  'conta',
+  'marco',
+  'evento',
+]
 
 export interface EventoCalendario {
   id: string
@@ -146,6 +157,23 @@ export interface FonteMarco {
 }
 
 /**
+ * Evento avulso sem pilar (resolução "criar eventos", ago/2026).
+ *
+ * Shape idêntico ao `EventoLivre` de `features/eventos/api` de propósito:
+ * `descricao` não é usado para construir o `EventoCalendario`, mas overar por
+ * `origemId` para abrir o dialog de edição precisa do registro completo, e
+ * ter dois tipos quase iguais só criaria uma conversão sem função.
+ */
+export interface FonteEventoLivre {
+  id: string
+  titulo: string
+  descricao: string | null
+  data: string
+  hora_inicio: string | null
+  hora_fim: string | null
+}
+
+/**
  * Treino que aconteceu. `hora_inicio` e `duracao_minutos` são **informados pelo
  * usuário** (resoluções 10.23 e 10.24).
  *
@@ -180,6 +208,7 @@ export interface FontesCalendario {
   marcos: readonly FonteMarco[]
   execucoesTreino: readonly FonteExecucaoTreino[]
   sessoesEstudo: readonly FonteSessaoEstudo[]
+  eventosLivres: readonly FonteEventoLivre[]
   /** Rótulos para resolver os ids do fluxograma. */
   nomePorMateria: ReadonlyMap<string, string>
   nomePorTreino: ReadonlyMap<string, string>
@@ -554,6 +583,39 @@ export function eventosMarcos(
 }
 
 /**
+ * Eventos avulsos criados direto no calendário (resolução "criar eventos",
+ * ago/2026). Único construtor cuja fonte é dona do próprio dado — todos os
+ * outros agregam de outro pilar (plano 6.1).
+ */
+export function eventosLivres(
+  eventos: readonly FonteEventoLivre[],
+  intervalo: Intervalo,
+): EventoCalendario[] {
+  return eventos.flatMap((evento) => {
+    if (evento.data < intervalo.de || evento.data > intervalo.ate) return []
+
+    const comHora = evento.hora_inicio !== null
+    return [
+      {
+        id: `evento:${evento.id}`,
+        origemId: evento.id,
+        titulo: evento.titulo,
+        inicio: comHora
+          ? comHorario(evento.data, evento.hora_inicio as string)
+          : evento.data,
+        fim:
+          comHora && evento.hora_fim !== null
+            ? comHorario(evento.data, evento.hora_fim)
+            : undefined,
+        diaInteiro: !comHora,
+        camada: 'evento' as const,
+        tipo: 'evento' as const,
+      },
+    ]
+  })
+}
+
+/**
  * Junta todas as camadas em uma única lista de eventos.
  *
  * `hoje` entra como parâmetro (plano §9): é o que separa dia que já chegou de dia
@@ -609,6 +671,7 @@ export function construirEventos(
     ...eventosContas(fontes.contas, intervalo),
     ...eventosSono(fontes.planejamentoSono, intervalo),
     ...eventosMarcos(fontes.marcos, intervalo),
+    ...eventosLivres(fontes.eventosLivres, intervalo),
   ]
 }
 
@@ -645,6 +708,7 @@ export const COR_CAMADA: Record<CamadaCalendario, string> = {
   projetos: 'var(--projetos)',
   sono: 'var(--sono)',
   trabalho: 'var(--trabalho)',
+  evento: 'var(--evento)',
 }
 
 export const ROTULO_CAMADA: Record<CamadaCalendario, string> = {
@@ -654,6 +718,7 @@ export const ROTULO_CAMADA: Record<CamadaCalendario, string> = {
   projetos: 'Marcos',
   sono: 'Sono',
   trabalho: 'Trabalho',
+  evento: 'Eventos',
 }
 
 export const ROTULO_TIPO: Record<TipoEvento, string> = {
@@ -665,4 +730,5 @@ export const ROTULO_TIPO: Record<TipoEvento, string> = {
   sono: 'Sono',
   estudo: 'Estudo',
   trabalho: 'Trabalho',
+  evento: 'Evento',
 }

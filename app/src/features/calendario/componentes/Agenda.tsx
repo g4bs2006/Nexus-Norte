@@ -3,6 +3,8 @@ import { Check } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { deISO } from '@/lib/datas'
 import { cn } from '@/lib/utils'
+import { DialogEventoLivre } from '@/features/eventos/componentes/DialogEventoLivre'
+import type { EventoLivre } from '@/features/eventos/api'
 import { formatarCarga, ordenarDoDia, type DiaCarga } from '../carga'
 import {
   COR_CAMADA,
@@ -19,6 +21,13 @@ interface AgendaProps {
   selecionado?: string
   /** Ref para a página rolar até o dia clicado na faixa. */
   refDia?: (data: string, elemento: HTMLLIElement | null) => void
+  /**
+   * Registro completo por id, só para eventos avulsos (`tipo === 'evento'`).
+   * Sem ela, clicar num evento livre não teria como abrir o dialog de edição —
+   * `EventoCalendario` carrega só o que a agenda desenha, não o registro
+   * inteiro (descrição incluída).
+   */
+  eventosLivresPorId?: ReadonlyMap<string, EventoLivre>
 }
 
 /**
@@ -41,6 +50,7 @@ export function Agenda({
   eventosPorData,
   selecionado,
   refDia,
+  eventosLivresPorId,
 }: AgendaProps) {
   return (
     <ul className="divide-border divide-y">
@@ -111,6 +121,11 @@ export function Agenda({
                       key={evento.id}
                       evento={evento}
                       esmaecido={dia.ehPassado}
+                      eventoLivre={
+                        evento.origemId
+                          ? eventosLivresPorId?.get(evento.origemId)
+                          : undefined
+                      }
                     />
                   ))}
                   <DialogCriarNoDia data={dia.data} />
@@ -127,9 +142,12 @@ export function Agenda({
 function LinhaEvento({
   evento,
   esmaecido,
+  eventoLivre,
 }: {
   evento: EventoCalendario
   esmaecido: boolean
+  /** Só presente quando `evento.tipo === 'evento'`. */
+  eventoLivre?: EventoLivre
 }) {
   const prazo = ehImportante(evento)
   const cor = COR_CAMADA[evento.camada]
@@ -212,6 +230,30 @@ function LinhaEvento({
     'flex items-center gap-2 rounded-md py-1',
     esmaecido && 'opacity-60',
   )
+
+  /*
+   * Evento avulso não tem rota — clicar abre a edição, não navega. É a
+   * única camada onde o clique numa linha da agenda faz outra coisa que não
+   * ir para o pilar dono, porque aqui o dono é o próprio calendário.
+   */
+  if (evento.tipo === 'evento' && eventoLivre) {
+    return (
+      <DialogEventoLivre
+        evento={eventoLivre}
+        trigger={
+          <button
+            type="button"
+            className={cn(
+              classes,
+              'hover:bg-accent/60 -mx-1.5 w-[calc(100%+0.75rem)] px-1.5 text-left',
+            )}
+          >
+            {conteudo}
+          </button>
+        }
+      />
+    )
+  }
 
   if (!evento.rota) {
     return <div className={classes}>{conteudo}</div>

@@ -49,6 +49,13 @@ export async function fluxogramaCompleto(): Promise<FonteFluxograma[]> {
 export { listarExcecoes as excecoesNoIntervalo } from '@/features/fluxograma/api'
 
 /**
+ * Reexporta a leitura do módulo `eventos` (resolução "criar eventos",
+ * ago/2026). O shape já bate com `FonteEventoLivre`; duplicar a query aqui
+ * só criaria duas fontes de verdade para a mesma tabela.
+ */
+export { listarEventosLivres as eventosLivresNoIntervalo } from '@/features/eventos/api'
+
+/**
  * Lançamentos com o tipo e a natureza da categoria, para que o construtor
  * consiga isolar as despesas fixas (contas a pagar).
  */

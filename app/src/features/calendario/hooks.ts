@@ -23,6 +23,8 @@ export const chaves = {
     ['calendario', 'execucoes-treino', de, ate] as const,
   sessoesEstudo: (de: string, ate: string) =>
     ['calendario', 'sessoes-estudo', de, ate] as const,
+  eventosLivres: (de: string, ate: string) =>
+    ['calendario', 'eventos-livres', de, ate] as const,
   nomes: () => ['calendario', 'nomes'] as const,
 }
 
@@ -91,6 +93,10 @@ export function useFontesCalendario(
     queryKey: chaves.sessoesEstudo(de, ate),
     queryFn: () => api.sessoesEstudoNoIntervalo(de, ate),
   })
+  const eventosLivres = useQuery({
+    queryKey: chaves.eventosLivres(de, ate),
+    queryFn: () => api.eventosLivresNoIntervalo(de, ate),
+  })
 
   const materias = useQuery({
     queryKey: [...chaves.nomes(), 'materias'],
@@ -114,6 +120,7 @@ export function useFontesCalendario(
     marcos,
     execucoesTreino,
     sessoesEstudo,
+    eventosLivres,
     materias,
     treinos,
     periodos,
@@ -130,6 +137,7 @@ export function useFontesCalendario(
       marcos: marcos.data ?? [],
       execucoesTreino: execucoesTreino.data ?? [],
       sessoesEstudo: sessoesEstudo.data ?? [],
+      eventosLivres: eventosLivres.data ?? [],
       nomePorMateria: materias.data ?? new Map<string, string>(),
       nomePorTreino: treinos.data ?? new Map<string, string>(),
       periodoPorMateria: periodos.data,

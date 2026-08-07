@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -19,18 +21,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import { deISO } from '@/lib/datas'
 import { useCriarAvaliacao, useCriarSessao, useMaterias } from '@/features/estudos/hooks'
 import { useCriarMarco, useProjetos } from '@/features/projetos/hooks'
 import { useCriarFluxogramaLivre } from '@/features/fluxograma/hooks'
+import { useCriarEventoLivre } from '@/features/eventos/hooks'
 
-type Tipo = 'estudo' | 'trabalho' | 'marco' | 'avaliacao'
+type Tipo = 'estudo' | 'treino' | 'trabalho' | 'marco' | 'avaliacao' | 'evento'
 
 const OPCOES: { valor: Tipo; rotulo: string }[] = [
   { valor: 'estudo', rotulo: 'Sessão de estudo' },
+  { valor: 'treino', rotulo: 'Treino' },
   { valor: 'trabalho', rotulo: 'Bloco de trabalho' },
   { valor: 'marco', rotulo: 'Marco de projeto' },
   { valor: 'avaliacao', rotulo: 'Avaliação' },
+  { valor: 'evento', rotulo: 'Evento avulso' },
 ]
 
 interface DialogCriarNoDiaProps {
@@ -46,11 +52,21 @@ interface DialogCriarNoDiaProps {
  * calendário. Este dialog não duplica formulário nenhum de verdade — cada
  * opção é um recorte mínimo que chama o `useMutation` que o pilar já usa.
  *
- * "Bloco de trabalho" é o caso diferente dos outros três: não existe uma
+ * "Bloco de trabalho" é o caso diferente dos outros: não existe uma
  * data única de trabalho, existe um padrão semanal (`fluxograma_semanal`).
  * Clicar numa quinta cria o bloco pra toda quinta, com o dia da semana já
  * resolvido a partir da data clicada — é o mesmo dado que `DialogFluxogramaLivre`
  * grava, só chegando por outra porta.
+ *
+ * "Treino" também é diferente, mas ao contrário dos outros: não tem um
+ * recorte mínimo aqui. Uma execução de treino é baseada em séries e cargas
+ * por exercício (`execucoes_treino` + `execucoes_exercicio`) — fabricar uma
+ * execução vazia neste dialog seria um registro mentiroso, sem nenhuma série
+ * de verdade. A opção existe para completar a lista do que o dia pode ter,
+ * mas leva para `/treino`, onde o fluxo real (série a série) já existe.
+ *
+ * "Evento avulso" é o único caso que nasce só aqui: `eventos_calendario` não
+ * pertence a nenhum pilar (resolução "criar eventos", ago/2026).
  */
 export function DialogCriarNoDia({ data, trigger }: DialogCriarNoDiaProps) {
   const [aberto, setAberto] = useState(false)
@@ -66,6 +82,9 @@ export function DialogCriarNoDia({ data, trigger }: DialogCriarNoDiaProps) {
   const [nomeMarco, setNomeMarco] = useState('')
   const [nomeAvaliacao, setNomeAvaliacao] = useState('')
   const [pesoAvaliacao, setPesoAvaliacao] = useState(1)
+  const [tituloEvento, setTituloEvento] = useState('')
+  const [descricaoEvento, setDescricaoEvento] = useState('')
+  const [eventoDiaInteiro, setEventoDiaInteiro] = useState(true)
 
   const materias = useMaterias()
   const projetos = useProjetos()
@@ -74,6 +93,7 @@ export function DialogCriarNoDia({ data, trigger }: DialogCriarNoDiaProps) {
   const criarFluxogramaLivre = useCriarFluxogramaLivre()
   const criarMarco = useCriarMarco()
   const criarAvaliacao = useCriarAvaliacao()
+  const criarEvento = useCriarEventoLivre()
 
   function abrir(novoEstado: boolean) {
     setAberto(novoEstado)
@@ -84,10 +104,20 @@ export function DialogCriarNoDia({ data, trigger }: DialogCriarNoDiaProps) {
     criarSessao.isPending ||
     criarFluxogramaLivre.isPending ||
     criarMarco.isPending ||
-    criarAvaliacao.isPending
+    criarAvaliacao.isPending ||
+    criarEvento.isPending
 
   async function submeter() {
-    if (tipo === 'estudo') {
+    if (tipo === 'evento') {
+      if (!tituloEvento.trim()) return
+      await criarEvento.mutateAsync({
+        titulo: tituloEvento.trim(),
+        descricao: descricaoEvento.trim() || null,
+        data: dataEditavel,
+        hora_inicio: eventoDiaInteiro ? null : horarioInicio,
+        hora_fim: eventoDiaInteiro ? null : horarioFim,
+      })
+    } else if (tipo === 'estudo') {
       if (!materiaId) return
       await criarSessao.mutateAsync({
         materia_id: materiaId,
@@ -156,23 +186,31 @@ export function DialogCriarNoDia({ data, trigger }: DialogCriarNoDiaProps) {
             </Select>
           </div>
 
-          <div className="space-y-1.5">
-            <Label>Data</Label>
-            <Input
-              type="date"
-              value={dataEditavel}
-              onChange={(e) => setDataEditavel(e.target.value)}
-            />
-            {tipo === 'trabalho' && (
-              <p className="text-muted-foreground text-[11px]">
-                Bloco recorrente: vale toda{' '}
-                {deISO(dataEditavel).toLocaleDateString('pt-BR', {
-                  weekday: 'long',
-                })}
-                , não só esta data.
-              </p>
-            )}
-          </div>
+          {tipo === 'treino' ? (
+            <p className="text-muted-foreground text-sm">
+              Um treino é uma sequência de séries por exercício — não dá para
+              criar isso a partir de um formulário rápido. Abra o Treino para
+              registrar a execução de verdade.
+            </p>
+          ) : (
+            <div className="space-y-1.5">
+              <Label>Data</Label>
+              <Input
+                type="date"
+                value={dataEditavel}
+                onChange={(e) => setDataEditavel(e.target.value)}
+              />
+              {tipo === 'trabalho' && (
+                <p className="text-muted-foreground text-[11px]">
+                  Bloco recorrente: vale toda{' '}
+                  {deISO(dataEditavel).toLocaleDateString('pt-BR', {
+                    weekday: 'long',
+                  })}
+                  , não só esta data.
+                </p>
+              )}
+            </div>
+          )}
 
           {tipo === 'estudo' && (
             <>
@@ -297,12 +335,71 @@ export function DialogCriarNoDia({ data, trigger }: DialogCriarNoDiaProps) {
               </div>
             </>
           )}
+
+          {tipo === 'evento' && (
+            <>
+              <div className="space-y-1.5">
+                <Label>Título</Label>
+                <Input
+                  autoFocus
+                  placeholder="Dentista"
+                  value={tituloEvento}
+                  onChange={(e) => setTituloEvento(e.target.value)}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  checked={eventoDiaInteiro}
+                  onCheckedChange={(checado) =>
+                    setEventoDiaInteiro(checado === true)
+                  }
+                />
+                <Label className="!mt-0">Dia inteiro</Label>
+              </div>
+              {!eventoDiaInteiro && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Início</Label>
+                    <Input
+                      type="time"
+                      value={horarioInicio}
+                      onChange={(e) => setHorarioInicio(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Fim</Label>
+                    <Input
+                      type="time"
+                      value={horarioFim}
+                      onChange={(e) => setHorarioFim(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <Label>Descrição (opcional)</Label>
+                <Textarea
+                  rows={2}
+                  value={descricaoEvento}
+                  onChange={(e) => setDescricaoEvento(e.target.value)}
+                />
+              </div>
+            </>
+          )}
         </div>
 
         <DialogFooter>
-          <Button onClick={() => void submeter()} disabled={pendente}>
-            {pendente ? 'Salvando…' : 'Criar'}
-          </Button>
+          {tipo === 'treino' ? (
+            <Button asChild>
+              <Link to="/treino" onClick={() => setAberto(false)}>
+                Ir para Treino
+              </Link>
+            </Button>
+          ) : (
+            <Button onClick={() => void submeter()} disabled={pendente}>
+              {pendente ? 'Salvando…' : 'Criar'}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
