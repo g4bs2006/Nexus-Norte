@@ -5,13 +5,17 @@ import interactionPlugin from '@fullcalendar/interaction'
 import ptBrLocale from '@fullcalendar/core/locales/pt-br'
 import type { DateClickArg } from '@fullcalendar/interaction'
 import type { DatesSetArg, EventClickArg } from '@fullcalendar/core'
+import { useMemo } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { paraISO } from '@/lib/datas'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { formatarCarga, type DiaCarga } from '../carga'
 import { COR_CAMADA, ehImportante, type EventoCalendario } from '../eventos'
 
 interface GradeMesProps {
   eventos: readonly EventoCalendario[]
+  /** Pra mostrar o tempo livre do dia na célula (resolução 10.48.1). */
+  dias: readonly DiaCarga[]
   onMudarDatas: (de: string, ate: string) => void
   onClicarEvento: (id: string) => void
   /** Clique no número do dia (não num evento) — abre o detalhe daquele dia. */
@@ -31,11 +35,17 @@ interface GradeMesProps {
  */
 export function GradeMes({
   eventos,
+  dias,
   onMudarDatas,
   onClicarEvento,
   onClicarDia,
 }: GradeMesProps) {
   const telaEstreita = useMediaQuery('(width < 40rem)')
+
+  const livresPorData = useMemo(
+    () => new Map(dias.map((dia) => [dia.data, dia.minutosLivres])),
+    [dias],
+  )
 
   const eventosFullCalendar = eventos.map((evento) => {
     const cor = COR_CAMADA[evento.camada]
@@ -92,6 +102,20 @@ export function GradeMes({
           datesSet={aoMudarDatas}
           eventClick={aoClicarEvento}
           dateClick={aoClicarDia}
+          dayCellContent={(arg) => {
+            const minutosLivres = livresPorData.get(paraISO(arg.date))
+            return (
+              <div className="flex w-full items-baseline justify-between gap-1 px-0.5">
+                <span>{arg.dayNumberText}</span>
+                {/* Tempo livre do dia (resolução 10.48.1) — omitido em zero */}
+                {minutosLivres !== undefined && minutosLivres > 0 && (
+                  <span className="text-muted-foreground font-mono text-[9px] tabular-nums">
+                    {formatarCarga(minutosLivres)}
+                  </span>
+                )}
+              </div>
+            )
+          }}
           firstDay={1}
           height="auto"
           nowIndicator

@@ -1,7 +1,14 @@
 import { Suspense, lazy, useCallback, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { addDays, addWeeks, endOfMonth, format, startOfMonth } from 'date-fns'
-import { CalendarDays, ChevronLeft, ChevronRight, Layers } from 'lucide-react'
+import {
+  CalendarCheck,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  History,
+  Layers,
+} from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
@@ -28,10 +35,23 @@ import {
   type CamadaCalendario,
   type EventoCalendario,
 } from '@/features/calendario/eventos'
-import { cargaPorDia, type DiaCarga } from '@/features/calendario/carga'
+import { cargaPorDia, formatarCarga, type DiaCarga } from '@/features/calendario/carga'
 import { useFontesCalendario } from '@/features/calendario/hooks'
+import {
+  detectarConflitos,
+  detectarFalhas,
+  detectarSobrecarga,
+  sugerirRealocacao,
+} from '@/features/calendario/planejador'
 import { Agenda } from '@/features/calendario/componentes/Agenda'
 import { FaixaCarga } from '@/features/calendario/componentes/FaixaCarga'
+import { CardPressaoPrazos } from '@/features/calendario/componentes/CardPressaoPrazos'
+import { GradeFluxograma } from '@/components/GradeFluxograma'
+import { DialogFluxogramaLivre } from '@/features/fluxograma/componentes/DialogFluxogramaLivre'
+import {
+  useExcluirFluxogramaLivre,
+  useFluxogramaLivre,
+} from '@/features/fluxograma/hooks'
 
 /**
  * A grade de mês só é baixada por quem abre a vista de mês. É o maior pedaço do
@@ -93,6 +113,9 @@ export default function CalendarioPage() {
     { comCarga: true },
   )
 
+  const blocosLivres = useFluxogramaLivre()
+  const excluirBlocoLivre = useExcluirFluxogramaLivre()
+
   const hojeISO = paraISO(hoje)
 
   const eventos = useMemo(
@@ -106,6 +129,9 @@ export default function CalendarioPage() {
     [eventos, visiveis],
   )
 
+  /** Conflito e sobrecarga (resolução 10.48.7) — sobre o período visível. */
+  const conflitos = useMemo(() => detectarConflitos(eventos), [eventos])
+
   const dias = useMemo(
     () =>
       cargaPorDia(
@@ -117,6 +143,29 @@ export default function CalendarioPage() {
         carga.conclusoes,
       ),
     [visiveisFiltrados, intervalo, hoje, fontes.planejamentoSono, carga],
+  )
+
+  const sobrecarga = useMemo(
+    () => detectarSobrecarga(dias.filter((dia) => !dia.ehPassado)),
+    [dias],
+  )
+
+  /**
+   * Realocação do que falhou (resolução 10.48.6). `descartadas` é estado só
+   * de sessão — dispensar uma sugestão não precisa de tabela nova, o mesmo
+   * raciocínio de "propõe, não agenda" da 10.48.5.
+   */
+  const [descartadas, setDescartadas] = useState<Set<string>>(() => new Set())
+  const falhas = useMemo(
+    () =>
+      detectarFalhas(eventos, new Set(carga.conclusoes), hojeISO).filter(
+        (falha) => !descartadas.has(`${falha.fluxogramaId}@${falha.data}`),
+      ),
+    [eventos, carga.conclusoes, hojeISO, descartadas],
+  )
+  const sugestoesRealocacao = useMemo(
+    () => sugerirRealocacao(falhas, dias.filter((dia) => !dia.ehPassado)),
+    [falhas, dias],
   )
 
   const eventosPorData = useMemo(() => {
@@ -195,6 +244,18 @@ export default function CalendarioPage() {
         icone={CalendarDays}
         acoes={
           <div className="flex items-center gap-2">
+            <Button asChild variant="secondary" size="sm">
+              <Link to="/calendario/semana">
+                <CalendarCheck className="size-4" />
+                Ritual de domingo
+              </Link>
+            </Button>
+            <Button asChild variant="ghost" size="sm">
+              <Link to="/calendario/historico">
+                <History className="size-4" />
+                Histórico
+              </Link>
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="secondary" size="sm">
@@ -247,6 +308,74 @@ export default function CalendarioPage() {
           </div>
         }
       />
+
+      <CardPressaoPrazos hoje={hojeISO} />
+
+      {(conflitos.length > 0 || sobrecarga.length > 0) && (
+        <Card className="border-status-atencao/40 mb-4">
+          <CardContent className="text-status-atencao space-y-1 text-sm">
+            {conflitos.map((conflito) => (
+              <p key={`${conflito.eventoA.id}-${conflito.eventoB.id}`}>
+                Conflito em {format(deISO(conflito.data), 'dd/MM')}:{' '}
+                {conflito.eventoA.titulo} e {conflito.eventoB.titulo} se
+                sobrepõem.
+              </p>
+            ))}
+            {sobrecarga.map((dia) => (
+              <p key={dia.data}>
+                {format(deISO(dia.data), 'dd/MM')} sem folga nenhuma na rotina.
+              </p>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {sugestoesRealocacao.length > 0 && (
+        <Card className="mb-4">
+          <CardContent className="space-y-2 text-sm">
+            <p className="font-medium">Ficou pra trás</p>
+            {sugestoesRealocacao.map((item) => (
+              <div
+                key={`${item.fluxogramaId}@${item.data}`}
+                className="flex items-start justify-between gap-2"
+              >
+                <p className="text-muted-foreground">
+                  {item.titulo} —{' '}
+                  {item.motivo === 'cancelado' ? 'cancelado' : 'sem check'} em{' '}
+                  {format(deISO(item.data), 'dd/MM')}.{' '}
+                  {item.sugestao.length > 0 ? (
+                    <>
+                      Quer remarcar pra{' '}
+                      {item.sugestao
+                        .map(
+                          (b) =>
+                            `${format(deISO(b.data), 'dd/MM')} (${formatarCarga(b.minutos)})`,
+                        )
+                        .join(', ')}
+                      ?
+                    </>
+                  ) : (
+                    'Sem folga na semana pra sugerir um novo horário.'
+                  )}
+                </p>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-muted-foreground h-7 shrink-0 text-xs"
+                  onClick={() =>
+                    setDescartadas(
+                      (atual) =>
+                        new Set(atual).add(`${item.fluxogramaId}@${item.data}`),
+                    )
+                  }
+                >
+                  Descartar
+                </Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {erro && (
         <Card className="border-status-risco/40 mb-4">
@@ -324,6 +453,7 @@ export default function CalendarioPage() {
         <Suspense fallback={<Skeleton className="h-[32rem] w-full" />}>
           <GradeMes
             eventos={visiveisFiltrados}
+            dias={dias}
             onMudarDatas={(de, ate) =>
               setIntervaloMes((atual) =>
                 atual.de === de && atual.ate === ate ? atual : { de, ate },
@@ -337,6 +467,20 @@ export default function CalendarioPage() {
           />
         </Suspense>
       )}
+
+      <Card className="mt-4">
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-medium">Trabalho e outros blocos</p>
+            <DialogFluxogramaLivre />
+          </div>
+          <GradeFluxograma
+            itens={blocosLivres.data ?? []}
+            classeCorPadrao="bg-trabalho"
+            onExcluir={(id) => excluirBlocoLivre.mutate(id)}
+          />
+        </CardContent>
+      </Card>
 
       <DialogDia
         data={diaDetalhado}

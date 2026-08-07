@@ -72,6 +72,29 @@ export const HORIZONTE_MINIMO = 6
 export const LIMITE_COMPROMETIMENTO_PADRAO = 30
 
 /**
+ * Bloco mínimo de estudo/treino sugerido pela alocação do calendário
+ * (resolução 10.48.5). Quinze minutos picados entre compromissos não é
+ * sessão de estudo — um dia que só comporte menos que isto não entra na
+ * sugestão.
+ */
+export const BLOCO_MINIMO_MINUTOS = 30
+
+/**
+ * Teto diário sugerido pela alocação do calendário (resolução 10.48.5).
+ * Concentrar dez horas na véspera é aritmeticamente válido e humanamente
+ * falso — a sugestão nunca empurra mais que isto num dia só.
+ */
+export const ESTUDO_MAXIMO_DIA_MINUTOS = 4 * 60
+
+/**
+ * Sono assumido, em minutos, para um dia da semana sem planejamento de sono
+ * cadastrado (resolução 10.48.1). `minutosLivres` precisa de algum valor pra
+ * descontar; zero suporia 24h disponíveis (pior estimativa possível), e usar
+ * o realizado tornaria a folga de amanhã indefinida e a de ontem mutável.
+ */
+export const SONO_PADRAO_MINUTOS = 8 * 60
+
+/**
  * Dias da semana na convenção de `Date.getDay()` — 0 = domingo.
  * Alinhado com `planejamento_sono.dia_semana` e `fluxograma_semanal.dia_semana`.
  */

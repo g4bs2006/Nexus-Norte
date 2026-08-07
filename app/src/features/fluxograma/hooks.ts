@@ -6,6 +6,7 @@ export const chaves = {
   raiz: ['fluxograma'] as const,
   excecoes: (de: string, ate: string) =>
     ['fluxograma', 'excecoes', de, ate] as const,
+  livre: () => ['fluxograma', 'livre'] as const,
 }
 
 /**
@@ -58,4 +59,58 @@ export function useRemarcarOcorrencia() {
 
 export function useLimparExcecao() {
   return useMutationExcecao(api.limparExcecao, 'Volta a seguir o padrão')
+}
+
+// --- Bloco livre / trabalho (resolução 10.48.0) ------------------------------
+
+export function useFluxogramaLivre() {
+  return useQuery({
+    queryKey: chaves.livre(),
+    queryFn: api.listarFluxogramaLivre,
+  })
+}
+
+function useMutationFluxogramaLivre<TVariaveis>(
+  fn: (variaveis: TVariaveis) => Promise<void>,
+  mensagemSucesso: string,
+) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => {
+      for (const queryKey of RAIZES_AFETADAS) {
+        void queryClient.invalidateQueries({ queryKey })
+      }
+      toast.success(mensagemSucesso)
+    },
+    onError: (erro: Error) => toast.error(erro.message),
+  })
+}
+
+export function useCriarFluxogramaLivre() {
+  return useMutationFluxogramaLivre(
+    api.criarFluxogramaLivre,
+    'Bloco adicionado',
+  )
+}
+
+export function useAtualizarFluxogramaLivre() {
+  return useMutationFluxogramaLivre(
+    ({
+      id,
+      dados,
+    }: {
+      id: string
+      dados: Parameters<typeof api.atualizarFluxogramaLivre>[1]
+    }) => api.atualizarFluxogramaLivre(id, dados),
+    'Bloco atualizado',
+  )
+}
+
+export function useExcluirFluxogramaLivre() {
+  return useMutationFluxogramaLivre(
+    api.excluirFluxogramaLivre,
+    'Bloco removido',
+  )
 }

@@ -32,7 +32,7 @@ export async function fluxogramaCompleto(): Promise<FonteFluxograma[]> {
   const { data, error } = await supabase
     .from('fluxograma_semanal')
     .select(
-      'id, dia_semana, horario_inicio, horario_fim, materia_id, treino_id',
+      'id, dia_semana, horario_inicio, horario_fim, materia_id, treino_id, rotulo',
     )
     .order('dia_semana')
   if (error) throw new Error(error.message)

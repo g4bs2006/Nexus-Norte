@@ -32,6 +32,10 @@ const ProjetoDetalhePage = lazy(
   () => import('@/pages/projetos/ProjetoDetalhePage'),
 )
 const CalendarioPage = lazy(() => import('@/pages/calendario/CalendarioPage'))
+const RitualSemanalPage = lazy(
+  () => import('@/pages/calendario/RitualSemanalPage'),
+)
+const HistoricoPage = lazy(() => import('@/pages/calendario/HistoricoPage'))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
 
 /** Estrutura de rotas conforme plano, seção 1.1. */
@@ -64,6 +68,8 @@ export default function App() {
         <Route path="projetos/:projetoId" element={<ProjetoDetalhePage />} />
 
         <Route path="calendario" element={<CalendarioPage />} />
+        <Route path="calendario/semana" element={<RitualSemanalPage />} />
+        <Route path="calendario/historico" element={<HistoricoPage />} />
 
         <Route path="*" element={<NotFoundPage />} />
       </Route>

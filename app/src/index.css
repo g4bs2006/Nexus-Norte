@@ -34,6 +34,8 @@
     --color-projetos-soft: var(--projetos-soft);
     --color-sono: var(--sono);
     --color-sono-soft: var(--sono-soft);
+    --color-trabalho: var(--trabalho);
+    --color-trabalho-soft: var(--trabalho-soft);
 
     /* Semáforo de status (🟢/🟡/🔴) usado pelos pilares */
     --color-status-ok: var(--status-ok);
@@ -123,6 +125,10 @@
     --projetos-soft: #f4f0f9;
     --sono: #b8941f;
     --sono-soft: #faf6e8;
+    /* Trabalho: camada sem ser pilar (resolução 10.48.0), mesmo tratamento do
+       sono — tom neutro, deliberadamente sem parentesco com nenhum pilar. */
+    --trabalho: #6b7f8f;
+    --trabalho-soft: #eef1f3;
 
     /* Status — deliberadamente distinto das cores de pilar.
        O verde de "ok" era o mesmo hex do Financeiro, então saldo positivo e
@@ -182,6 +188,8 @@
     --projetos-soft: #29232f;
     --sono: #d9bc5c;
     --sono-soft: #2d2a1e;
+    --trabalho: #93aab8;
+    --trabalho-soft: #232a30;
 
     --status-ok: #6cc0a5;
     --status-atencao: #d9bc5c;

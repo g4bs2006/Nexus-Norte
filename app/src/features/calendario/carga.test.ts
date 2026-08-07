@@ -43,6 +43,19 @@ function prova(data: string): EventoCalendario {
   }
 }
 
+function trabalho(data: string, inicio: string, fim: string): EventoCalendario {
+  return {
+    id: `fluxograma:regra-trabalho:${data}`,
+    origemId: 'regra-trabalho',
+    titulo: 'Escritório',
+    inicio: `${data}T${inicio}:00`,
+    fim: `${data}T${fim}:00`,
+    diaInteiro: false,
+    camada: 'trabalho',
+    tipo: 'trabalho',
+  }
+}
+
 describe('cargaPorDia', () => {
   it('devolve uma entrada por dia, inclusive os vazios', () => {
     const dias = cargaPorDia(
@@ -265,6 +278,66 @@ describe('cargaPorDia', () => {
     it('não marca dia passado sem rotina prevista', () => {
       const dias = cargaPorDia([prova('2026-08-03')], SEMANA, QUARTA)
       expect(dias[0]?.checkPendente).toBe(false)
+    })
+
+    it('trabalho não liga o sinal, mesmo sem conclusão (resolução 10.48.0)', () => {
+      const dias = cargaPorDia(
+        [trabalho('2026-08-03', '09:00', '18:00')],
+        SEMANA,
+        QUARTA,
+        [],
+        [],
+        [],
+      )
+      expect(dias[0]?.checkPendente).toBe(false)
+    })
+  })
+
+  describe('minutosLivres (resolução 10.48.1)', () => {
+    it('desconta sono planejado e rotina de 1440', () => {
+      const dias = cargaPorDia(
+        [aula('2026-08-03', '08:00', '10:00')],
+        SEMANA,
+        QUARTA,
+        [{ id: 'p1', dia_semana: 1, hora_dormir_alvo: '23:00', hora_acordar_alvo: '07:00' }],
+      )
+      // 1440 - 480 (8h de sono) - 120 (aula) = 840
+      expect(dias[0]?.minutosLivres).toBe(840)
+    })
+
+    it('trabalho também desconta, como qualquer rotina', () => {
+      const dias = cargaPorDia(
+        [
+          aula('2026-08-03', '08:00', '10:00'),
+          trabalho('2026-08-03', '13:00', '18:00'),
+        ],
+        SEMANA,
+        QUARTA,
+        [{ id: 'p1', dia_semana: 1, hora_dormir_alvo: '23:00', hora_acordar_alvo: '07:00' }],
+      )
+      // 1440 - 480 - 120 (aula) - 300 (trabalho) = 540
+      expect(dias[0]?.minutosLivres).toBe(540)
+    })
+
+    it('usa SONO_PADRAO_MINUTOS quando não há planejamento de sono pro dia', () => {
+      const dias = cargaPorDia([], SEMANA, QUARTA)
+      // 1440 - 480 (padrão) - 0 = 960, não 1440
+      expect(dias[0]?.minutosLivres).toBe(960)
+    })
+
+    it('nunca fica negativo — rotina que estoura o dia produz 0', () => {
+      const dias = cargaPorDia(
+        [trabalho('2026-08-03', '00:00', '23:59')],
+        SEMANA,
+        QUARTA,
+      )
+      expect(dias[0]?.minutosLivres).toBe(0)
+    })
+
+    it('prazo (prova) não desconta minutosLivres', () => {
+      const comProva = cargaPorDia([prova('2026-08-03')], SEMANA, QUARTA)
+      const semNada = cargaPorDia([], SEMANA, QUARTA)
+      expect(comProva[0]?.minutosLivres).toBe(semNada[0]?.minutosLivres)
     })
   })
 

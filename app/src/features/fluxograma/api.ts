@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import type { TablesInsert, TablesUpdate } from '@/types/database'
 import type { ExcecaoRecorrencia } from '@/lib/recorrencia'
 
 /**
@@ -9,6 +10,58 @@ import type { ExcecaoRecorrencia } from '@/lib/recorrencia'
  * `excecoes_fluxograma` referencia a regra sem saber de qual pilar ela é. Deixar
  * a escrita em `estudos` obrigaria a página de Treino a importar de lá.
  */
+
+// --- Bloco livre / trabalho (resolução 10.48.0) ------------------------------
+//
+// Terceiro "dono" possível de uma linha de `fluxograma_semanal`: nenhuma
+// entidade, só um rótulo. Mora aqui pelo mesmo motivo das exceções acima —
+// não pertence a Estudos nem a Treino, então não pode morar em nenhum dos
+// dois sem criar uma dependência cruzada.
+
+export interface FluxogramaLivre {
+  id: string
+  dia_semana: number
+  horario_inicio: string
+  horario_fim: string
+  rotulo: string
+}
+
+export async function listarFluxogramaLivre(): Promise<FluxogramaLivre[]> {
+  const { data, error } = await supabase
+    .from('fluxograma_semanal')
+    .select('id, dia_semana, horario_inicio, horario_fim, rotulo')
+    .not('rotulo', 'is', null)
+    .order('dia_semana')
+    .order('horario_inicio')
+  if (error) throw new Error(error.message)
+  return (data ?? []).map((linha) => ({ ...linha, rotulo: linha.rotulo as string }))
+}
+
+export async function criarFluxogramaLivre(
+  dados: TablesInsert<'fluxograma_semanal'>,
+): Promise<void> {
+  const { error } = await supabase.from('fluxograma_semanal').insert(dados)
+  if (error) throw new Error(error.message)
+}
+
+export async function atualizarFluxogramaLivre(
+  id: string,
+  dados: TablesUpdate<'fluxograma_semanal'>,
+): Promise<void> {
+  const { error } = await supabase
+    .from('fluxograma_semanal')
+    .update(dados)
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+export async function excluirFluxogramaLivre(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('fluxograma_semanal')
+    .delete()
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+}
 
 /**
  * Exceções que afetam o intervalo.

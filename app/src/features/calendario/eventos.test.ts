@@ -67,6 +67,7 @@ describe('eventosFluxograma', () => {
     horario_fim: '10:00:00',
     materia_id: 'm1',
     treino_id: null,
+    rotulo: null,
   }
   const treino = {
     id: 'f2',
@@ -75,6 +76,16 @@ describe('eventosFluxograma', () => {
     horario_fim: '19:30:00',
     materia_id: null,
     treino_id: 't1',
+    rotulo: null,
+  }
+  const trabalho = {
+    id: 'f3',
+    dia_semana: 1,
+    horario_inicio: '09:00:00',
+    horario_fim: '18:00:00',
+    materia_id: null,
+    treino_id: null,
+    rotulo: 'Escritório',
   }
 
   it('classifica a camada pela FK preenchida', () => {
@@ -90,6 +101,22 @@ describe('eventosFluxograma', () => {
       ['Cálculo II', 'estudos'],
       ['Treino A', 'treino'],
     ])
+  })
+
+  it('sem nenhuma FK preenchida, usa o rótulo livre — camada trabalho, sem rota (resolução 10.48.0)', () => {
+    const eventos = eventosFluxograma(
+      [trabalho],
+      [],
+      SEMANA,
+      MATERIAS,
+      TREINOS,
+    )
+
+    expect(eventos).toHaveLength(1)
+    expect(eventos[0]?.titulo).toBe('Escritório')
+    expect(eventos[0]?.camada).toBe('trabalho')
+    expect(eventos[0]?.tipo).toBe('trabalho')
+    expect(eventos[0]?.rota).toBeUndefined()
   })
 
   it('monta horários ISO com data e hora', () => {
@@ -409,6 +436,7 @@ describe('construirEventos', () => {
           horario_fim: '10:00:00',
           materia_id: 'm1',
           treino_id: null,
+          rotulo: null,
         },
       ],
       excecoes: [],
@@ -505,6 +533,7 @@ describe('tipo e rota dos eventos', () => {
           horario_fim: '10:00:00',
           materia_id: 'm1',
           treino_id: null,
+          rotulo: null,
         },
         {
           id: 'f2',
@@ -513,6 +542,7 @@ describe('tipo e rota dos eventos', () => {
           horario_fim: '20:00:00',
           materia_id: null,
           treino_id: 't1',
+          rotulo: null,
         },
       ],
       [],
@@ -727,6 +757,7 @@ describe('eventosCancelados', () => {
     horario_fim: '19:00:00',
     materia_id: null,
     treino_id: 't1',
+    rotulo: null,
   }
 
   it('mostra o cancelado de um dia que já chegou', () => {
@@ -742,6 +773,30 @@ describe('eventosCancelados', () => {
     expect(evento?.estado).toBe('cancelado')
     expect(evento?.titulo).toBe('Treino A')
     expect(evento?.inicio).toBe('2026-08-05T18:00:00')
+  })
+
+  it('cancela um bloco de trabalho como qualquer outro (resolução 10.48.0)', () => {
+    const regraTrabalho = {
+      id: 'f3',
+      dia_semana: 3,
+      horario_inicio: '09:00:00',
+      horario_fim: '18:00:00',
+      materia_id: null,
+      treino_id: null,
+      rotulo: 'Escritório',
+    }
+    const [evento] = eventosCancelados(
+      [regraTrabalho],
+      [{ fluxograma_id: 'f3', data: '2026-08-05', status: 'cancelado' }],
+      SEMANA,
+      HOJE,
+      MATERIAS,
+      TREINOS,
+    )
+
+    expect(evento?.estado).toBe('cancelado')
+    expect(evento?.camada).toBe('trabalho')
+    expect(evento?.titulo).toBe('Escritório')
   })
 
   it('não mostra cancelado no futuro — ali é só fora do plano', () => {
@@ -786,6 +841,7 @@ describe('reconciliação entre previsto e realizado', () => {
     horario_fim: '19:00:00',
     materia_id: null,
     treino_id: 't1',
+    rotulo: null,
   }
 
   const vazias = {

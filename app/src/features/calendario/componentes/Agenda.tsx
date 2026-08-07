@@ -10,6 +10,7 @@ import {
   ehImportante,
   type EventoCalendario,
 } from '../eventos'
+import { DialogCriarNoDia } from './DialogCriarNoDia'
 
 interface AgendaProps {
   dias: readonly DiaCarga[]
@@ -86,21 +87,34 @@ export function Agenda({
                   {formatarCarga(dia.minutosRotina)}
                 </p>
               )}
+              {/* Tempo livre (resolução 10.48.1) — "quinta tem 3h20" */}
+              {dia.minutosLivres > 0 && (
+                <p className="text-muted-foreground/70 font-mono text-[10px] tabular-nums">
+                  {formatarCarga(dia.minutosLivres)} livres
+                </p>
+              )}
             </div>
 
             <div className="min-w-0 flex-1 space-y-1">
               {eventos.length === 0 ? (
-                <p className="text-muted-foreground py-1 text-sm">
-                  Nada previsto.
-                </p>
+                <div className="flex items-center justify-between gap-2 py-1">
+                  <p className="text-muted-foreground text-sm">
+                    Nada previsto.
+                  </p>
+                  {/* Criar a partir do calendário (resolução 10.48.2) */}
+                  <DialogCriarNoDia data={dia.data} />
+                </div>
               ) : (
-                eventos.map((evento) => (
-                  <LinhaEvento
-                    key={evento.id}
-                    evento={evento}
-                    esmaecido={dia.ehPassado}
-                  />
-                ))
+                <>
+                  {eventos.map((evento) => (
+                    <LinhaEvento
+                      key={evento.id}
+                      evento={evento}
+                      esmaecido={dia.ehPassado}
+                    />
+                  ))}
+                  <DialogCriarNoDia data={dia.data} />
+                </>
               )}
             </div>
           </li>

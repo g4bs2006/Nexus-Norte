@@ -145,6 +145,15 @@ export function FaixaCarga({
               >
                 {format(data, 'dd')}
               </span>
+
+              {/* Tempo livre (resolução 10.48.1) — "quinta tem 3h20" é a
+                  resposta que se procura ao olhar a semana. Omitido em zero:
+                  dia sem folga já está dito pela barra cheia. */}
+              {dia.minutosLivres > 0 && (
+                <span className="text-muted-foreground/70 font-mono text-[9px] tabular-nums">
+                  {formatarCarga(dia.minutosLivres)}
+                </span>
+              )}
             </button>
           </li>
         )
@@ -166,6 +175,7 @@ function resumoAcessivel(dia: DiaCarga): string {
     dia.minutosRotina > 0
       ? `${formatarCarga(dia.minutosRotina)} de rotina`
       : 'sem rotina',
+    `${formatarCarga(dia.minutosLivres)} livres`,
   ]
 
   for (const prazo of dia.prazos) {

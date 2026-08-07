@@ -11,7 +11,12 @@ import type { PilarId } from '@/lib/pilares'
  * entra como parâmetro (plano, seção 9).
  */
 
-export type CamadaCalendario = PilarId | 'sono'
+/**
+ * `'trabalho'` segue o precedente de `'sono'` (resolução 10.48.0): camada sem
+ * ser pilar, sem entrada na sidebar. Trabalho ocupa tempo, mas não tem
+ * métrica, meta nem sub-página — não justifica virar `PilarId`.
+ */
+export type CamadaCalendario = PilarId | 'sono' | 'trabalho'
 
 /**
  * Tipo do evento, mais específico que a camada.
@@ -29,6 +34,8 @@ export type TipoEvento =
   | 'sono'
   /** Sessão de estudo registrada — fato, não rotina prevista. */
   | 'estudo'
+  /** Bloco de trabalho ou outro rótulo livre (resolução 10.48.0). */
+  | 'trabalho'
 
 /**
  * Tipos que representam prazo, e não rotina.
@@ -107,6 +114,8 @@ export interface FonteFluxograma {
   horario_fim: string
   materia_id: string | null
   treino_id: string | null
+  /** Preenchido só quando nem `materia_id` nem `treino_id` estão (10.48.0). */
+  rotulo: string | null
 }
 
 export interface FonteConta {
@@ -266,11 +275,11 @@ export function eventosFluxograma(
     })
     .map((ocorrencia) => {
       const { regra, data, remarcada } = ocorrencia
-      const ehAula = regra.materia_id !== null
-
-      const nome = ehAula
-        ? (nomePorMateria.get(regra.materia_id as string) ?? 'Aula')
-        : (nomePorTreino.get(regra.treino_id as string) ?? 'Treino')
+      const { nome, camada, tipo, rota } = resolverDonoFluxograma(
+        regra,
+        nomePorMateria,
+        nomePorTreino,
+      )
 
       return {
         id: `fluxograma:${regra.id}:${data}`,
@@ -279,12 +288,53 @@ export function eventosFluxograma(
         inicio: comHorario(data, regra.horario_inicio),
         fim: comHorario(data, regra.horario_fim),
         diaInteiro: false,
-        camada: ehAula ? ('estudos' as const) : ('treino' as const),
-        tipo: ehAula ? ('aula' as const) : ('treino' as const),
-        // Treino não tem sub-página própria; leva para a listagem do pilar
-        rota: ehAula ? `/estudos/${regra.materia_id as string}` : '/treino',
+        camada,
+        tipo,
+        rota,
       }
     })
+}
+
+/**
+ * Resolve nome/camada/tipo/rota a partir de qual "dono" a linha do
+ * fluxograma tem — matéria, treino, ou nenhum (rótulo livre, 10.48.0).
+ *
+ * Trabalho não tem sub-página: `rota` fica `undefined` de propósito, o
+ * modelo já prevê essa ausência.
+ */
+export function resolverDonoFluxograma(
+  regra: Pick<FonteFluxograma, 'materia_id' | 'treino_id' | 'rotulo'>,
+  nomePorMateria: ReadonlyMap<string, string>,
+  nomePorTreino: ReadonlyMap<string, string>,
+): {
+  nome: string
+  camada: CamadaCalendario
+  tipo: TipoEvento
+  rota: string | undefined
+} {
+  if (regra.materia_id !== null) {
+    return {
+      nome: nomePorMateria.get(regra.materia_id) ?? 'Aula',
+      camada: 'estudos',
+      tipo: 'aula',
+      rota: `/estudos/${regra.materia_id}`,
+    }
+  }
+  if (regra.treino_id !== null) {
+    return {
+      nome: nomePorTreino.get(regra.treino_id) ?? 'Treino',
+      camada: 'treino',
+      tipo: 'treino',
+      // Treino não tem sub-página própria; leva para a listagem do pilar
+      rota: '/treino',
+    }
+  }
+  return {
+    nome: regra.rotulo ?? 'Trabalho',
+    camada: 'trabalho',
+    tipo: 'trabalho',
+    rota: undefined,
+  }
 }
 
 /**
@@ -394,10 +444,11 @@ export function eventosCancelados(
     const regra = porId.get(excecao.fluxograma_id)
     if (!regra) return []
 
-    const ehAula = regra.materia_id !== null
-    const nome = ehAula
-      ? (nomePorMateria.get(regra.materia_id as string) ?? 'Aula')
-      : (nomePorTreino.get(regra.treino_id as string) ?? 'Treino')
+    const { nome, camada, tipo } = resolverDonoFluxograma(
+      regra,
+      nomePorMateria,
+      nomePorTreino,
+    )
 
     return [
       {
@@ -407,8 +458,8 @@ export function eventosCancelados(
         inicio: comHorario(excecao.data, regra.horario_inicio),
         fim: comHorario(excecao.data, regra.horario_fim),
         diaInteiro: false,
-        camada: ehAula ? ('estudos' as const) : ('treino' as const),
-        tipo: ehAula ? ('aula' as const) : ('treino' as const),
+        camada,
+        tipo,
         estado: 'cancelado' as const,
       },
     ]
@@ -593,6 +644,7 @@ export const COR_CAMADA: Record<CamadaCalendario, string> = {
   treino: 'var(--treino)',
   projetos: 'var(--projetos)',
   sono: 'var(--sono)',
+  trabalho: 'var(--trabalho)',
 }
 
 export const ROTULO_CAMADA: Record<CamadaCalendario, string> = {
@@ -601,6 +653,7 @@ export const ROTULO_CAMADA: Record<CamadaCalendario, string> = {
   treino: 'Treinos',
   projetos: 'Marcos',
   sono: 'Sono',
+  trabalho: 'Trabalho',
 }
 
 export const ROTULO_TIPO: Record<TipoEvento, string> = {
@@ -611,4 +664,5 @@ export const ROTULO_TIPO: Record<TipoEvento, string> = {
   marco: 'Marco',
   sono: 'Sono',
   estudo: 'Estudo',
+  trabalho: 'Trabalho',
 }

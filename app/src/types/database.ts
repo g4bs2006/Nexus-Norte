@@ -565,6 +565,7 @@ export type Database = {
           horario_inicio: string
           id: string
           materia_id: string | null
+          rotulo: string | null
           treino_id: string | null
         }
         Insert: {
@@ -573,6 +574,7 @@ export type Database = {
           horario_inicio: string
           id?: string
           materia_id?: string | null
+          rotulo?: string | null
           treino_id?: string | null
         }
         Update: {
@@ -581,6 +583,7 @@ export type Database = {
           horario_inicio?: string
           id?: string
           materia_id?: string | null
+          rotulo?: string | null
           treino_id?: string | null
         }
         Relationships: [

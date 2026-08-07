@@ -1,5 +1,6 @@
 import { eachDayOfInterval } from 'date-fns'
 import { deISO, paraISO } from '@/lib/datas'
+import { SONO_PADRAO_MINUTOS } from '@/lib/constants'
 import { horasEntre } from '@/features/sono/calculos'
 import {
   ehImportante,
@@ -30,6 +31,7 @@ export interface FonteSonoRealizado {
 const ORDEM_CAMADAS: readonly CamadaCalendario[] = [
   'estudos',
   'treino',
+  'trabalho',
   'projetos',
   'financeiro',
   'sono',
@@ -46,6 +48,13 @@ export interface DiaCarga {
   /** Rotina do dia por camada. Só camadas com tempo, em ordem fixa. */
   segmentos: SegmentoCarga[]
   minutosRotina: number
+  /**
+   * Minutos do dia não ocupados por sono planejado nem por rotina
+   * (resolução 10.48.1) — `1440 − sono planejado − minutosRotina`, nunca
+   * negativo. É o dado que a pressão até o prazo (10.48.4) e a alocação
+   * sugerida (10.48.5) consomem.
+   */
+  minutosLivres: number
   /** Compromissos datados do dia. */
   prazos: EventoCalendario[]
   /**
@@ -161,7 +170,17 @@ export function cargaPorDia(
         (minutosPorCamada.get(evento.camada) ?? 0) + minutos,
       )
 
-      if (evento.origemId && !feitos.has(`${evento.origemId}@${data}`)) {
+      /*
+       * Trabalho não tem entidade nem check (resolução 10.48.0): não entra
+       * em `conclusoes_fluxograma`, e cobrar "marquei que trabalhei?" seria
+       * ruído puro — por isso a camada fica de fora deste sinal, mesmo
+       * contando normalmente para `minutosRotina` acima.
+       */
+      if (
+        evento.camada !== 'trabalho' &&
+        evento.origemId &&
+        !feitos.has(`${evento.origemId}@${data}`)
+      ) {
         checkPendente = true
       }
     }
@@ -175,10 +194,20 @@ export function cargaPorDia(
     const meta = metaPorDiaSemana.get(dia.getDay())
     const dormido = horasDormidas.get(data)
 
+    const minutosRotina = segmentos.reduce((soma, s) => soma + s.minutos, 0)
+    const sonoPlanejadoMinutos =
+      meta !== undefined ? Math.round(meta * 60) : SONO_PADRAO_MINUTOS
+
     return {
       data,
       segmentos,
-      minutosRotina: segmentos.reduce((soma, s) => soma + s.minutos, 0),
+      minutosRotina,
+      // Piso em zero: rotina que estoure o dia produz 0, nunca um negativo
+      // silencioso — é esse 0 que liga o sinal de sobrecarga da 10.48.7.
+      minutosLivres: Math.max(
+        0,
+        1440 - sonoPlanejadoMinutos - minutosRotina,
+      ),
       prazos,
       sonoAbaixo:
         ehPassado &&

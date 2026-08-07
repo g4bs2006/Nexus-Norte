@@ -1,9 +1,11 @@
 import {
+  CalendarCheck,
   CalendarClock,
   CalendarDays,
   Dumbbell,
   FolderKanban,
   GraduationCap,
+  History,
   LayoutDashboard,
   Receipt,
   Wallet,
@@ -120,5 +122,21 @@ export const SUBPAGINAS: readonly SubPagina[] = [
     rota: '/financeiro/planejamento',
     icone: CalendarClock,
     classeTexto: 'text-financeiro',
+  },
+  {
+    id: 'ritual-semanal',
+    nome: 'Ritual de domingo',
+    termos: 'ritual domingo planejar semana sono rotina financeiro',
+    rota: '/calendario/semana',
+    icone: CalendarCheck,
+    classeTexto: 'text-sono',
+  },
+  {
+    id: 'historico',
+    nome: 'Histórico',
+    termos: 'histórico heatmap consistência aderência memória timeline linha do tempo',
+    rota: '/calendario/historico',
+    icone: History,
+    classeTexto: 'text-sono',
   },
 ] as const
