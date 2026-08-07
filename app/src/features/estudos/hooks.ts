@@ -81,6 +81,15 @@ export function useFluxograma() {
 
 // --- Escrita ----------------------------------------------------------------
 
+/**
+ * Invalida `['calendario']` além da raiz do pilar: aula (fluxograma), prova
+ * (avaliação) e sessão de estudo alimentam o Calendário, que lê sob sua
+ * própria chave (`['calendario', ...]`). Sem isso, criar uma aula não
+ * aparecia lá até o `staleTime` de 5 min vencer ou até um reload manual —
+ * era exatamente o bug relatado com "Física IV" numa terça (ago/2026).
+ * Documento, falta e lista não afetam o Calendário, mas invalidar a mais é
+ * inofensivo — mesmo raciocínio já usado em `fluxograma/hooks.ts`.
+ */
 function useMutationEstudos<TVariaveis>(
   fn: (variaveis: TVariaveis) => Promise<void>,
   mensagemSucesso: string,
@@ -91,6 +100,7 @@ function useMutationEstudos<TVariaveis>(
     mutationFn: fn,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: chaves.raiz })
+      void queryClient.invalidateQueries({ queryKey: ['calendario'] })
       toast.success(mensagemSucesso)
     },
     onError: (erro: Error) => toast.error(erro.message),

@@ -21,6 +21,11 @@ export function useLogs() {
   return useQuery({ queryKey: chaves.logs(), queryFn: api.listarLogs })
 }
 
+/**
+ * Invalida `['calendario']` além da raiz do pilar: marco de projeto vira
+ * evento no Calendário, que lê sob sua própria chave. Mesma correção
+ * aplicada em `estudos/hooks.ts` e `treino/hooks.ts`.
+ */
 function useMutationProjetos<TVariaveis>(
   fn: (variaveis: TVariaveis) => Promise<void>,
   mensagemSucesso: string,
@@ -31,6 +36,7 @@ function useMutationProjetos<TVariaveis>(
     mutationFn: fn,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: chaves.raiz })
+      void queryClient.invalidateQueries({ queryKey: ['calendario'] })
       toast.success(mensagemSucesso)
     },
     onError: (erro: Error) => toast.error(erro.message),

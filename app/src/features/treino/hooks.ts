@@ -92,6 +92,12 @@ export function useFluxogramaTreino() {
 
 // --- Escrita ----------------------------------------------------------------
 
+/**
+ * Invalida `['calendario']` além da raiz do pilar: treino finalizado e
+ * horário de fluxograma (aula de treino) alimentam o Calendário, que lê sob
+ * sua própria chave. Mesma correção aplicada em `estudos/hooks.ts` — sem
+ * ela, o Calendário ficava com dado velho até o `staleTime` vencer.
+ */
 function useMutationTreino<TVariaveis, TResultado = void>(
   fn: (variaveis: TVariaveis) => Promise<TResultado>,
   mensagemSucesso: string,
@@ -102,6 +108,7 @@ function useMutationTreino<TVariaveis, TResultado = void>(
     mutationFn: fn,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: chaves.raiz })
+      void queryClient.invalidateQueries({ queryKey: ['calendario'] })
       toast.success(mensagemSucesso)
     },
     onError: (erro: Error) => toast.error(erro.message),

@@ -154,7 +154,13 @@ export function useSugestoesPendentes() {
 
 // --- Escrita ----------------------------------------------------------------
 
-/** Invalida todo o pilar e reporta o erro ao usuário. */
+/**
+ * Invalida todo o pilar e reporta o erro ao usuário.
+ *
+ * Também invalida `['calendario']`: lançamento de despesa fixa vira conta a
+ * pagar lá, que lê sob sua própria chave. Mesma correção aplicada em
+ * `estudos/hooks.ts`, `treino/hooks.ts` e `projetos/hooks.ts`.
+ */
 function useMutationFinanceiro<TVariaveis>(
   fn: (variaveis: TVariaveis) => Promise<void>,
   mensagemSucesso: string,
@@ -165,6 +171,7 @@ function useMutationFinanceiro<TVariaveis>(
     mutationFn: fn,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: chaves.raiz })
+      void queryClient.invalidateQueries({ queryKey: ['calendario'] })
       toast.success(mensagemSucesso)
     },
     onError: (erro: Error) => toast.error(erro.message),
