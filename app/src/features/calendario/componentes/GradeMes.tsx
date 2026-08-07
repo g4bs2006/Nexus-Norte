@@ -23,11 +23,11 @@ interface GradeMesProps {
   /**
    * Vista inicial do FullCalendar (resolução "criar eventos", ago/2026).
    *
-   * O componente sempre teve as duas — `timeGridWeek` já vinha configurada
-   * no `headerToolbar`, só inacessível de fora. Promovê-la a vista de
-   * primeira classe é só decidir com QUAL das duas ele nasce; o toggle interno
-   * do próprio FullCalendar continua deixando trocar para a outra sem sair
-   * da página.
+   * O toggle interno do próprio FullCalendar (Mês/Semana no canto do
+   * cabeçalho) foi removido: com o toggle de cima da página (Semana/Mês/
+   * Horas) já escolhendo a vista, os dois controles podiam desacordar — trocar
+   * pelo botão interno mudava a grade sem mover o destaque de "Horas" lá em
+   * cima, parecendo bugado. Agora só existe um jeito de trocar de vista.
    *
    * O React só lê `initialView` na montagem — mudar a prop sozinha não move
    * o calendário. Quem usa este componente precisa forçar remount (`key`)
@@ -35,6 +35,14 @@ interface GradeMesProps {
    */
   initialView?: 'dayGridMonth' | 'timeGridWeek'
 }
+
+/**
+ * `timeGridWeek` em 7 colunas não cabe num celular — cada coluna ficava com
+ * ~40px, hora e evento ilegíveis. `timeGridTresDias` é a mesma grade de
+ * horas, só com um terço da largura por coluna: a "planilha de horas" que a
+ * vista promete, só que legível. Desktop continua vendo a semana inteira.
+ */
+const VISTA_HORAS_MOBILE = 'timeGridTresDias'
 
 /**
  * A grade de mês, agora secundária.
@@ -56,6 +64,11 @@ export function GradeMes({
   initialView = 'dayGridMonth',
 }: GradeMesProps) {
   const telaEstreita = useMediaQuery('(width < 40rem)')
+
+  const vistaEfetiva =
+    initialView === 'timeGridWeek' && telaEstreita
+      ? VISTA_HORAS_MOBILE
+      : initialView
 
   const livresPorData = useMemo(
     () => new Map(dias.map((dia) => [dia.data, dia.minutosLivres])),
@@ -105,14 +118,18 @@ export function GradeMes({
       <CardContent className="calendario-nexus">
         <FullCalendar
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-          initialView={initialView}
+          initialView={vistaEfetiva}
+          views={{
+            [VISTA_HORAS_MOBILE]: { type: 'timeGrid', duration: { days: 3 } },
+          }}
           locale={ptBrLocale}
           headerToolbar={{
             left: 'prev,next today',
             center: 'title',
-            right: 'dayGridMonth,timeGridWeek',
+            // Sem toggle de vista aqui — é o de cima da página agora.
+            right: '',
           }}
-          buttonText={{ today: 'Hoje', month: 'Mês', week: 'Semana' }}
+          buttonText={{ today: 'Hoje' }}
           events={eventosFullCalendar}
           datesSet={aoMudarDatas}
           eventClick={aoClicarEvento}
