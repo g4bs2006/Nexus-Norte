@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import type { TablesInsert, TablesUpdate } from '@/types/database'
+import type { CompromissoDetalhado, ParceladaDetalhada } from './projecao'
 import type {
   CandidatoCorte,
   Categoria,
@@ -7,6 +8,8 @@ import type {
   Lancamento,
   LancamentoDetalhado,
   PlanejamentoSemanal,
+  RegraInvestimento,
+  SugestaoInvestimento,
 } from './types'
 
 /**
@@ -297,6 +300,161 @@ export async function salvarPlanejamentoSemana(
   const { error } = await supabase
     .from('planejamento_semanal_financeiro')
     .insert(preenchidas.map((e) => ({ ...e, semana_inicio: semanaInicio })))
+  if (error) throw new Error(error.message)
+}
+
+// --- Planejamento de longo prazo (resolução 10.43) ---------------------------
+
+/**
+ * Compromissos recorrentes com a natureza da categoria resolvida — o motor de
+ * projeção (`projecao.ts`) precisa saber se cada um é receita ou despesa e
+ * não repete essa informação (vem de `categorias.natureza`, resolução 10.12).
+ */
+export async function listarCompromissos(): Promise<CompromissoDetalhado[]> {
+  const { data, error } = await supabase
+    .from('compromissos_recorrentes')
+    .select('*, categorias!inner(natureza)')
+    .order('dia_mes')
+  if (error) throw new Error(error.message)
+
+  return (data ?? []).map(({ categorias, ...compromisso }) => ({
+    ...compromisso,
+    categoria_natureza: categorias.natureza as 'receita' | 'despesa',
+  }))
+}
+
+export async function criarCompromisso(
+  dados: TablesInsert<'compromissos_recorrentes'>,
+): Promise<void> {
+  const { error } = await supabase
+    .from('compromissos_recorrentes')
+    .insert(dados)
+  if (error) throw new Error(error.message)
+}
+
+export async function atualizarCompromisso(
+  id: string,
+  dados: TablesUpdate<'compromissos_recorrentes'>,
+): Promise<void> {
+  const { error } = await supabase
+    .from('compromissos_recorrentes')
+    .update(dados)
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+export async function excluirCompromisso(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('compromissos_recorrentes')
+    .delete()
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+// --- Compras parceladas (resolução 10.44) ------------------------------------
+
+export async function listarParceladas(): Promise<ParceladaDetalhada[]> {
+  const { data, error } = await supabase
+    .from('compras_parceladas')
+    .select('*, categorias!inner(natureza)')
+    .order('data_primeira_parcela', { ascending: false })
+  if (error) throw new Error(error.message)
+
+  return (data ?? []).map(({ categorias, ...compra }) => ({
+    ...compra,
+    categoria_natureza: categorias.natureza as 'receita' | 'despesa',
+  }))
+}
+
+export async function criarParcelada(
+  dados: TablesInsert<'compras_parceladas'>,
+): Promise<void> {
+  const { error } = await supabase.from('compras_parceladas').insert(dados)
+  if (error) throw new Error(error.message)
+}
+
+export async function excluirParcelada(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('compras_parceladas')
+    .delete()
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+// --- Regra de investimento (resolução 10.45) ---------------------------------
+
+export async function obterRegraInvestimento(): Promise<RegraInvestimento | null> {
+  const { data, error } = await supabase
+    .from('regra_investimento')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  return data as RegraInvestimento | null
+}
+
+export async function salvarRegraInvestimento(
+  dados: TablesInsert<'regra_investimento'>,
+): Promise<void> {
+  const { error } = await supabase.from('regra_investimento').insert(dados)
+  if (error) throw new Error(error.message)
+}
+
+export async function atualizarRegraInvestimento(
+  id: string,
+  dados: TablesUpdate<'regra_investimento'>,
+): Promise<void> {
+  const { error } = await supabase
+    .from('regra_investimento')
+    .update(dados)
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+export async function listarSugestoesPendentes(): Promise<
+  SugestaoInvestimento[]
+> {
+  const { data, error } = await supabase
+    .from('sugestoes_investimento')
+    .select('*')
+    .eq('status', 'pendente')
+    .order('mes_referencia')
+  if (error) throw new Error(error.message)
+  return (data ?? []) as SugestaoInvestimento[]
+}
+
+/**
+ * Aceita a sugestão: grava o aporte e amarra o id de volta na sugestão, na
+ * mesma chamada — as duas escritas descrevem o mesmo evento e não devem
+ * divergir (uma sem a outra deixaria a sugestão pendente com um aporte já
+ * registrado, ou um `investimento_id` órfão).
+ */
+export async function aceitarSugestaoInvestimento(
+  sugestaoId: string,
+  aporte: TablesInsert<'investimentos'>,
+): Promise<void> {
+  const { data, error: erroInvestimento } = await supabase
+    .from('investimentos')
+    .insert(aporte)
+    .select('id')
+    .single()
+  if (erroInvestimento) throw new Error(erroInvestimento.message)
+
+  const { error } = await supabase
+    .from('sugestoes_investimento')
+    .update({ status: 'aceita', investimento_id: data.id })
+    .eq('id', sugestaoId)
+  if (error) throw new Error(error.message)
+}
+
+export async function recusarSugestaoInvestimento(
+  sugestaoId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('sugestoes_investimento')
+    .update({ status: 'recusada' })
+    .eq('id', sugestaoId)
   if (error) throw new Error(error.message)
 }
 

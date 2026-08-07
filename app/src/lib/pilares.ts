@@ -1,4 +1,5 @@
 import {
+  CalendarClock,
   CalendarDays,
   Dumbbell,
   FolderKanban,
@@ -109,6 +110,15 @@ export const SUBPAGINAS: readonly SubPagina[] = [
     termos: 'lançamentos despesas gastos entradas saídas extrato',
     rota: '/financeiro/lancamentos',
     icone: Receipt,
+    classeTexto: 'text-financeiro',
+  },
+  {
+    id: 'planejamento',
+    nome: 'Planejamento',
+    termos:
+      'planejamento compromissos recorrentes parcelas projeção simulador investimento futuro',
+    rota: '/financeiro/planejamento',
+    icone: CalendarClock,
     classeTexto: 'text-financeiro',
   },
 ] as const

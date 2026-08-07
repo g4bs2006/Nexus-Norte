@@ -37,6 +37,11 @@ export const chaves = {
   planejamento: (semana: string) =>
     ['financeiro', 'planejamento', semana] as const,
   check: (data: string) => ['financeiro', 'check', data] as const,
+  compromissos: () => ['financeiro', 'compromissos'] as const,
+  parceladas: () => ['financeiro', 'parceladas'] as const,
+  regraInvestimento: () => ['financeiro', 'regra-investimento'] as const,
+  sugestoesPendentes: () =>
+    ['financeiro', 'sugestoes-investimento', 'pendentes'] as const,
 }
 
 // --- Leitura ----------------------------------------------------------------
@@ -116,6 +121,34 @@ export function useCheckDia(data: string) {
   return useQuery({
     queryKey: chaves.check(data),
     queryFn: () => api.obterCheckDia(data),
+  })
+}
+
+export function useCompromissos() {
+  return useQuery({
+    queryKey: chaves.compromissos(),
+    queryFn: api.listarCompromissos,
+  })
+}
+
+export function useParceladas() {
+  return useQuery({
+    queryKey: chaves.parceladas(),
+    queryFn: api.listarParceladas,
+  })
+}
+
+export function useRegraInvestimento() {
+  return useQuery({
+    queryKey: chaves.regraInvestimento(),
+    queryFn: api.obterRegraInvestimento,
+  })
+}
+
+export function useSugestoesPendentes() {
+  return useQuery({
+    queryKey: chaves.sugestoesPendentes(),
+    queryFn: api.listarSugestoesPendentes,
   })
 }
 
@@ -211,6 +244,71 @@ export function useSalvarPlanejamento() {
       entradas: readonly api.EntradaPlanejamento[]
     }) => api.salvarPlanejamentoSemana(semanaInicio, entradas),
     'Planejamento da semana salvo',
+  )
+}
+
+export function useCriarCompromisso() {
+  return useMutationFinanceiro(api.criarCompromisso, 'Compromisso registrado')
+}
+
+export function useAtualizarCompromisso() {
+  return useMutationFinanceiro(
+    ({
+      id,
+      dados,
+    }: {
+      id: string
+      dados: Parameters<typeof api.atualizarCompromisso>[1]
+    }) => api.atualizarCompromisso(id, dados),
+    'Compromisso atualizado',
+  )
+}
+
+export function useExcluirCompromisso() {
+  return useMutationFinanceiro(api.excluirCompromisso, 'Compromisso excluído')
+}
+
+export function useCriarParcelada() {
+  return useMutationFinanceiro(api.criarParcelada, 'Compra parcelada registrada')
+}
+
+export function useExcluirParcelada() {
+  return useMutationFinanceiro(api.excluirParcelada, 'Compra parcelada excluída')
+}
+
+export function useSalvarRegraInvestimento() {
+  return useMutationFinanceiro(
+    ({
+      id,
+      dados,
+    }: {
+      id: string | null
+      dados: Parameters<typeof api.salvarRegraInvestimento>[0]
+    }) =>
+      id
+        ? api.atualizarRegraInvestimento(id, dados)
+        : api.salvarRegraInvestimento(dados),
+    'Regra de investimento salva',
+  )
+}
+
+export function useAceitarSugestao() {
+  return useMutationFinanceiro(
+    ({
+      sugestaoId,
+      aporte,
+    }: {
+      sugestaoId: string
+      aporte: Parameters<typeof api.aceitarSugestaoInvestimento>[1]
+    }) => api.aceitarSugestaoInvestimento(sugestaoId, aporte),
+    'Sugestão aceita — aporte registrado',
+  )
+}
+
+export function useRecusarSugestao() {
+  return useMutationFinanceiro(
+    api.recusarSugestaoInvestimento,
+    'Sugestão recusada',
   )
 }
 

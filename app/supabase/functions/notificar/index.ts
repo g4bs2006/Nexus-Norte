@@ -1,8 +1,8 @@
 // supabase/functions/notificar/index.ts
 //
-// Verifica os três gatilhos de notificação (discussão em uso, 06/08) e manda
-// push pra toda inscrição salva. Invocada pelo pg_cron a cada 5 minutos —
-// ver a migration de agendamento.
+// Verifica os gatilhos de notificação (discussão em uso, 06/08; investimento
+// somado na resolução 10.45) e manda push pra toda inscrição salva. Invocada
+// pelo pg_cron a cada 5 minutos — ver a migration de agendamento.
 //
 // Timezone: o app inteiro assume horário do Brasil implicitamente (o
 // navegador do usuário já está nesse fuso). Aqui, sem navegador, calculamos
@@ -40,7 +40,7 @@ function paraHora(data: Date): string {
 }
 
 interface Candidata {
-  tipo: 'aula_treino' | 'conta' | 'prova' | 'meta'
+  tipo: 'aula_treino' | 'conta' | 'prova' | 'meta' | 'investimento'
   origemId: string
   dataReferencia: string
   titulo: string
@@ -249,6 +249,95 @@ async function candidatasMeta(amanhaISO: string): Promise<Candidata[]> {
   }))
 }
 
+/**
+ * Sugestão de aporte (resolução 10.45) — único gatilho que também ESCREVE:
+ * os outros três só leem dado que já existia. Roda na mesma janela das 8h,
+ * só no dia configurado em `regra_investimento.dia_sugestao`.
+ *
+ * `upsert` com `onConflict: 'mes_referencia', ignoreDuplicates: true` é o
+ * mesmo raciocínio de dedup da 10.42 aplicado à escrita: se o cron já criou a
+ * sugestão do mês (nesta ou numa execução anterior), não sobrescreve — nem o
+ * valor, nem o status de quem já aceitou ou recusou.
+ */
+async function candidatasInvestimento(agora: Date): Promise<Candidata[]> {
+  const { data: regra } = await supabase
+    .from('regra_investimento')
+    .select('gatilho_tipo, percentual, dia_sugestao')
+    .eq('ativa', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (!regra) return []
+  if (agora.getUTCDate() !== regra.dia_sugestao) return []
+
+  const mesReferencia = `${paraISO(agora).slice(0, 8)}01`
+
+  const [{ data: categorias }, { data: receitaLinha }] = await Promise.all([
+    supabase
+      .from('categorias')
+      .select('natureza, meta_mensal, meta_tipo, total_gasto_mes'),
+    supabase
+      .from('receita_mensal')
+      .select('total')
+      .eq('mes', mesReferencia)
+      .maybeSingle(),
+  ])
+
+  const receitaMes = receitaLinha?.total ?? 0
+  const despesas = (categorias ?? []).filter((c) => c.natureza === 'despesa')
+  // Mesma fórmula de features/financeiro/calculos.ts (metaTotalDespesas):
+  // resolve percentual_renda contra a receita do mês antes de somar.
+  const metaTotal = despesas.reduce((total, c) => {
+    if (c.meta_mensal === null || c.meta_tipo === null) return total
+    const efetiva =
+      c.meta_tipo === 'valor' ? c.meta_mensal : (c.meta_mensal / 100) * receitaMes
+    return total + efetiva
+  }, 0)
+  const gastoRealizado = despesas.reduce((t, c) => t + c.total_gasto_mes, 0)
+
+  let valorSugerido: number
+  if (regra.gatilho_tipo === 'sobra_meta') {
+    const sobra = metaTotal - gastoRealizado
+    if (sobra <= 0) return [] // só sugere se sobrou algo
+    valorSugerido = sobra * (regra.percentual / 100)
+  } else {
+    if (receitaMes <= 0) return []
+    valorSugerido = receitaMes * (regra.percentual / 100) // disciplina de investir antes de gastar
+  }
+  if (valorSugerido <= 0) return []
+
+  const { data: inserida } = await supabase
+    .from('sugestoes_investimento')
+    .upsert(
+      { mes_referencia: mesReferencia, valor_sugerido: valorSugerido, status: 'pendente' },
+      { onConflict: 'mes_referencia', ignoreDuplicates: true },
+    )
+    .select('id')
+    .maybeSingle()
+
+  const sugestaoId =
+    inserida?.id ??
+    (
+      await supabase
+        .from('sugestoes_investimento')
+        .select('id')
+        .eq('mes_referencia', mesReferencia)
+        .maybeSingle()
+    ).data?.id
+  if (!sugestaoId) return []
+
+  return [
+    {
+      tipo: 'investimento',
+      origemId: sugestaoId,
+      dataReferencia: mesReferencia,
+      titulo: 'Sugestão de investimento',
+      corpo: `Aportar ~R$ ${valorSugerido.toFixed(2)} este mês`,
+      rota: '/financeiro',
+    },
+  ]
+}
+
 /** Filtra o que já foi notificado (mesma chave tipo+origem+data). */
 async function semDuplicar(candidatas: Candidata[]): Promise<Candidata[]> {
   if (candidatas.length === 0) return []
@@ -328,6 +417,7 @@ Deno.serve(async (req) => {
       ...(await candidatasContaAVencer(agora)),
       ...(await candidatasProva(amanhaISO)),
       ...(await candidatasMeta(amanhaISO)),
+      ...(await candidatasInvestimento(agora)),
     )
   }
 

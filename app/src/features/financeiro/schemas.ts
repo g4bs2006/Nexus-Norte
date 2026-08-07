@@ -93,3 +93,61 @@ export const schemaInvestimento = z.object({
 })
 
 export type FormularioInvestimento = z.infer<typeof schemaInvestimento>
+
+// --- Planejamento de longo prazo (resolução 10.43) ---------------------------
+
+export const schemaCompromisso = z
+  .object({
+    descricao: z.string().trim().min(1, 'Informe uma descrição'),
+    categoria_id: z.string().uuid('Selecione uma categoria'),
+    valor: z.number({ message: 'Informe um valor' }).positive('O valor deve ser maior que zero'),
+    dia_mes: z
+      .number({ message: 'Informe o dia do mês' })
+      .int()
+      .min(1, 'Entre 1 e 31')
+      .max(31, 'Entre 1 e 31'),
+    data_inicio: z.string().min(1, 'Informe a data de início'),
+    /** Vazio = sem previsão de término. */
+    data_fim: z.string(),
+  })
+  .refine((v) => v.data_fim === '' || v.data_fim >= v.data_inicio, {
+    message: 'O fim não pode ser antes do início',
+    path: ['data_fim'],
+  })
+
+export type FormularioCompromisso = z.infer<typeof schemaCompromisso>
+
+export const schemaParcelada = z.object({
+  descricao: z.string().trim().min(1, 'Informe uma descrição'),
+  categoria_id: z.string().uuid('Selecione uma categoria'),
+  valor_total: z
+    .number({ message: 'Informe o valor total' })
+    .positive('O valor deve ser maior que zero'),
+  numero_parcelas: z
+    .number({ message: 'Informe o número de parcelas' })
+    .int()
+    .min(1, 'No mínimo 1 parcela'),
+  data_primeira_parcela: z.string().min(1, 'Informe a data da primeira parcela'),
+  // 0 = sem juros (padrão do cartão brasileiro).
+  juros_mensal: z.number().min(0, 'Não pode ser negativo'),
+})
+
+export type FormularioParcelada = z.infer<typeof schemaParcelada>
+
+export const schemaRegraInvestimento = z.object({
+  ativa: z.boolean(),
+  gatilho_tipo: z.enum(['sobra_meta', 'percentual_receita']),
+  percentual: z
+    .number({ message: 'Informe um percentual' })
+    .positive('Deve ser maior que zero')
+    .max(100, 'Até 100'),
+  dia_sugestao: z
+    .number({ message: 'Informe o dia' })
+    .int()
+    .min(1, 'Entre 1 e 31')
+    .max(31, 'Entre 1 e 31'),
+})
+
+export type FormularioRegraInvestimento = z.infer<
+  typeof schemaRegraInvestimento
+>

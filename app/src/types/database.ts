@@ -149,6 +149,88 @@ export type Database = {
         }
         Relationships: []
       }
+      compras_parceladas: {
+        Row: {
+          categoria_id: string
+          created_at: string
+          data_primeira_parcela: string
+          descricao: string
+          id: string
+          juros_mensal: number
+          numero_parcelas: number
+          valor_total: number
+        }
+        Insert: {
+          categoria_id: string
+          created_at?: string
+          data_primeira_parcela: string
+          descricao: string
+          id?: string
+          juros_mensal?: number
+          numero_parcelas: number
+          valor_total: number
+        }
+        Update: {
+          categoria_id?: string
+          created_at?: string
+          data_primeira_parcela?: string
+          descricao?: string
+          id?: string
+          juros_mensal?: number
+          numero_parcelas?: number
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compras_parceladas_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compromissos_recorrentes: {
+        Row: {
+          categoria_id: string
+          created_at: string
+          data_fim: string | null
+          data_inicio: string
+          descricao: string
+          dia_mes: number
+          id: string
+          valor: number
+        }
+        Insert: {
+          categoria_id: string
+          created_at?: string
+          data_fim?: string | null
+          data_inicio: string
+          descricao: string
+          dia_mes: number
+          id?: string
+          valor: number
+        }
+        Update: {
+          categoria_id?: string
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          descricao?: string
+          dia_mes?: number
+          id?: string
+          valor?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compromissos_recorrentes_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conclusoes_fluxograma: {
         Row: {
           created_at: string
@@ -1101,6 +1183,33 @@ export type Database = {
         }
         Relationships: []
       }
+      regra_investimento: {
+        Row: {
+          ativa: boolean
+          created_at: string
+          dia_sugestao: number
+          gatilho_tipo: string
+          id: string
+          percentual: number
+        }
+        Insert: {
+          ativa?: boolean
+          created_at?: string
+          dia_sugestao: number
+          gatilho_tipo: string
+          id?: string
+          percentual: number
+        }
+        Update: {
+          ativa?: boolean
+          created_at?: string
+          dia_sugestao?: number
+          gatilho_tipo?: string
+          id?: string
+          percentual?: number
+        }
+        Relationships: []
+      }
       sessoes_estudo: {
         Row: {
           created_at: string
@@ -1132,6 +1241,41 @@ export type Database = {
             columns: ["materia_id"]
             isOneToOne: false
             referencedRelation: "materias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sugestoes_investimento: {
+        Row: {
+          created_at: string
+          id: string
+          investimento_id: string | null
+          mes_referencia: string
+          status: string
+          valor_sugerido: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          investimento_id?: string | null
+          mes_referencia: string
+          status?: string
+          valor_sugerido: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          investimento_id?: string | null
+          mes_referencia?: string
+          status?: string
+          valor_sugerido?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sugestoes_investimento_investimento_id_fkey"
+            columns: ["investimento_id"]
+            isOneToOne: false
+            referencedRelation: "investimentos"
             referencedColumns: ["id"]
           },
         ]

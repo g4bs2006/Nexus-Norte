@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { expandirRecorrencia, ocorrenciasDoDia } from './recorrencia'
+import {
+  expandirRecorrencia,
+  expandirRecorrenciaMensal,
+  ocorrenciasDoDia,
+} from './recorrencia'
 
 // 2026-08-03 é uma segunda-feira; 2026-08-09, o domingo seguinte.
 const SEGUNDA = '2026-08-03'
@@ -293,5 +297,54 @@ describe('ocorrenciasDoDia', () => {
     ])
 
     expect(ocorrencias).toEqual([])
+  })
+})
+
+describe('expandirRecorrenciaMensal', () => {
+  const SALARIO = {
+    id: 'salario',
+    dia_mes: 5,
+    data_inicio: '2026-01-01',
+    data_fim: null,
+  }
+
+  it('gera uma ocorrência por mês pedido', () => {
+    const ocorrencias = expandirRecorrenciaMensal(
+      [SALARIO],
+      ['2026-08-01', '2026-09-01'],
+    )
+    expect(ocorrencias.map((o) => o.data)).toEqual([
+      '2026-08-05',
+      '2026-09-05',
+    ])
+  })
+
+  it('cai no último dia do mês quando dia_mes não existe (31 em fevereiro)', () => {
+    const ocorrencias = expandirRecorrenciaMensal(
+      [{ ...SALARIO, dia_mes: 31 }],
+      ['2026-02-01'],
+    )
+    // 2026 não é bissexto — fevereiro tem 28 dias
+    expect(ocorrencias.map((o) => o.data)).toEqual(['2026-02-28'])
+  })
+
+  it('não gera ocorrência antes de data_inicio nem depois de data_fim', () => {
+    const regra = { ...SALARIO, data_inicio: '2026-08-10', data_fim: '2026-09-04' }
+    const ocorrencias = expandirRecorrenciaMensal(
+      [regra],
+      ['2026-08-01', '2026-09-01', '2026-10-01'],
+    )
+    // agosto: dia 5 cai antes do início (10) — omitido
+    // setembro: dia 5 cai depois do fim (04) — omitido
+    // outubro: fora do período (data_fim em setembro) — omitido
+    expect(ocorrencias).toEqual([])
+  })
+
+  it('não transborda para o mês seguinte', () => {
+    const ocorrencias = expandirRecorrenciaMensal(
+      [{ ...SALARIO, dia_mes: 31 }],
+      ['2026-04-01'], // abril tem 30 dias
+    )
+    expect(ocorrencias.map((o) => o.data)).toEqual(['2026-04-30'])
   })
 })

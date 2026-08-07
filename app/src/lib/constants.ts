@@ -41,6 +41,20 @@ export const SEMANAS_SINAL_ESTAGNACAO = 3
 export const MESES_CANDIDATO_CORTE = 2
 
 /**
+ * Janela de meses usada para estimar o gasto variável nos meses projetados
+ * (resolução 10.43). Com menos histórico que isto, a projeção usa o que
+ * houver e a UI sinaliza baixa confiança em vez de aparentar a mesma firmeza
+ * de uma janela completa.
+ */
+export const MESES_MEDIA_VARIAVEL = 3
+
+/**
+ * Quantidade padrão de meses exibidos na tabela de planejamento financeiro
+ * de longo prazo (resolução 10.43).
+ */
+export const HORIZONTE_PROJECAO_PADRAO = 6
+
+/**
  * Dias da semana na convenção de `Date.getDay()` — 0 = domingo.
  * Alinhado com `planejamento_sono.dia_semana` e `fluxograma_semanal.dia_semana`.
  */

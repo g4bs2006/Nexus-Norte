@@ -53,3 +53,26 @@ export interface CandidatoCorte {
 
 /** Status do semáforo usado pelos pilares (🟢/🟡/🔴). */
 export type Status = 'ok' | 'atencao' | 'risco'
+
+// --- Planejamento de longo prazo (resoluções 10.43-10.45) -------------------
+
+export type CompromissoRecorrente = Tables<'compromissos_recorrentes'>
+export type CompraParcelada = Tables<'compras_parceladas'>
+
+export type GatilhoInvestimento = 'sobra_meta' | 'percentual_receita'
+
+export type RegraInvestimento = Omit<
+  Tables<'regra_investimento'>,
+  'gatilho_tipo'
+> & {
+  gatilho_tipo: GatilhoInvestimento
+}
+
+export type StatusSugestao = 'pendente' | 'aceita' | 'recusada'
+
+export type SugestaoInvestimento = Omit<
+  Tables<'sugestoes_investimento'>,
+  'status'
+> & {
+  status: StatusSugestao
+}

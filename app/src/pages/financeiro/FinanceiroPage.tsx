@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { getDate, getDaysInMonth } from 'date-fns'
 import { Link } from 'react-router-dom'
-import { Receipt, Wallet } from 'lucide-react'
+import { CalendarClock, Receipt, Wallet } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
 import { EstadoVazio } from '@/components/EstadoVazio'
 import { SkeletonPagina } from '@/components/Skeletons'
@@ -28,6 +28,7 @@ import {
   useCandidatosCorte,
   useCategorias,
   useCheckDia,
+  useCompromissos,
   useInvestimentos,
   useLancamentos,
   usePlanejamentoSemana,
@@ -36,7 +37,9 @@ import {
   useSalvarCheck,
   useSalvarPlanejamento,
 } from '@/features/financeiro/hooks'
+import { expandirRecorrenciaMensal } from '@/lib/recorrencia'
 import { CardReceitaDespesa } from '@/features/financeiro/componentes/CardReceitaDespesa'
+import { CardSugestaoInvestimento } from '@/features/financeiro/componentes/CardSugestaoInvestimento'
 import { CardDisponivelHoje } from '@/features/financeiro/componentes/CardDisponivelHoje'
 import { CardCategoria } from '@/features/financeiro/componentes/CardCategoria'
 import { ChecksDiarios } from '@/features/financeiro/componentes/ChecksDiarios'
@@ -71,6 +74,7 @@ export default function FinanceiroPage() {
   const investimentos = useInvestimentos(inicioMes, fimMes)
   const resumo = useResumoMensal(meses[0] ?? mesAtual, mesAtual)
   const check = useCheckDia(hojeISO)
+  const compromissos = useCompromissos()
 
   const salvarPlanejamento = useSalvarPlanejamento()
   const salvarCheck = useSalvarCheck()
@@ -129,6 +133,25 @@ export default function FinanceiroPage() {
     hojeISO,
   ])
 
+  // Camada de previsto x realizado no card do topo (resolução 10.43, efeito
+  // colateral já previsto na spec): compromissos recorrentes do mês corrente,
+  // por natureza. Só um resumo — a projeção completa mora em /planejamento.
+  const previsto = useMemo(() => {
+    if (!compromissos.data) return undefined
+    const ocorrencias = expandirRecorrenciaMensal(compromissos.data, [mesAtual])
+    return ocorrencias.reduce(
+      (total, o) => {
+        if (o.regra.categoria_natureza === 'receita') {
+          total.receita += o.regra.valor
+        } else {
+          total.despesa += o.regra.valor
+        }
+        return total
+      },
+      { receita: 0, despesa: 0 },
+    )
+  }, [compromissos.data, mesAtual])
+
   if (categorias.isPending) {
     return (
       <>
@@ -170,6 +193,12 @@ export default function FinanceiroPage() {
                 Lançamentos
               </Link>
             </Button>
+            <Button asChild variant="secondary" size="sm">
+              <Link to="/financeiro/planejamento">
+                <CalendarClock className="size-4" />
+                Planejamento
+              </Link>
+            </Button>
             <DialogCategoria />
             <DialogLancamento categorias={listaCategorias} hoje={hoje} />
           </>
@@ -193,6 +222,7 @@ export default function FinanceiroPage() {
           <CardReceitaDespesa
             totais={calculos.totais}
             saldoProjetado={calculos.saldoProjetado}
+            previsto={previsto}
           />
 
           <CardDisponivelHoje
@@ -256,6 +286,8 @@ export default function FinanceiroPage() {
             lancamentos={lancamentosMes.data ?? []}
             categorias={listaCategorias}
           />
+
+          <CardSugestaoInvestimento />
 
           <SecaoInvestimentos
             investimentos={investimentos.data ?? []}

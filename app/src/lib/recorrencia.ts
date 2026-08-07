@@ -1,4 +1,4 @@
-import { eachDayOfInterval } from 'date-fns'
+import { eachDayOfInterval, endOfMonth, getDaysInMonth } from 'date-fns'
 import { deISO, paraISO } from './datas'
 
 /**
@@ -183,4 +183,72 @@ export function ocorrenciasDoDia<T extends RegraRecorrente>(
   excecoes: readonly ExcecaoRecorrencia[] = [],
 ): Ocorrencia<T>[] {
   return expandirRecorrencia(regras, { de: data, ate: data }, excecoes)
+}
+
+// --- Recorrência mensal (resolução 10.43) -----------------------------------
+//
+// Irmã de `expandirRecorrencia`: mesmo princípio (padrão guardado, expansão
+// na leitura), trocando "dia da semana" por "dia do mês". Compromissos
+// recorrentes (salário, aluguel) vivem aqui, não na semanal, porque a
+// granularidade e a regra de borda (dia inexistente no mês) são diferentes o
+// bastante para não caber na mesma função sem `if`s cruzados.
+
+export interface RegraMensal {
+  id: string
+  /** 1-31. Ver regra de borda na função de expansão. */
+  dia_mes: number
+  data_inicio: string
+  /** `null` = sem previsão de término. */
+  data_fim: string | null
+}
+
+export interface OcorrenciaMensal<T extends RegraMensal> {
+  regra: T
+  /** Data da ocorrência dentro do mês, em ISO. */
+  data: string
+}
+
+/**
+ * Gera a ocorrência de cada regra nos meses pedidos.
+ *
+ * `meses` é o primeiro dia de cada mês em ISO — mesma convenção de
+ * `ultimosMeses`/`mesDeISO` (lib/datas.ts), não `'YYYY-MM'`.
+ *
+ * Regra de borda: `dia_mes = 31` não existe em fevereiro. A ocorrência cai no
+ * **último dia daquele mês**, nunca transborda para o mês seguinte —
+ * transbordar mudaria o mês de competência do compromisso, que é justamente o
+ * que a projeção tenta medir.
+ *
+ * Uma regra só gera ocorrência em meses dentro do seu período
+ * (`data_inicio`/`data_fim`) — comparação por string ISO, que ordena
+ * corretamente por ser `YYYY-MM-DD`.
+ */
+export function expandirRecorrenciaMensal<T extends RegraMensal>(
+  regras: readonly T[],
+  meses: readonly string[],
+): OcorrenciaMensal<T>[] {
+  const ocorrencias: OcorrenciaMensal<T>[] = []
+
+  for (const primeiroDia of meses) {
+    const data = deISO(primeiroDia)
+    const ultimoDiaDoMes = paraISO(endOfMonth(data))
+    const diasNoMes = getDaysInMonth(data)
+
+    for (const regra of regras) {
+      if (regra.data_inicio > ultimoDiaDoMes) continue
+      if (regra.data_fim && regra.data_fim < primeiroDia) continue
+
+      const diaEfetivo = Math.min(regra.dia_mes, diasNoMes)
+      const dataOcorrencia = `${primeiroDia.slice(0, 8)}${String(diaEfetivo).padStart(2, '0')}`
+
+      // Regra que começou ou terminou no meio do mês: a ocorrência ainda
+      // pode cair fora do período mesmo com o mês inteiro elegível.
+      if (dataOcorrencia < regra.data_inicio) continue
+      if (regra.data_fim && dataOcorrencia > regra.data_fim) continue
+
+      ocorrencias.push({ regra, data: dataOcorrencia })
+    }
+  }
+
+  return ocorrencias
 }

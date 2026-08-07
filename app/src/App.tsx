@@ -16,6 +16,9 @@ const CategoriaDetalhePage = lazy(
   () => import('@/pages/financeiro/CategoriaDetalhePage'),
 )
 const LancamentosPage = lazy(() => import('@/pages/financeiro/LancamentosPage'))
+const PlanejamentoPage = lazy(
+  () => import('@/pages/financeiro/PlanejamentoPage'),
+)
 const EstudosPage = lazy(() => import('@/pages/estudos/EstudosPage'))
 const MateriaDetalhePage = lazy(
   () => import('@/pages/estudos/MateriaDetalhePage'),
@@ -42,6 +45,10 @@ export default function App() {
 
         <Route path="financeiro" element={<FinanceiroPage />} />
         <Route path="financeiro/lancamentos" element={<LancamentosPage />} />
+        <Route
+          path="financeiro/planejamento"
+          element={<PlanejamentoPage />}
+        />
         <Route
           path="financeiro/categorias/:id"
           element={<CategoriaDetalhePage />}
