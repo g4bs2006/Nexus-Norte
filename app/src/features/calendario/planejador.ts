@@ -311,64 +311,13 @@ export function sugerirRealocacao(
   })
 }
 
-// --- Degrau 3: memória (resoluções 10.48.8 / 10.48.9) ------------------------
+// --- Degrau 3: memória (resolução 10.48.9) -----------------------------------
 //
-// `checkPendente` e `sonoAbaixo` já existem por dia (10.48/`cargaPorDia`); o
-// que falta pro heatmap é só a janela longa — hoje limitada ao intervalo
-// visível da agenda/mês.
-
-export type NivelAderencia = 'futuro' | 'sem-rotina' | 'ok' | 'falha'
-
-export interface CelulaAderencia {
-  data: string
-  nivel: NivelAderencia
-}
-
-/**
- * Classifica cada dia pela aderência à rotina prevista (10.48.8).
- *
- * Não inventa gradiente contínuo a partir de um booleano só: `checkPendente`
- * é sim/não, então o nível também é — a única suavização honesta seria
- * cruzar quantos itens do dia falharam, e isso exigiria dado por-ocorrência
- * que `DiaCarga` não guarda (é por-dia, de propósito, para a faixa de carga
- * não pagar o custo de rastrear cada item).
- *
- * `futuro` cobre hoje e o que vem depois: marcar o presente como falha ou
- * sucesso seria adivinhação.
- */
-export function heatmapAderencia(
-  dias: readonly DiaCarga[],
-): CelulaAderencia[] {
-  return dias.map((dia) => {
-    let nivel: NivelAderencia
-    if (!dia.ehPassado) nivel = 'futuro'
-    else if (dia.minutosRotina === 0) nivel = 'sem-rotina'
-    else if (dia.checkPendente) nivel = 'falha'
-    else nivel = 'ok'
-    return { data: dia.data, nivel }
-  })
-}
-
-export interface CelulaSono extends CelulaAderencia {
-  horasDormidas: number | undefined
-}
-
-/**
- * Sobrepõe sono realizado à aderência (10.48.9) — mesma classificação de
- * `heatmapAderencia`, mais as horas dormidas quando existem.
- *
- * Só overlay: a UI é quem decide como cruzar os dois. Esta função não produz
- * nenhuma afirmação de causa — só os dois dados lado a lado, um por dia.
- */
-export function heatmapSonoAderencia(
-  dias: readonly DiaCarga[],
-  horasDormidasPorDia: ReadonlyMap<string, number>,
-): CelulaSono[] {
-  return heatmapAderencia(dias).map((celula) => ({
-    ...celula,
-    horasDormidas: horasDormidasPorDia.get(celula.data),
-  }))
-}
+// O heatmap anual (10.48.8) foi removido em uso: com poucos dias de app
+// instalado, uma grade de 365 quadrados é quase só vermelho antes de ontem —
+// ruído, não informação. `checkPendente` e `sonoAbaixo` continuam existindo
+// por dia (`cargaPorDia`); a correlação abaixo é o que sobrou de útil sem
+// depender da janela longa que o heatmap pedia.
 
 /**
  * Correlação simples, só como observação (10.48.9): entre os dias com sono

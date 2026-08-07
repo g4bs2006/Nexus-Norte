@@ -21,33 +21,33 @@ import { useFontesCalendario } from '@/features/calendario/hooks'
 import {
   construirTimeline,
   correlacaoSonoAderencia,
-  heatmapAderencia,
 } from '@/features/calendario/planejador'
-import { HeatmapAderencia } from '@/features/calendario/componentes/HeatmapAderencia'
 import { horasEntre } from '@/features/sono/calculos'
-import type { CelulaAderencia } from '@/features/calendario/planejador'
 
 const TODAS = 'todas'
 const CAMADAS_FILTRO = Object.keys(ROTULO_CAMADA) as CamadaCalendario[]
-const DIAS_JANELA = 364
+/**
+ * Três meses, não um ano: o heatmap de consistência (10.48.8) saiu daqui —
+ * com poucos dias de app instalado, uma grade de 365 quadrados é praticamente
+ * só vermelho antes de ontem, que é ruído, não informação. Sono×aderência e
+ * a timeline não precisam de janela tão larga; noventa dias já dá espaço de
+ * sobra pros grupos de sono comparados (mínimo de 3 dias cada).
+ */
+const DIAS_JANELA = 90
 
 /**
- * Histórico (degrau 3 — resolução 10.48.8/9/10): o calendário como memória,
- * não só planejador. Uma página própria porque a pergunta aqui é retrospectiva
- * — "o que aconteceu" — diferente de tudo que `CalendarioPage` responde.
+ * Histórico (resoluções 10.48.9/10): o calendário como memória, não só
+ * planejador. Uma página própria porque a pergunta aqui é retrospectiva —
+ * "o que aconteceu" — diferente de tudo que `CalendarioPage` responde.
  *
- * Busca independente, de um ano: nenhuma das outras telas do Calendário
- * carrega uma janela tão larga, e forçar isso na página principal deixaria
- * a agenda do dia a dia mais pesada por uma pergunta que só se faz de vez em
- * quando.
+ * Busca independente: nenhuma das outras telas do Calendário carrega uma
+ * janela tão larga, e forçar isso na página principal deixaria a agenda do
+ * dia a dia mais pesada por uma pergunta que só se faz de vez em quando.
  */
 export default function HistoricoPage() {
   const hoje = useMemo(() => new Date(), [])
   const hojeISO = paraISO(hoje)
   const [camada, setCamada] = useState<CamadaCalendario | typeof TODAS>(TODAS)
-  const [celulaSelecionada, setCelulaSelecionada] = useState<CelulaAderencia | null>(
-    null,
-  )
 
   const intervalo = useMemo(
     () => ({ de: paraISO(subDays(hoje, DIAS_JANELA)), ate: hojeISO }),
@@ -81,8 +81,6 @@ export default function HistoricoPage() {
       ),
     [eventosFiltrados, intervalo, hoje, fontes.planejamentoSono, carga],
   )
-
-  const celulas = useMemo(() => heatmapAderencia(dias), [dias])
 
   const horasDormidasPorDia = useMemo(() => {
     const mapa = new Map<string, number>()
@@ -144,56 +142,7 @@ export default function HistoricoPage() {
         }
       />
 
-      <div className="space-y-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              Consistência no último ano
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <HeatmapAderencia
-              celulas={celulas}
-              selecionado={celulaSelecionada?.data}
-              onSelecionar={setCelulaSelecionada}
-            />
-            <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px]">
-              <span className="flex items-center gap-1">
-                <span className="bg-status-ok size-2.5 rounded-[2px]" /> em dia
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="bg-status-risco size-2.5 rounded-[2px]" /> sem check
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="bg-muted size-2.5 rounded-[2px]" /> sem rotina
-              </span>
-            </div>
-            {/*
-              Toque não tem hover: o `title` da célula não aparece no
-              celular, então o detalhe do dia escolhido mora aqui embaixo,
-              numa linha que sempre existe (com um texto de convite quando
-              nada foi tocado ainda) — não um popover flutuante em cima de um
-              quadrado de 10px.
-            */}
-            <p className="text-muted-foreground mt-3 border-t pt-3 text-xs">
-              {celulaSelecionada ? (
-                <>
-                  <strong className="text-foreground">
-                    {format(deISO(celulaSelecionada.data), "dd/MM/yyyy — EEEE")}
-                  </strong>
-                  :{' '}
-                  {celulaSelecionada.nivel === 'ok' && 'rotina em dia'}
-                  {celulaSelecionada.nivel === 'falha' && 'ficou algo sem check'}
-                  {celulaSelecionada.nivel === 'sem-rotina' && 'sem rotina prevista'}
-                  {celulaSelecionada.nivel === 'futuro' && 'ainda não chegou'}
-                </>
-              ) : (
-                'Toque num quadrado pra ver o dia.'
-              )}
-            </p>
-          </CardContent>
-        </Card>
-
+      <div className="surgir-grupo space-y-4">
         {(correlacao.percentualFalhaComSonoBaixo !== undefined ||
           correlacao.percentualFalhaComSonoOk !== undefined) && (
           <Card>

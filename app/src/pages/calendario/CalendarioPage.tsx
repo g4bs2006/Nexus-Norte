@@ -394,109 +394,111 @@ export default function CalendarioPage() {
           </Card>
         </div>
       ) : (
-        <Suspense fallback={<Skeleton className="h-[32rem] w-full" />}>
-          <GradeMes
-            eventos={visiveisFiltrados}
-            dias={dias}
-            onMudarDatas={(de, ate) =>
-              setIntervaloMes((atual) =>
-                atual.de === de && atual.ate === ate ? atual : { de, ate },
-              )
-            }
-            onClicarEvento={(id) => {
-              const rota = rotaPorId.get(id)
-              if (rota) navegar(rota)
-            }}
-            onClicarDia={setDiaDetalhado}
-          />
-        </Suspense>
+        <div className="surgir-grupo">
+          <Suspense fallback={<Skeleton className="h-[32rem] w-full" />}>
+            <GradeMes
+              eventos={visiveisFiltrados}
+              dias={dias}
+              onMudarDatas={(de, ate) =>
+                setIntervaloMes((atual) =>
+                  atual.de === de && atual.ate === ate ? atual : { de, ate },
+                )
+              }
+              onClicarEvento={(id) => {
+                const rota = rotaPorId.get(id)
+                if (rota) navegar(rota)
+              }}
+              onClicarDia={setDiaDetalhado}
+            />
+          </Suspense>
+        </div>
       )}
 
-      <div className="mt-4">
+      <div className="surgir-grupo mt-4 space-y-4">
         <CardPressaoPrazos hoje={hojeISO} />
-      </div>
 
-      {(conflitos.length > 0 || sobrecarga.length > 0) && (
-        <Card className="border-status-atencao/40 mt-4">
-          <CardContent className="text-status-atencao space-y-1 text-sm">
-            {conflitos.map((conflito) => (
-              <p key={`${conflito.eventoA.id}-${conflito.eventoB.id}`}>
-                Conflito em {format(deISO(conflito.data), 'dd/MM')}:{' '}
-                {conflito.eventoA.titulo} e {conflito.eventoB.titulo} se
-                sobrepõem.
-              </p>
-            ))}
-            {sobrecarga.map((dia) => (
-              <p key={dia.data}>
-                {format(deISO(dia.data), 'dd/MM')} sem folga nenhuma na rotina.
-              </p>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {sugestoesRealocacao.length > 0 && (
-        <Card className="mt-4">
-          <CardContent className="space-y-3 text-sm">
-            <p className="font-medium">Ficou pra trás</p>
-            {sugestoesRealocacao.map((item) => (
-              <div
-                key={`${item.fluxogramaId}@${item.data}`}
-                className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-2"
-              >
-                <p className="text-muted-foreground">
-                  {item.titulo} —{' '}
-                  {item.motivo === 'cancelado' ? 'cancelado' : 'sem check'} em{' '}
-                  {format(deISO(item.data), 'dd/MM')}.{' '}
-                  {item.sugestao.length > 0 ? (
-                    <>
-                      Quer remarcar pra{' '}
-                      {item.sugestao
-                        .map(
-                          (b) =>
-                            `${format(deISO(b.data), 'dd/MM')} (${formatarCarga(b.minutos)})`,
-                        )
-                        .join(', ')}
-                      ?
-                    </>
-                  ) : (
-                    'Sem folga na semana pra sugerir um novo horário.'
-                  )}
+        {(conflitos.length > 0 || sobrecarga.length > 0) && (
+          <Card className="border-status-atencao/40">
+            <CardContent className="text-status-atencao space-y-1 text-sm">
+              {conflitos.map((conflito) => (
+                <p key={`${conflito.eventoA.id}-${conflito.eventoB.id}`}>
+                  Conflito em {format(deISO(conflito.data), 'dd/MM')}:{' '}
+                  {conflito.eventoA.titulo} e {conflito.eventoB.titulo} se
+                  sobrepõem.
                 </p>
-                {/* h-9 no mobile — 44px é o alvo, h-7 (28px) só volta a valer
-                    a partir de sm:, onde há mouse (resolução 10.28). */}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="text-muted-foreground h-9 self-end sm:h-7 sm:shrink-0 sm:self-auto"
-                  onClick={() =>
-                    setDescartadas(
-                      (atual) =>
-                        new Set(atual).add(`${item.fluxogramaId}@${item.data}`),
-                    )
-                  }
+              ))}
+              {sobrecarga.map((dia) => (
+                <p key={dia.data}>
+                  {format(deISO(dia.data), 'dd/MM')} sem folga nenhuma na rotina.
+                </p>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {sugestoesRealocacao.length > 0 && (
+          <Card>
+            <CardContent className="space-y-3 text-sm">
+              <p className="font-medium">Ficou pra trás</p>
+              {sugestoesRealocacao.map((item) => (
+                <div
+                  key={`${item.fluxogramaId}@${item.data}`}
+                  className="flex flex-col gap-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-2"
                 >
-                  Descartar
-                </Button>
-              </div>
-            ))}
+                  <p className="text-muted-foreground">
+                    {item.titulo} —{' '}
+                    {item.motivo === 'cancelado' ? 'cancelado' : 'sem check'} em{' '}
+                    {format(deISO(item.data), 'dd/MM')}.{' '}
+                    {item.sugestao.length > 0 ? (
+                      <>
+                        Quer remarcar pra{' '}
+                        {item.sugestao
+                          .map(
+                            (b) =>
+                              `${format(deISO(b.data), 'dd/MM')} (${formatarCarga(b.minutos)})`,
+                          )
+                          .join(', ')}
+                        ?
+                      </>
+                    ) : (
+                      'Sem folga na semana pra sugerir um novo horário.'
+                    )}
+                  </p>
+                  {/* h-9 no mobile — 44px é o alvo, h-7 (28px) só volta a
+                      valer a partir de sm:, onde há mouse (resolução 10.28). */}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-muted-foreground h-9 self-end sm:h-7 sm:shrink-0 sm:self-auto"
+                    onClick={() =>
+                      setDescartadas(
+                        (atual) =>
+                          new Set(atual).add(`${item.fluxogramaId}@${item.data}`),
+                      )
+                    }
+                  >
+                    Descartar
+                  </Button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        <Card>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium">Trabalho e outros blocos</p>
+              <DialogFluxogramaLivre />
+            </div>
+            <GradeFluxograma
+              itens={blocosLivres.data ?? []}
+              classeCorPadrao="bg-trabalho"
+              onExcluir={(id) => excluirBlocoLivre.mutate(id)}
+            />
           </CardContent>
         </Card>
-      )}
-
-      <Card className="mt-4">
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-medium">Trabalho e outros blocos</p>
-            <DialogFluxogramaLivre />
-          </div>
-          <GradeFluxograma
-            itens={blocosLivres.data ?? []}
-            classeCorPadrao="bg-trabalho"
-            onExcluir={(id) => excluirBlocoLivre.mutate(id)}
-          />
-        </CardContent>
-      </Card>
+      </div>
 
       <DialogDia
         data={diaDetalhado}

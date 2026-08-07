@@ -6,8 +6,6 @@ import {
   detectarConflitos,
   detectarFalhas,
   detectarSobrecarga,
-  heatmapAderencia,
-  heatmapSonoAderencia,
   pressaoDosPrazos,
   sugerirRealocacao,
 } from './planejador'
@@ -472,48 +470,6 @@ function diaCarga(parcial: Partial<DiaCarga>): DiaCarga {
     ...parcial,
   }
 }
-
-describe('heatmapAderencia', () => {
-  it('futuro pra qualquer dia que ainda não passou', () => {
-    const [celula] = heatmapAderencia([diaCarga({ ehPassado: false })])
-    expect(celula?.nivel).toBe('futuro')
-  })
-
-  it('sem-rotina quando o dia passou sem nenhuma rotina prevista', () => {
-    const [celula] = heatmapAderencia([diaCarga({ minutosRotina: 0 })])
-    expect(celula?.nivel).toBe('sem-rotina')
-  })
-
-  it('falha quando houve rotina e checkPendente', () => {
-    const [celula] = heatmapAderencia([
-      diaCarga({ minutosRotina: 60, checkPendente: true }),
-    ])
-    expect(celula?.nivel).toBe('falha')
-  })
-
-  it('ok quando houve rotina e o check saiu', () => {
-    const [celula] = heatmapAderencia([
-      diaCarga({ minutosRotina: 60, checkPendente: false }),
-    ])
-    expect(celula?.nivel).toBe('ok')
-  })
-})
-
-describe('heatmapSonoAderencia', () => {
-  it('junta o nível de aderência com as horas dormidas do dia', () => {
-    const [celula] = heatmapSonoAderencia(
-      [diaCarga({ data: '2026-08-01', minutosRotina: 60 })],
-      new Map([['2026-08-01', 6.5]]),
-    )
-    expect(celula?.nivel).toBe('ok')
-    expect(celula?.horasDormidas).toBe(6.5)
-  })
-
-  it('horasDormidas fica undefined sem registro naquele dia', () => {
-    const [celula] = heatmapSonoAderencia([diaCarga({})], new Map())
-    expect(celula?.horasDormidas).toBeUndefined()
-  })
-})
 
 describe('correlacaoSonoAderencia', () => {
   // 2026-08-03 é segunda (dia_semana 1)

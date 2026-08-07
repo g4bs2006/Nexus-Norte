@@ -88,46 +88,49 @@ export default function RitualSemanalPage() {
         icone={CalendarCheck}
       />
 
-      {/*
-        No mobile as abas viram só o número: "3. Estudo e treino" quebra
-        linha de forma desigual em quatro botões de largura igual, e o texto
-        picado por hifenização é pior que não ter texto nenhum. O nome do
-        passo atual sai como legenda abaixo, numa linha só — a partir de
-        `sm:` sobra espaço e o botão volta a carregar o próprio nome.
-      */}
-      <div className="mb-1.5 flex items-center gap-1.5">
-        {PASSOS.map((nome, indice) => (
-          <button
-            key={nome}
-            type="button"
-            onClick={() => setPasso(indice)}
-            aria-current={indice === passo ? 'step' : undefined}
-            className={cn(
-              'flex-1 rounded-md border py-2 text-xs font-medium transition-colors sm:px-2 sm:py-1.5',
-              indice === passo
-                ? 'border-foreground bg-accent'
-                : 'border-border text-muted-foreground hover:bg-accent/50',
-            )}
-          >
-            <span className="sm:hidden">{indice + 1}</span>
-            <span className="hidden sm:inline">
-              {indice + 1}. {nome}
-            </span>
-          </button>
-        ))}
-      </div>
-      <p className="text-muted-foreground mb-4 text-sm sm:hidden">
-        Passo {passo + 1} de {PASSOS.length}: {PASSOS[passo]}
-      </p>
+      <div className="surgir-grupo">
+        {/*
+          No mobile as abas viram só o número: "3. Estudo e treino" quebra
+          linha de forma desigual em quatro botões de largura igual, e o
+          texto picado por hifenização é pior que não ter texto nenhum. O
+          nome do passo atual sai como legenda abaixo, numa linha só — a
+          partir de `sm:` sobra espaço e o botão volta a carregar o próprio
+          nome.
+        */}
+        <div className="mb-1.5 flex items-center gap-1.5">
+          {PASSOS.map((nome, indice) => (
+            <button
+              key={nome}
+              type="button"
+              onClick={() => setPasso(indice)}
+              aria-current={indice === passo ? 'step' : undefined}
+              className={cn(
+                'flex-1 rounded-md border py-2 text-xs font-medium transition-colors sm:px-2 sm:py-1.5',
+                indice === passo
+                  ? 'border-foreground bg-accent'
+                  : 'border-border text-muted-foreground hover:bg-accent/50',
+              )}
+            >
+              <span className="sm:hidden">{indice + 1}</span>
+              <span className="hidden sm:inline">
+                {indice + 1}. {nome}
+              </span>
+            </button>
+          ))}
+        </div>
+        <p className="text-muted-foreground mb-4 text-sm sm:hidden">
+          Passo {passo + 1} de {PASSOS.length}: {PASSOS[passo]}
+        </p>
 
-      {passo === 0 && <PassoSono />}
-      {passo === 1 && (
-        <PassoRotina semanaInicio={semanaInicioISO} intervalo={intervalo} />
-      )}
-      {passo === 2 && (
-        <PassoEstudoTreino semanaInicio={semanaInicioISO} intervalo={intervalo} />
-      )}
-      {passo === 3 && <PassoFinanceiro semanaInicio={semanaInicioISO} />}
+        {passo === 0 && <PassoSono />}
+        {passo === 1 && (
+          <PassoRotina semanaInicio={semanaInicioISO} intervalo={intervalo} />
+        )}
+        {passo === 2 && (
+          <PassoEstudoTreino semanaInicio={semanaInicioISO} intervalo={intervalo} />
+        )}
+        {passo === 3 && <PassoFinanceiro semanaInicio={semanaInicioISO} />}
+      </div>
 
       {/*
         h-11 (44px) no mobile — é a ação repetida da tela, mesmo alvo de toque
