@@ -517,7 +517,7 @@ export default function HomePage() {
             <ChecksFluxograma
               itens={checksFluxograma}
               canceladas={canceladasDeHoje}
-              vazio="Nenhuma aula ou treino previsto para hoje."
+              vazio="Nenhum item da rotina previsto para hoje."
               onAlternar={(fluxogramaId, concluido) =>
                 definirConclusao.mutate({
                   fluxogramaId,
