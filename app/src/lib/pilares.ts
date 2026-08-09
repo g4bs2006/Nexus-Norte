@@ -1,4 +1,5 @@
 import {
+  Briefcase,
   CalendarCheck,
   CalendarClock,
   CalendarDays,
@@ -138,5 +139,13 @@ export const SUBPAGINAS: readonly SubPagina[] = [
     rota: '/calendario/historico',
     icone: History,
     classeTexto: 'text-sono',
+  },
+  {
+    id: 'blocos-fixos',
+    nome: 'Blocos fixos',
+    termos: 'trabalho blocos fixos expediente rotina horário semanal recorrente',
+    rota: '/calendario/blocos',
+    icone: Briefcase,
+    classeTexto: 'text-trabalho',
   },
 ] as const
