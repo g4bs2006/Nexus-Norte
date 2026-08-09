@@ -189,6 +189,22 @@ cancelado) não aparece.
   `expandirRecorrenciaMensal` (linhas 196-254) filtra por `data_inicio`/`data_fim`, incluindo o
   caso de borda de regra que começa no meio do período. **Próximo spec**; a migration pode viajar
   junto com a da cor.
+- **Domingo como primeiro dia no resto do sistema.** Decidido na mesma conversa, fica para o
+  spec 2 porque não dá para separar. Duas metades: (a) ordem de exibição — `ORDEM_DIAS =
+  [1,2,3,4,5,6,0]` copiado em sete arquivos (`GradeFluxograma:19`, `RitualSemanalPage:40`,
+  `DialogSono:34`, `DialogFluxogramaLivre:43`, `DialogFluxogramaTreino:26`,
+  `estudos/DialogFluxograma:41`, `GradePlanejamentoSemanal:23`), que deve virar uma constante
+  única em `lib/constants.ts`; (b) fronteira da semana — `lib/datas.ts:47`,
+  `financeiro/periodos.ts:51` e `lib/locale.ts:14`. As duas metades são inseparáveis porque
+  `GradePlanejamentoSemanal:125-135` deriva a data do cabeçalho de `inicio + indice`: trocar a
+  ordem sem trocar o `inicio` rotula as colunas com as datas erradas. A metade (b) exige migration
+  (`update planejamento_semanal_financeiro set semana_inicio = semana_inicio - interval '1 day'`),
+  senão o planejamento existente, chaveado em segundas, some da tela. Ressalva conhecida: o shift
+  é exato de segunda a sábado e desloca as entradas de `dia_semana = 0` em uma semana — aceito.
+  **Decisão adicional:** o Ritual passa a planejar a **semana atual**, não a seguinte —
+  `RitualSemanalPage:62-65` vira `inicioSemana(hoje)` sem o `addDays(…, 7)`. Consequência nova a
+  desenhar: aberto no meio da semana, os dias já vividos precisam aparecer como passados e não
+  editáveis, no passo do Financeiro e nos de Rotina e Estudo/Treino.
 - **Recorrência para eventos avulsos.** `eventos_calendario` (`types/database.ts:330-359`) guarda
   data única, sem repetição. Precisa de desenho próprio — decidir entre RRULE de verdade ou tratar
   "avulso que repete" como regra de fluxograma com rótulo. Depois dos dois anteriores.
