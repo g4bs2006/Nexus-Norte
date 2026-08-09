@@ -1,6 +1,7 @@
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { DIAS_SEMANA } from '@/lib/constants'
 import { cn } from '@/lib/utils'
+import { ORDEM_DIAS_SEMANA, agruparPorDiaSemana, horaCurta } from '@/lib/fluxograma'
 
 /**
  * Item do fluxograma, agnóstico de pilar — Estudos passa matérias, Treino passa
@@ -15,14 +16,6 @@ export interface ItemFluxograma {
   cor?: string | undefined
 }
 
-/** Ordem de exibição: segunda a domingo, apesar de `dia_semana` usar 0 = domingo. */
-const ORDEM_DIAS = [1, 2, 3, 4, 5, 6, 0] as const
-
-/** `08:00:00` → `08:00` */
-function hora(valor: string): string {
-  return valor.slice(0, 5)
-}
-
 interface GradeFluxogramaProps {
   itens: readonly ItemFluxograma[]
   /** Classe de cor padrão quando o item não define uma (cor do pilar). */
@@ -35,19 +28,11 @@ export function GradeFluxograma({
   classeCorPadrao,
   onExcluir,
 }: GradeFluxogramaProps) {
-  const porDia = new Map<number, ItemFluxograma[]>()
-  for (const item of itens) {
-    const lista = porDia.get(item.dia_semana)
-    if (lista) lista.push(item)
-    else porDia.set(item.dia_semana, [item])
-  }
-  for (const lista of porDia.values()) {
-    lista.sort((a, b) => a.horario_inicio.localeCompare(b.horario_inicio))
-  }
+  const porDia = agruparPorDiaSemana(itens)
 
   return (
     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-      {ORDEM_DIAS.map((dia) => {
+      {ORDEM_DIAS_SEMANA.map((dia) => {
         const doDia = porDia.get(dia) ?? []
         return (
           <div key={dia} className="space-y-1.5">
@@ -76,7 +61,7 @@ export function GradeFluxograma({
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs">{item.rotulo}</p>
                       <p className="text-muted-foreground text-[11px] tabular-nums">
-                        {hora(item.horario_inicio)}–{hora(item.horario_fim)}
+                        {horaCurta(item.horario_inicio)}–{horaCurta(item.horario_fim)}
                       </p>
                     </div>
                     {onExcluir && (
@@ -94,7 +79,7 @@ export function GradeFluxograma({
                        */
                       <DialogConfirmarExclusao
                         titulo={`Remover ${item.rotulo}`}
-                        mensagem={`${item.rotulo}, ${hora(item.horario_inicio)}–${hora(item.horario_fim)}, sai da rotina fixa da semana.`}
+                        mensagem={`${item.rotulo}, ${horaCurta(item.horario_inicio)}–${horaCurta(item.horario_fim)}, sai da rotina fixa da semana.`}
                         onConfirmar={() => onExcluir(item.id)}
                         classeTrigger="text-muted-foreground hover:text-status-risco size-11 shrink-0 sm:size-5 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
                       />

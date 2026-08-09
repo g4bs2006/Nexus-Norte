@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { DIAS_SEMANA } from '@/lib/constants'
+import { ORDEM_DIAS_SEMANA } from '@/lib/fluxograma'
 import {
   useAtualizarFluxogramaLivre,
   useCriarFluxogramaLivre,
@@ -38,9 +39,6 @@ import {
   type FormularioFluxogramaLivre,
 } from '../schemas'
 import type { FluxogramaLivre } from '../api'
-
-/** Segunda a domingo na exibição, mantendo 0 = domingo no valor. */
-const ORDEM_DIAS = [1, 2, 3, 4, 5, 6, 0] as const
 
 interface DialogFluxogramaLivreProps {
   /** Se passado, o dialog abre em modo de edição. */
@@ -111,7 +109,7 @@ export function DialogFluxogramaLivre({
     <Dialog open={aberto} onOpenChange={setAberto}>
       <DialogTrigger asChild>
         {modoEdicao ? (
-          <Button size="icon" variant="ghost" className="size-8 sm:size-6">
+          <Button size="icon" variant="ghost" className="size-11 sm:size-6">
             <Pencil className="size-3" />
           </Button>
         ) : (
@@ -168,7 +166,7 @@ export function DialogFluxogramaLivre({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {ORDEM_DIAS.map((dia) => (
+                      {ORDEM_DIAS_SEMANA.map((dia) => (
                         <SelectItem key={dia} value={String(dia)}>
                           {DIAS_SEMANA[dia]}
                         </SelectItem>

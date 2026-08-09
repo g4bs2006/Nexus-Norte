@@ -1,15 +1,12 @@
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { DIAS_SEMANA } from '@/lib/constants'
+import {
+  ORDEM_DIAS_SEMANA,
+  agruparPorDiaSemana,
+  horaCurta,
+} from '@/lib/fluxograma'
 import { DialogFluxogramaLivre } from './DialogFluxogramaLivre'
 import type { FluxogramaLivre } from '../api'
-
-/** Ordem de exibição: segunda a domingo, apesar de `dia_semana` usar 0 = domingo. */
-const ORDEM_DIAS = [1, 2, 3, 4, 5, 6, 0] as const
-
-/** `08:00:00` → `08:00` */
-function hora(valor: string): string {
-  return valor.slice(0, 5)
-}
 
 function minutosDe(valor: string): number {
   const [horas = '0', minutos = '0'] = valor.split(':')
@@ -23,21 +20,6 @@ function duracao(inicio: string, fim: string): string {
   const resto = total % 60
   if (horas === 0) return `${resto}min`
   return resto === 0 ? `${horas}h` : `${horas}h${String(resto).padStart(2, '0')}`
-}
-
-function agruparPorDia(
-  itens: readonly FluxogramaLivre[],
-): Map<number, FluxogramaLivre[]> {
-  const porDia = new Map<number, FluxogramaLivre[]>()
-  for (const item of itens) {
-    const lista = porDia.get(item.dia_semana)
-    if (lista) lista.push(item)
-    else porDia.set(item.dia_semana, [item])
-  }
-  for (const lista of porDia.values()) {
-    lista.sort((a, b) => a.horario_inicio.localeCompare(b.horario_inicio))
-  }
-  return porDia
 }
 
 interface LinhaBlocoProps {
@@ -60,7 +42,7 @@ function LinhaBloco({
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs">{item.rotulo}</p>
         <p className="text-muted-foreground text-[11px] tabular-nums">
-          {hora(item.horario_inicio)}–{hora(item.horario_fim)} ·{' '}
+          {horaCurta(item.horario_inicio)}–{horaCurta(item.horario_fim)} ·{' '}
           {duracao(item.horario_inicio, item.horario_fim)}
         </p>
       </div>
@@ -74,7 +56,7 @@ function LinhaBloco({
         <DialogFluxogramaLivre bloco={item} />
         <DialogConfirmarExclusao
           titulo={`Remover ${item.rotulo}`}
-          mensagem={`${item.rotulo}, ${hora(item.horario_inicio)}–${hora(item.horario_fim)}, sai da rotina fixa da semana.`}
+          mensagem={`${item.rotulo}, ${horaCurta(item.horario_inicio)}–${horaCurta(item.horario_fim)}, sai da rotina fixa da semana.`}
           onConfirmar={() => onExcluir(item.id)}
           pendente={excluindo}
           classeTrigger={
@@ -108,8 +90,8 @@ export function ListaBlocosFixos({
   onExcluir,
   excluindo = false,
 }: ListaBlocosFixosProps) {
-  const porDia = agruparPorDia(itens)
-  const diasComBloco = ORDEM_DIAS.filter((dia) => porDia.has(dia))
+  const porDia = agruparPorDiaSemana(itens)
+  const diasComBloco = ORDEM_DIAS_SEMANA.filter((dia) => porDia.has(dia))
 
   return (
     <>
@@ -137,7 +119,7 @@ export function ListaBlocosFixos({
 
       {/* Desktop: a semana inteira, dias vazios incluídos */}
       <div className="hidden gap-2 sm:grid sm:grid-cols-2 lg:grid-cols-4">
-        {ORDEM_DIAS.map((dia) => {
+        {ORDEM_DIAS_SEMANA.map((dia) => {
           const doDia = porDia.get(dia) ?? []
           return (
             <div key={dia} className="space-y-1.5">
