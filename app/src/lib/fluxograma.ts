@@ -15,6 +15,12 @@ export function horaCurta(valor: string): string {
   return valor.slice(0, 5)
 }
 
+/** `HH:MM` ou `HH:MM:SS` → minutos desde a meia-noite. `08:00` → 480. */
+export function minutosDe(valor: string): number {
+  const [horas = '0', minutos = '0'] = valor.split(':')
+  return Number(horas) * 60 + Number(minutos)
+}
+
 interface ItemDaSemana {
   dia_semana: number
   horario_inicio: string

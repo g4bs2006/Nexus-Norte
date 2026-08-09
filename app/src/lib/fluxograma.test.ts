@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ORDEM_DIAS_SEMANA, agruparPorDiaSemana, horaCurta } from './fluxograma'
+import { agruparPorDiaSemana, horaCurta, minutosDe } from './fluxograma'
 
 describe('horaCurta', () => {
   it('trunca HH:MM:SS para HH:MM', () => {
@@ -12,6 +12,24 @@ describe('horaCurta', () => {
 
   it('preserva horários já no formato HH:MM', () => {
     expect(horaCurta('17:45')).toBe('17:45')
+  })
+})
+
+describe('minutosDe', () => {
+  it('converte HH:MM em minutos', () => {
+    expect(minutosDe('08:00')).toBe(480)
+  })
+
+  it('ignora os segundos de HH:MM:SS', () => {
+    expect(minutosDe('08:00:00')).toBe(480)
+  })
+
+  it('meia-noite é zero minutos', () => {
+    expect(minutosDe('00:00')).toBe(0)
+  })
+
+  it('soma os minutos quando não são redondos', () => {
+    expect(minutosDe('09:30')).toBe(570)
   })
 })
 
@@ -78,11 +96,5 @@ describe('agruparPorDiaSemana', () => {
     const resultado = agruparPorDiaSemana(itens)
 
     expect(resultado.size).toBe(0)
-  })
-})
-
-describe('ORDEM_DIAS_SEMANA', () => {
-  it('tem sete dias em ordem segunda a domingo', () => {
-    expect(ORDEM_DIAS_SEMANA).toEqual([1, 2, 3, 4, 5, 6, 0])
   })
 })
