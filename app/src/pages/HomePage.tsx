@@ -32,7 +32,8 @@ import {
   paraISO,
 } from '@/lib/datas'
 import { expandirRecorrencia, ocorrenciasDoDia } from '@/lib/recorrencia'
-import { useExcecoes } from '@/features/fluxograma/hooks'
+import { canceladasDeHoje as derivarCanceladas } from '@/features/calendario/canceladas'
+import { useExcecoes, useFluxogramaLivre } from '@/features/fluxograma/hooks'
 import { cn } from '@/lib/utils'
 import {
   metaTotalDespesas,
@@ -123,6 +124,7 @@ export default function HomePage() {
   // --- Treino ---------------------------------------------------------------
   const treinos = useTreinos()
   const fluxogramaTreino = useFluxogramaTreino()
+  const blocosLivres = useFluxogramaLivre()
   const execucoesSemana = useExecucoes(semana.de, semana.ate)
   const prs = usePersonalRecords()
 
@@ -349,49 +351,46 @@ export default function HomePage() {
   /**
    * Canceladas de hoje, para continuarem listadas riscadas.
    *
-   * Vêm das exceções e não das ocorrências: a expansão justamente as omite, e é
-   * por isso que sem esta derivação não haveria caminho de volta depois de
-   * cancelar por engano.
+   * Blocos livres entram junto: sem eles, cancelar o expediente por engano
+   * não tinha caminho de volta.
    */
-  const canceladasDeHoje = useMemo(() => {
-    const regras = [
-      ...(fluxogramaEstudos.data ?? []).map((regra) => ({
-        regra,
-        rotulo:
-          (materias.data ?? []).find((m) => m.id === regra.materia_id)?.nome ??
-          'Aula',
-      })),
-      ...(fluxogramaTreino.data ?? []).map((regra) => ({
-        regra,
-        rotulo:
-          (treinos.data ?? []).find((t) => t.id === regra.treino_id)?.nome ??
-          'Treino',
-      })),
-    ]
-
-    return listaExcecoes.flatMap((excecao) => {
-      if (excecao.status !== 'cancelado' || excecao.data !== hojeISO) return []
-      const achada = regras.find(
-        (item) => item.regra.id === excecao.fluxograma_id,
-      )
-      if (!achada) return []
-      return [
-        {
-          fluxogramaId: excecao.fluxograma_id,
-          rotulo: achada.rotulo,
-          horario: achada.regra.horario_inicio.slice(0, 5),
-          data: excecao.data,
-        },
-      ]
-    })
-  }, [
-    listaExcecoes,
-    hojeISO,
-    fluxogramaEstudos.data,
-    fluxogramaTreino.data,
-    materias.data,
-    treinos.data,
-  ])
+  const canceladasDeHoje = useMemo(
+    () =>
+      derivarCanceladas(
+        [
+          ...(fluxogramaEstudos.data ?? []).map((regra) => ({
+            id: regra.id,
+            horario_inicio: regra.horario_inicio,
+            rotulo:
+              (materias.data ?? []).find((m) => m.id === regra.materia_id)
+                ?.nome ?? 'Aula',
+          })),
+          ...(fluxogramaTreino.data ?? []).map((regra) => ({
+            id: regra.id,
+            horario_inicio: regra.horario_inicio,
+            rotulo:
+              (treinos.data ?? []).find((t) => t.id === regra.treino_id)
+                ?.nome ?? 'Treino',
+          })),
+          ...(blocosLivres.data ?? []).map((regra) => ({
+            id: regra.id,
+            horario_inicio: regra.horario_inicio,
+            rotulo: regra.rotulo,
+          })),
+        ],
+        listaExcecoes,
+        hojeISO,
+      ),
+    [
+      listaExcecoes,
+      hojeISO,
+      fluxogramaEstudos.data,
+      fluxogramaTreino.data,
+      blocosLivres.data,
+      materias.data,
+      treinos.data,
+    ],
+  )
 
   /**
    * Contagem do dia. Inclui o check semanal só no domingo, senão o denominador
