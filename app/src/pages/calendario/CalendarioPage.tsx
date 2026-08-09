@@ -253,7 +253,19 @@ export default function CalendarioPage() {
       : `${format(ancora, "d 'de' MMM")} – ${format(fim, "d 'de' MMM")}`
   }, [ancora])
 
-  const escondidas = CAMADAS.length - visiveis.size
+  /*
+   * Sono não é desenhado nas vistas de Mês e Horas, então listar o toggle dele
+   * ali seria um controle que não faz nada — o mesmo defeito do toggle
+   * duplicado corrigido em 63f3544.
+   */
+  const camadasDoMenu = useMemo(
+    () => (vista === 'agenda' ? CAMADAS : CAMADAS.filter((c) => c !== 'sono')),
+    [vista],
+  )
+
+  const escondidas = camadasDoMenu.filter(
+    (camada) => !visiveis.has(camada),
+  ).length
 
   return (
     <>
@@ -294,7 +306,7 @@ export default function CalendarioPage() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>Mostrar</DropdownMenuLabel>
-                {CAMADAS.map((camada) => (
+                {camadasDoMenu.map((camada) => (
                   <DropdownMenuCheckboxItem
                     key={camada}
                     checked={visiveis.has(camada)}

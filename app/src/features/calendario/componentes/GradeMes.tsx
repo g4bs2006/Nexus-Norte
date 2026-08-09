@@ -75,26 +75,31 @@ export function GradeMes({
     [dias],
   )
 
-  const eventosFullCalendar = eventos.map((evento) => {
-    const cor = COR_CAMADA[evento.camada]
-    const prazo = ehImportante(evento)
+  /*
+   * Sono fica de fora destas vistas. Ele é contexto de fundo, não compromisso,
+   * e numa grade de mês ou de horas rouba a leitura dos que são. Segue na
+   * agenda, e o cálculo de tempo livre das células não usa estes eventos —
+   * vem de `planejamentoSono` (carga.ts).
+   */
+  const eventosFullCalendar = eventos
+    .filter((evento) => evento.camada !== 'sono')
+    .map((evento) => {
+      const cor = COR_CAMADA[evento.camada]
+      const prazo = ehImportante(evento)
 
-    return {
-      id: evento.id,
-      title: evento.titulo,
-      start: evento.inicio,
-      ...(evento.fim ? { end: evento.fim } : {}),
-      allDay: evento.diaInteiro,
-      // Prazo preenche; rotina fica só com a borda e o texto na cor do tema
-      backgroundColor: prazo ? cor : 'transparent',
-      borderColor: cor,
-      textColor: prazo ? '#ffffff' : 'var(--foreground)',
-      // Sono é contexto de fundo, não compromisso — não deve competir
-      // visualmente com aulas e treinos na grade semanal.
-      display: evento.camada === 'sono' ? 'background' : 'auto',
-      classNames: evento.rota ? ['evento-clicavel'] : [],
-    }
-  })
+      return {
+        id: evento.id,
+        title: evento.titulo,
+        start: evento.inicio,
+        ...(evento.fim ? { end: evento.fim } : {}),
+        allDay: evento.diaInteiro,
+        // Prazo preenche; rotina fica só com a borda e o texto na cor do tema
+        backgroundColor: prazo ? cor : 'transparent',
+        borderColor: cor,
+        textColor: prazo ? '#ffffff' : 'var(--foreground)',
+        classNames: evento.rota ? ['evento-clicavel'] : [],
+      }
+    })
 
   function aoMudarDatas(arg: DatesSetArg) {
     // `end` do FullCalendar é exclusivo; recuar um dia evita buscar um dia extra
