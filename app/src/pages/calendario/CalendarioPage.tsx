@@ -177,14 +177,21 @@ export default function CalendarioPage() {
 
   const eventosPorData = useMemo(() => {
     const mapa = new Map<string, EventoCalendario[]>()
+    /*
+     * Fora da agenda, sono não é desenhado (mesmo filtro de `GradeMes`) — e
+     * `DialogDia`, aberto a partir da grade de Mês/Horas, usa este mapa para
+     * montar o detalhe do dia. Sem o filtro aqui, o dia clicado mostrava sono
+     * que a própria grade por trás dele não mostra.
+     */
     for (const evento of visiveisFiltrados) {
+      if (vista !== 'agenda' && evento.camada === 'sono') continue
       const data = evento.inicio.slice(0, 10)
       const lista = mapa.get(data)
       if (lista) lista.push(evento)
       else mapa.set(data, [evento])
     }
     return mapa
-  }, [visiveisFiltrados])
+  }, [visiveisFiltrados, vista])
 
   /** Índice por id para o clique na grade resolver a rota sem varrer a lista. */
   const rotaPorId = useMemo(
@@ -247,9 +254,9 @@ export default function CalendarioPage() {
   }, [ancora])
 
   /*
-   * Sono não é desenhado nas vistas de Mês e Horas, então listar o toggle dele
-   * ali seria um controle que não faz nada — o mesmo defeito do toggle
-   * duplicado corrigido em 63f3544.
+   * Sono não é desenhado nas vistas de Mês e Horas (nem na grade, nem no
+   * detalhe do dia que ela abre) — o toggle não teria nada para governar
+   * ali, por isso só aparece no menu quando a vista é agenda.
    */
   const camadasDoMenu = useMemo(
     () => (vista === 'agenda' ? CAMADAS : CAMADAS.filter((c) => c !== 'sono')),

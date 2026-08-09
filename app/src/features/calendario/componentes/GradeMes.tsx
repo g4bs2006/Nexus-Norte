@@ -156,8 +156,8 @@ export function GradeMes({
           firstDay={0}
           height="auto"
           nowIndicator
-          // Semana começa às 5h para a grade não desperdiçar espaço na
-          // madrugada, mas sem cortar o bloco de sono
+          // Semana começa às 5h para a grade não desperdiçar espaço mostrando
+          // as horas da madrugada, quando quase nunca há evento
           slotMinTime="05:00:00"
           slotMaxTime="24:00:00"
           expandRows
