@@ -191,10 +191,15 @@ cancelado) não aparece.
   junto com a da cor.
 - **Domingo como primeiro dia no resto do sistema.** Decidido na mesma conversa, fica para o
   spec 2 porque não dá para separar. Duas metades: (a) ordem de exibição — `ORDEM_DIAS =
-  [1,2,3,4,5,6,0]` copiado em sete arquivos (`GradeFluxograma:19`, `RitualSemanalPage:40`,
-  `DialogSono:34`, `DialogFluxogramaLivre:43`, `DialogFluxogramaTreino:26`,
-  `estudos/DialogFluxograma:41`, `GradePlanejamentoSemanal:23`), que deve virar uma constante
-  única em `lib/constants.ts`; (b) fronteira da semana — `lib/datas.ts:47`,
+  [1,2,3,4,5,6,0]` estava copiado em sete arquivos. **Três já foram consolidados** por esta
+  branch, que criou `lib/fluxograma.ts` exportando `ORDEM_DIAS_SEMANA` (mais `horaCurta`,
+  `minutosDe` e `agruparPorDiaSemana`), hoje consumido por `GradeFluxograma`,
+  `DialogFluxogramaLivre` e `ListaBlocosFixos`. Sobram quatro cópias locais:
+  `RitualSemanalPage:40`, `DialogSono:34`, `DialogFluxogramaTreino:26`,
+  `estudos/DialogFluxograma:41` e `GradePlanejamentoSemanal:23`. O spec 2 deve consolidá-las
+  **em `lib/fluxograma.ts`**, e não em `lib/constants.ts` como esta nota dizia antes — a
+  constante é específica da grade do fluxograma e já tem casa com suas companheiras; movê-la
+  de novo seria churn em cinco arquivos sem ganho; (b) fronteira da semana — `lib/datas.ts:47`,
   `financeiro/periodos.ts:51` e `lib/locale.ts:14`. As duas metades são inseparáveis porque
   `GradePlanejamentoSemanal:125-135` deriva a data do cabeçalho de `inicio + indice`: trocar a
   ordem sem trocar o `inicio` rotula as colunas com as datas erradas. A metade (b) exige migration
