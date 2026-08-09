@@ -202,9 +202,10 @@ cancelado) não aparece.
   senão o planejamento existente, chaveado em segundas, some da tela. Ressalva conhecida: o shift
   é exato de segunda a sábado e desloca as entradas de `dia_semana = 0` em uma semana — aceito.
   **Decisão adicional:** o Ritual passa a planejar a **semana atual**, não a seguinte —
-  `RitualSemanalPage:62-65` vira `inicioSemana(hoje)` sem o `addDays(…, 7)`. Consequência nova a
-  desenhar: aberto no meio da semana, os dias já vividos precisam aparecer como passados e não
-  editáveis, no passo do Financeiro e nos de Rotina e Estudo/Treino.
+  `RitualSemanalPage:62-65` vira `inicioSemana(hoje)` sem o `addDays(…, 7)`. Consequência nova:
+  aberto no meio da semana, os dias já vividos aparecem marcados como passados mas **continuam
+  editáveis** — o plano de um dia pode mudar depois do fato, e travar o campo impediria a
+  correção. Vale nos passos de Financeiro, Rotina e Estudo/Treino.
 - **Recorrência para eventos avulsos.** `eventos_calendario` (`types/database.ts:330-359`) guarda
   data única, sem repetição. Precisa de desenho próprio — decidir entre RRULE de verdade ou tratar
   "avulso que repete" como regra de fluxograma com rótulo. Depois dos dois anteriores.
