@@ -148,7 +148,7 @@ export function GradeMes({
               </div>
             )
           }}
-          firstDay={1}
+          firstDay={0}
           height="auto"
           nowIndicator
           // Semana começa às 5h para a grade não desperdiçar espaço na

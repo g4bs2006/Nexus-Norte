@@ -48,6 +48,18 @@ export function inicioSemana(data: Date): Date {
 }
 
 /**
+ * Domingo da semana de `data` — a semana **de exibição** do Calendário.
+ *
+ * Deliberadamente diferente de `inicioSemana`, logo acima: aquela é a chave de
+ * `planejamento_semanal_financeiro` e continua na segunda. Alinhar as duas
+ * exigiria migrar as linhas já gravadas, que estão chaveadas em segundas —
+ * está previsto, mas em outro spec.
+ */
+export function inicioSemanaCalendario(data: Date): Date {
+  return startOfWeek(data, { weekStartsOn: 0 })
+}
+
+/**
  * Os N meses terminando no mês de `data`, do mais antigo para o mais recente.
  * Usado pelo gráfico de tendência de 6 meses (plano 2.3).
  */
