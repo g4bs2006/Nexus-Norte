@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { addDays, addWeeks, endOfMonth, format, startOfMonth } from 'date-fns'
 import {
+  Briefcase,
   CalendarCheck,
   CalendarDays,
   ChevronLeft,
@@ -23,6 +24,7 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -47,12 +49,6 @@ import {
 import { Agenda } from '@/features/calendario/componentes/Agenda'
 import { FaixaCarga } from '@/features/calendario/componentes/FaixaCarga'
 import { CardPressaoPrazos } from '@/features/calendario/componentes/CardPressaoPrazos'
-import { GradeFluxograma } from '@/components/GradeFluxograma'
-import { DialogFluxogramaLivre } from '@/features/fluxograma/componentes/DialogFluxogramaLivre'
-import {
-  useExcluirFluxogramaLivre,
-  useFluxogramaLivre,
-} from '@/features/fluxograma/hooks'
 
 /**
  * A grade de mês só é baixada por quem abre a vista de mês. É o maior pedaço do
@@ -126,9 +122,6 @@ export default function CalendarioPage() {
     intervalo.ate,
     { comCarga: true },
   )
-
-  const blocosLivres = useFluxogramaLivre()
-  const excluirBlocoLivre = useExcluirFluxogramaLivre()
 
   const hojeISO = paraISO(hoje)
 
@@ -276,22 +269,79 @@ export default function CalendarioPage() {
         icone={CalendarDays}
         acoes={
           <div className="flex items-center gap-2">
-            {/* Texto some no mobile — 4 blocos de ação com rótulo somam mais
-                que a largura da tela (mesma lição da PageHeader). O ícone +
-                aria-label bastam pra quem já sabe o que é; o rótulo volta a
-                partir de sm:, onde sobra espaço. */}
-            <Button asChild variant="secondary" size="sm" aria-label="Ritual de domingo">
+            {/*
+              No celular os três links viram um menu só. Com quatro ações o
+              cabeçalho já tinha estourado a largura da tela — foi o motivo de
+              os rótulos sumirem no mobile — e "Blocos fixos" seria a quinta.
+              De `sm:` para cima sobra espaço e eles voltam a ser botões.
+            */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="sm:hidden"
+                  aria-label="Ir para"
+                >
+                  <CalendarCheck className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                  <Link to="/calendario/semana">
+                    <CalendarCheck className="size-4" />
+                    Ritual de domingo
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/calendario/historico">
+                    <History className="size-4" />
+                    Histórico
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/calendario/blocos">
+                    <Briefcase className="size-4" />
+                    Blocos fixos
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <Button
+              asChild
+              variant="secondary"
+              size="sm"
+              className="hidden sm:inline-flex"
+            >
               <Link to="/calendario/semana">
                 <CalendarCheck className="size-4" />
-                <span className="hidden sm:inline">Ritual de domingo</span>
+                Ritual de domingo
               </Link>
             </Button>
-            <Button asChild variant="ghost" size="sm" aria-label="Histórico">
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="hidden sm:inline-flex"
+            >
               <Link to="/calendario/historico">
                 <History className="size-4" />
-                <span className="hidden sm:inline">Histórico</span>
+                Histórico
               </Link>
             </Button>
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className="hidden sm:inline-flex"
+            >
+              <Link to="/calendario/blocos">
+                <Briefcase className="size-4" />
+                Blocos fixos
+              </Link>
+            </Button>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="secondary" size="sm">
@@ -533,20 +583,6 @@ export default function CalendarioPage() {
             </CardContent>
           </Card>
         )}
-
-        <Card>
-          <CardContent className="space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium">Trabalho e outros blocos</p>
-              <DialogFluxogramaLivre />
-            </div>
-            <GradeFluxograma
-              itens={blocosLivres.data ?? []}
-              classeCorPadrao="bg-trabalho"
-              onExcluir={(id) => excluirBlocoLivre.mutate(id)}
-            />
-          </CardContent>
-        </Card>
       </div>
 
       <DialogDia
