@@ -36,8 +36,8 @@ export const useUIStore = create<EstadoUI>()(
     {
       name: 'nexus-ui',
       version: 1,
-      migrate: (persisted: unknown, version: number) => {
-        const state = persisted as Record<string, unknown>
+      migrate: (persisted, version) => {
+        const state = persisted as Partial<EstadoUI>
         // v0 → v1: sidebar passa a iniciar recolhida
         if (version === 0) {
           state.sidebarColapsada = true
