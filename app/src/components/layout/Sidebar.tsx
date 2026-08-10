@@ -96,7 +96,12 @@ export function Sidebar({ onAbrirBusca }: SidebarProps) {
           <Button
             variant="ghost"
             size="icon"
-            onClick={alternar}
+            onClick={() => {
+              alternar()
+              // Ao desafixar, limpar o hover imediatamente — senão o mouse ainda
+              // sobre a sidebar mantém ela aberta enquanto o conteúdo já se ajustou.
+              if (fixada) setHover(false)
+            }}
             className="text-muted-foreground hover:text-foreground size-7"
             aria-label={fixada ? 'Soltar sidebar' : 'Fixar sidebar aberta'}
             aria-pressed={fixada}

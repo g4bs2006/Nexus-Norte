@@ -33,7 +33,18 @@ export const useUIStore = create<EstadoUI>()(
       setUltimaCategoriaLancamento: (id) =>
         set({ ultimaCategoriaLancamento: id }),
     }),
-    { name: 'nexus-ui' },
+    {
+      name: 'nexus-ui',
+      version: 1,
+      migrate: (persisted: unknown, version: number) => {
+        const state = persisted as Record<string, unknown>
+        // v0 → v1: sidebar passa a iniciar recolhida
+        if (version === 0) {
+          state.sidebarColapsada = true
+        }
+        return state as EstadoUI
+      },
+    },
   ),
 )
 
