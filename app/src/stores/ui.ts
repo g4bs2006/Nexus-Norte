@@ -25,7 +25,7 @@ export const useUIStore = create<EstadoUI>()(
   persist(
     (set) => ({
       tema: 'sistema',
-      sidebarColapsada: false,
+      sidebarColapsada: true,
       ultimaCategoriaLancamento: null,
       setTema: (tema) => set({ tema }),
       alternarSidebar: () =>

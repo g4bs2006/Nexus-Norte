@@ -56,7 +56,7 @@ export function AppShell() {
           </div>
         </header>
 
-        <div className="mx-auto max-w-5xl px-4 py-6 pb-24 sm:px-6 sm:py-8 md:pb-8">
+        <div className="px-4 py-6 pb-24 sm:px-6 sm:py-8 md:pb-8">
           <Suspense fallback={<Carregando />}>
             <Outlet />
           </Suspense>
