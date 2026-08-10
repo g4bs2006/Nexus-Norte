@@ -5,7 +5,6 @@ export type Tema = 'claro' | 'escuro' | 'sistema'
 
 interface EstadoUI {
   tema: Tema
-  sidebarColapsada: boolean
   /**
    * Última categoria usada no lançamento rápido. Persistida para que o campo
    * abra já preenchido: lançar um gasto é a ação mais repetida do sistema, e
@@ -13,38 +12,23 @@ interface EstadoUI {
    */
   ultimaCategoriaLancamento: string | null
   setTema: (tema: Tema) => void
-  alternarSidebar: () => void
   setUltimaCategoriaLancamento: (id: string) => void
 }
 
 /**
- * Store mínimo de UI (plano 1.1): tema e estado da sidebar.
+ * Store mínimo de UI (plano 1.1): tema e preferências persistidas.
  * Persistido em localStorage para sobreviver a reloads.
  */
 export const useUIStore = create<EstadoUI>()(
   persist(
     (set) => ({
       tema: 'sistema',
-      sidebarColapsada: true,
       ultimaCategoriaLancamento: null,
       setTema: (tema) => set({ tema }),
-      alternarSidebar: () =>
-        set((estado) => ({ sidebarColapsada: !estado.sidebarColapsada })),
       setUltimaCategoriaLancamento: (id) =>
         set({ ultimaCategoriaLancamento: id }),
     }),
-    {
-      name: 'nexus-ui',
-      version: 1,
-      migrate: (persisted, version) => {
-        const state = persisted as Partial<EstadoUI>
-        // v0 → v1: sidebar passa a iniciar recolhida
-        if (version === 0) {
-          state.sidebarColapsada = true
-        }
-        return state as EstadoUI
-      },
-    },
+    { name: 'nexus-ui' },
   ),
 )
 

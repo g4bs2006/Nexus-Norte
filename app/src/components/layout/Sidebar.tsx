@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { PanelLeftClose, PanelLeftOpen, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { ITENS_NAVEGACAO } from '@/lib/pilares'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
 import { ThemeToggle } from './ThemeToggle'
-import { useUIStore } from '@/stores/ui'
 
 /**
  * Atraso para recolher ao sair. Recolher no mesmo instante fica nervoso quando o
@@ -19,25 +17,8 @@ interface SidebarProps {
 }
 
 export function Sidebar({ onAbrirBusca }: SidebarProps) {
-  const fixada = !useUIStore((estado) => estado.sidebarColapsada)
-  const alternar = useUIStore((estado) => estado.alternarSidebar)
-
   const [hover, setHover] = useState(false)
   const timerRecolher = useRef<number | undefined>(undefined)
-
-  /**
-   * Aberta = fixada pelo usuário OU sob o ponteiro/foco.
-   *
-   * O botão deixou de ser "colapsar" e passou a ser um PIN: recolhida, ela é uma
-   * trilha que se abre ao aproximar; fixada, fica aberta e o hover não interfere.
-   * Sem isso, quem fixou a sidebar veria ela fechar sozinha — o hover brigaria
-   * com a preferência explícita.
-   */
-  const aberta = fixada || hover
-
-  /** Sobrepõe o conteúdo em vez de empurrá-lo: abrir por hover não deve
-   *  reposicionar a página inteira sob o cursor. */
-  const sobrepondo = !fixada && hover
 
   function agendarRecolher() {
     window.clearTimeout(timerRecolher.current)
@@ -55,12 +36,9 @@ export function Sidebar({ onAbrirBusca }: SidebarProps) {
   useEffect(() => () => window.clearTimeout(timerRecolher.current), [])
 
   return (
-    // Reserva a largura da trilha. Quando sobrepõe, o conteúdo não se move.
+    // Reserva a largura da trilha. O conteúdo nunca é empurrado.
     <div
-      className={cn(
-        'relative hidden shrink-0 transition-[width] duration-200 md:block',
-        fixada ? 'w-56' : 'w-14',
-      )}
+      className="relative hidden w-14 shrink-0 md:block"
       onMouseEnter={abrirAgora}
       onMouseLeave={agendarRecolher}
       // Teclado nunca passa o mouse: sem isso, quem navega por Tab só veria
@@ -77,57 +55,36 @@ export function Sidebar({ onAbrirBusca }: SidebarProps) {
       <aside
         className={cn(
           'bg-sidebar border-sidebar-border absolute inset-y-0 left-0 z-30 flex flex-col border-r transition-[width] duration-200',
-          aberta ? 'w-56' : 'w-14',
-          sobrepondo && 'shadow-lg',
+          hover ? 'w-56 shadow-lg' : 'w-14',
         )}
       >
         {/* Cabeçalho */}
         <div
           className={cn(
             'flex h-14 items-center gap-2 px-3',
-            !aberta && 'justify-center px-0',
+            !hover && 'justify-center px-0',
           )}
         >
-          {aberta && (
-            <span className="text-sidebar-foreground flex-1 truncate text-sm font-medium">
+          {hover && (
+            <span className="text-sidebar-foreground truncate text-sm font-medium">
               Nexus
             </span>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => {
-              alternar()
-              // Ao desafixar, limpar o hover imediatamente — senão o mouse ainda
-              // sobre a sidebar mantém ela aberta enquanto o conteúdo já se ajustou.
-              if (fixada) setHover(false)
-            }}
-            className="text-muted-foreground hover:text-foreground size-7"
-            aria-label={fixada ? 'Soltar sidebar' : 'Fixar sidebar aberta'}
-            aria-pressed={fixada}
-            title={fixada ? 'Soltar' : 'Fixar aberta'}
-          >
-            {fixada ? (
-              <PanelLeftClose className="size-4" />
-            ) : (
-              <PanelLeftOpen className="size-4" />
-            )}
-          </Button>
         </div>
 
         {/* Busca — gatilho visível do Ctrl/⌘ K */}
-        <div className={cn('px-2 pb-2', !aberta && 'px-1.5')}>
+        <div className={cn('px-2 pb-2', !hover && 'px-1.5')}>
           <button
             type="button"
             onClick={onAbrirBusca}
-            title={!aberta ? 'Buscar' : undefined}
+            title={!hover ? 'Buscar' : undefined}
             className={cn(
               'border-sidebar-border text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground flex w-full items-center gap-2 rounded-md border px-2 py-1.5 text-sm transition-colors',
-              !aberta && 'justify-center px-0',
+              !hover && 'justify-center px-0',
             )}
           >
             <Search className="size-4 shrink-0" />
-            {aberta && (
+            {hover && (
               <>
                 <span className="flex-1 text-left">Buscar</span>
                 <kbd className="border-sidebar-border bg-sidebar rounded border px-1 py-0.5 font-mono text-[10px] leading-none">
@@ -146,7 +103,7 @@ export function Sidebar({ onAbrirBusca }: SidebarProps) {
                 key={id}
                 to={rota}
                 end={rota === '/'}
-                title={!aberta ? nome : undefined}
+                title={!hover ? nome : undefined}
                 className={({ isActive }) =>
                   cn(
                     'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors',
@@ -154,7 +111,7 @@ export function Sidebar({ onAbrirBusca }: SidebarProps) {
                     // Item ativo destacado com fundo sutil (plano 1.2)
                     isActive &&
                       'bg-sidebar-accent text-sidebar-accent-foreground font-medium',
-                    !aberta && 'justify-center px-0',
+                    !hover && 'justify-center px-0',
                   )
                 }
               >
@@ -163,7 +120,7 @@ export function Sidebar({ onAbrirBusca }: SidebarProps) {
                     <Icone
                       className={cn('size-4 shrink-0', isActive && classeTexto)}
                     />
-                    {aberta && <span className="truncate">{nome}</span>}
+                    {hover && <span className="truncate">{nome}</span>}
                   </>
                 )}
               </NavLink>
@@ -173,7 +130,7 @@ export function Sidebar({ onAbrirBusca }: SidebarProps) {
 
         {/* Rodapé */}
         <div className="border-sidebar-border border-t p-2">
-          <ThemeToggle colapsada={!aberta} />
+          <ThemeToggle colapsada={!hover} />
         </div>
       </aside>
     </div>
@@ -190,3 +147,4 @@ function AtalhoBusca() {
     /Mac|iPhone|iPad/.test(navigator.userAgent)
   return <>{ehMac ? '⌘' : 'Ctrl'} K</>
 }
+
