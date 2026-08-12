@@ -71,6 +71,7 @@ const VAZIO: FormularioMeta = {
   unidade: '',
   frequencia_alvo: Number.NaN,
   diaria: false,
+  no_check_diario: false,
 }
 
 interface DialogMetaProps {
@@ -113,6 +114,7 @@ export function DialogMeta({ meta, trigger }: DialogMetaProps = {}) {
         // uma meta salva com frequencia_alvo=7 volta a abrir com o checkbox
         // ligado, e não com "7" solto no campo numérico.
         diaria: meta.tipo === 'habito' && meta.frequencia_alvo === 7,
+        no_check_diario: meta.no_check_diario,
       })
     } else if (aberto && !meta) {
       form.reset(VAZIO)
@@ -158,6 +160,10 @@ export function DialogMeta({ meta, trigger }: DialogMetaProps = {}) {
             ? null
             : valores.frequencia_alvo,
       frequencia_periodo: valores.tipo === 'habito' ? 'semana' : null,
+      // Numérica não tem booleano para alternar — o CHECK do banco recusaria
+      // `true` aqui, então o formulário nunca deixa escapar.
+      no_check_diario:
+        valores.tipo === 'numerica' ? false : valores.no_check_diario,
     }
 
     if (modoEdicao && meta) {
@@ -205,7 +211,18 @@ export function DialogMeta({ meta, trigger }: DialogMetaProps = {}) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Tipo</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select
+                    value={field.value}
+                    onValueChange={(valor) => {
+                      field.onChange(valor)
+                      // Numérica não tem estado booleano: sair de hábito/marco
+                      // para numérica desliga o check do dia, senão o formulário
+                      // guardaria um `true` que o banco recusa no submit.
+                      if (valor === 'numerica') {
+                        form.setValue('no_check_diario', false)
+                      }
+                    }}
+                  >
                     <FormControl>
                       <SelectTrigger className="w-full">
                         <SelectValue />
@@ -414,6 +431,31 @@ export function DialogMeta({ meta, trigger }: DialogMetaProps = {}) {
                   />
                 )}
               </>
+            )}
+
+            {/* Numérica fica de fora: o check do dia é fez/não fez, e numérica
+                tem valor e alvo — não há booleano para alternar. */}
+            {tipo !== 'numerica' && (
+              <FormField
+                control={form.control}
+                name="no_check_diario"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row-reverse items-center justify-end gap-2">
+                    <FormLabel className="font-normal">
+                      Aparece nos checks do dia, na Home
+                    </FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={(checado) =>
+                          field.onChange(checado === true)
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             )}
 
             <DialogFooter>

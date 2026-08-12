@@ -62,6 +62,24 @@ export async function listarCheckins(metaId: string): Promise<MetaCheckin[]> {
   return lancarSeErro(resultado) as MetaCheckin[]
 }
 
+/**
+ * Check-ins de um único dia, de todas as metas.
+ *
+ * Existe separado de `listarCheckins` (que é por meta, e traz o histórico
+ * inteiro para calcular streak) porque o bloco de checks da Home precisa do
+ * oposto: uma data, várias metas. Buscar por meta ali faria uma requisição por
+ * hábito ligado no check do dia.
+ */
+export async function listarCheckinsDoDia(
+  data: string,
+): Promise<MetaCheckin[]> {
+  const resultado = await supabase
+    .from('metas_checkins')
+    .select('*')
+    .eq('data', data)
+  return lancarSeErro(resultado) as MetaCheckin[]
+}
+
 export async function alternarCheckin(
   metaId: string,
   data: string,

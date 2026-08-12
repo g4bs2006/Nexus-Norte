@@ -7,7 +7,7 @@ import { DialogEventoLivre } from '@/features/eventos/componentes/DialogEventoLi
 import type { EventoLivre } from '@/features/eventos/api'
 import { formatarCarga, ordenarDoDia, type DiaCarga } from '../carga'
 import {
-  COR_CAMADA,
+  corDoEvento,
   ROTULO_TIPO,
   ehImportante,
   type EventoCalendario,
@@ -150,7 +150,7 @@ function LinhaEvento({
   eventoLivre?: EventoLivre
 }) {
   const prazo = ehImportante(evento)
-  const cor = COR_CAMADA[evento.camada]
+  const cor = corDoEvento(evento)
   const hora = evento.diaInteiro ? null : evento.inicio.slice(11, 16)
   const feito = evento.estado === 'feito'
   const cancelado = evento.estado === 'cancelado'

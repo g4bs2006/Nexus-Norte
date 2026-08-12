@@ -116,8 +116,20 @@ export function CardPressaoPrazos({ hoje }: { hoje: string }) {
             to={`/estudos/${pressao.materiaId}`}
             className="hover:bg-accent/50 flex items-start gap-2 rounded-md p-1.5 text-sm"
           >
-            {pressao.status === 'risco' && (
+            {pressao.status === 'risco' ? (
               <AlertTriangle className="text-status-risco mt-0.5 size-4 shrink-0" />
+            ) : (
+              /* Sem risco, o lugar do ícone marca de que matéria é a prova —
+                 a lista mistura matérias e só o texto as separava. */
+              <span
+                aria-hidden
+                className="mt-1.5 size-2 shrink-0 rounded-full"
+                style={{
+                  backgroundColor:
+                    fontes.corPorMateria?.get(pressao.materiaId) ??
+                    'var(--estudos)',
+                }}
+              />
             )}
             <div className="min-w-0">
               <p className="truncate">

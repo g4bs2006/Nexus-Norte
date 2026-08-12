@@ -2,7 +2,7 @@ import { format } from 'date-fns'
 import { deISO } from '@/lib/datas'
 import { cn } from '@/lib/utils'
 import { escalaCarga, formatarCarga, type DiaCarga } from '../carga'
-import { COR_CAMADA, ROTULO_TIPO } from '../eventos'
+import { COR_CAMADA, corDoEvento, ROTULO_TIPO } from '../eventos'
 
 /** Altura da área da barra, em px. Fora do Tailwind porque entra em cálculo. */
 const ALTURA_BARRA = 40
@@ -64,7 +64,7 @@ export function FaixaCarga({
                     key={prazo.id}
                     aria-hidden
                     className="size-1.5 rounded-full"
-                    style={{ backgroundColor: COR_CAMADA[prazo.camada] }}
+                    style={{ backgroundColor: corDoEvento(prazo) }}
                   />
                 ))}
                 {dia.prazos.length > 3 && (
@@ -83,6 +83,13 @@ export function FaixaCarga({
                 className="flex w-full flex-col justify-end overflow-hidden rounded-sm"
                 style={{ height: ALTURA_BARRA }}
               >
+                {/*
+                  Segmento fica na cor da CAMADA, não da matéria: aqui a barra
+                  responde "quanto tempo em quê", e os minutos vêm somados por
+                  camada (carga.ts). Pintar de matéria exigiria agregar por
+                  matéria — outra pergunta, e uma barra com uma fatia por
+                  matéria não caberia na largura de um dia.
+                */}
                 {dia.segmentos.map((segmento) => (
                   <span
                     key={segmento.camada}

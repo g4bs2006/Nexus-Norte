@@ -15,6 +15,7 @@ import { cargaPorDia } from '@/features/calendario/carga'
 import {
   ROTULO_CAMADA,
   construirEventos,
+  corDoEvento,
   type CamadaCalendario,
 } from '@/features/calendario/eventos'
 import { useFontesCalendario } from '@/features/calendario/hooks'
@@ -114,6 +115,7 @@ export default function HistoricoPage() {
       .map((e) => ({
         data: e.inicio.slice(0, 10),
         texto: e.tipo === 'estudo' ? e.titulo : `Treino: ${e.titulo}`,
+        cor: corDoEvento(e),
       }))
     return construirTimeline(itens).slice(0, 30)
   }, [eventos])
@@ -187,7 +189,16 @@ export default function HistoricoPage() {
                   </p>
                   <ul className="text-sm">
                     {dia.itens.map((item, indice) => (
-                      <li key={indice}>{item.texto}</li>
+                      <li key={indice} className="flex items-center gap-1.5">
+                        {item.cor && (
+                          <span
+                            aria-hidden
+                            className="size-1.5 shrink-0 rounded-full"
+                            style={{ backgroundColor: item.cor }}
+                          />
+                        )}
+                        <span className="min-w-0 truncate">{item.texto}</span>
+                      </li>
                     ))}
                   </ul>
                 </div>

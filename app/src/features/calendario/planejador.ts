@@ -366,6 +366,12 @@ export function correlacaoSonoAderencia(
 
 export interface ItemTimeline {
   texto: string
+  /**
+   * Cor já resolvida pela chamadora (via `corDoEvento`), para a linha do tempo
+   * marcar de que matéria/pilar é cada item. Opcional: quem monta a lista pode
+   * não ter cor a oferecer.
+   */
+  cor?: string
 }
 
 export interface DiaTimeline {
@@ -384,12 +390,12 @@ export interface DiaTimeline {
  * função, que só agrupa e ordena.
  */
 export function construirTimeline(
-  itens: readonly { data: string; texto: string }[],
+  itens: readonly { data: string; texto: string; cor?: string }[],
 ): DiaTimeline[] {
   const porDia = new Map<string, ItemTimeline[]>()
   for (const item of itens) {
     const lista = porDia.get(item.data) ?? []
-    lista.push({ texto: item.texto })
+    lista.push({ texto: item.texto, ...(item.cor ? { cor: item.cor } : {}) })
     porDia.set(item.data, lista)
   }
 

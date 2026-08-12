@@ -10,6 +10,14 @@ interface CheckDiaProps {
   detalhe?: string
   /** Marcador de exceção (ex: aula remarcada). */
   aviso?: string
+  /**
+   * Filete de identidade do item (hoje, a cor da matéria).
+   *
+   * Fica FORA de `check-texto` de propósito: é ali que mora a animação de risco
+   * ao marcar, e um filete lá dentro seria riscado junto — a cor identifica a
+   * matéria, não é parte da frase.
+   */
+  cor?: string
 }
 
 /**
@@ -30,6 +38,7 @@ export function CheckDia({
   children,
   detalhe,
   aviso,
+  cor,
 }: CheckDiaProps) {
   return (
     <label
@@ -55,6 +64,14 @@ export function CheckDia({
           <path d="M4 12.5 9.5 18 20 6.5" />
         </svg>
       </span>
+
+      {cor && (
+        <span
+          aria-hidden
+          className="-mr-1.5 h-4 w-0.5 shrink-0 rounded-full"
+          style={{ backgroundColor: cor }}
+        />
+      )}
 
       <span className="min-w-0 flex-1 text-sm">
         <span className="check-texto">{children}</span>

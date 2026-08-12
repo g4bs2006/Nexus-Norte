@@ -30,6 +30,30 @@ import { useCriarEventoLivre } from '@/features/eventos/hooks'
 
 type Tipo = 'estudo' | 'treino' | 'trabalho' | 'marco' | 'avaliacao' | 'evento'
 
+/**
+ * Opções de matéria com o swatch da cor — o mesmo sinal que a agenda usa.
+ *
+ * Função e não componente porque devolve uma lista de `SelectItem`: o Radix
+ * espera os itens como filhos diretos do `SelectContent`, e um componente no
+ * meio quebraria essa relação.
+ */
+function opcoesMateria(
+  materias: readonly { id: string; nome: string; cor: string | null }[],
+) {
+  return materias.map((materia) => (
+    <SelectItem key={materia.id} value={materia.id}>
+      <span className="flex items-center gap-2">
+        <span
+          aria-hidden
+          className="size-2 shrink-0 rounded-full"
+          style={{ backgroundColor: materia.cor ?? 'var(--estudos)' }}
+        />
+        {materia.nome}
+      </span>
+    </SelectItem>
+  ))
+}
+
 const OPCOES: { valor: Tipo; rotulo: string }[] = [
   { valor: 'estudo', rotulo: 'Sessão de estudo' },
   { valor: 'treino', rotulo: 'Treino' },
@@ -220,13 +244,7 @@ export function DialogCriarNoDia({ data, trigger }: DialogCriarNoDiaProps) {
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {(materias.data ?? []).map((materia) => (
-                      <SelectItem key={materia.id} value={materia.id}>
-                        {materia.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
+                  <SelectContent>{opcoesMateria(materias.data ?? [])}</SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
@@ -305,13 +323,7 @@ export function DialogCriarNoDia({ data, trigger }: DialogCriarNoDiaProps) {
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {(materias.data ?? []).map((materia) => (
-                      <SelectItem key={materia.id} value={materia.id}>
-                        {materia.nome}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
+                  <SelectContent>{opcoesMateria(materias.data ?? [])}</SelectContent>
                 </Select>
               </div>
               <div className="grid grid-cols-2 gap-3">

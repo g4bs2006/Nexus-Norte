@@ -831,6 +831,7 @@ export type Database = {
           frequencia_periodo: string | null
           id: string
           materia_id: string | null
+          no_check_diario: boolean
           projeto_id: string | null
           tipo: string
           tipo_treino_id: string | null
@@ -851,6 +852,7 @@ export type Database = {
           frequencia_periodo?: string | null
           id?: string
           materia_id?: string | null
+          no_check_diario?: boolean
           projeto_id?: string | null
           tipo: string
           tipo_treino_id?: string | null
@@ -871,6 +873,7 @@ export type Database = {
           frequencia_periodo?: string | null
           id?: string
           materia_id?: string | null
+          no_check_diario?: boolean
           projeto_id?: string | null
           tipo?: string
           tipo_treino_id?: string | null

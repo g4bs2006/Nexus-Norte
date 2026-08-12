@@ -175,27 +175,44 @@ export async function sessoesEstudoNoIntervalo(
   return data ?? []
 }
 
-export async function nomesMaterias(): Promise<Map<string, string>> {
-  const { data, error } = await supabase.from('materias').select('id, nome')
-  if (error) throw new Error(error.message)
-  return new Map((data ?? []).map((linha) => [linha.id, linha.nome]))
+/** O que o calendário precisa saber de uma matéria. */
+export interface MateriaCalendario {
+  nome: string
+  /**
+   * Hex da paleta fixa (`lib/cores.ts`), ou nulo para cair na cor da camada.
+   * É o que faz cada matéria se distinguir das outras dentro de "estudos" —
+   * sem ela, aula de Cálculo e aula de Física têm a mesma cor.
+   */
+  cor: string | null
+  /** Início/fim das aulas, para restringir a ocorrência ao período (06/08). */
+  data_inicio: string | null
+  data_fim: string | null
 }
 
 /**
- * Início/fim das aulas de cada matéria, para `eventosFluxograma` restringir a
- * ocorrência ao período (discussão em uso, 06/08).
+ * Uma leitura só de `materias` para o calendário.
+ *
+ * Eram duas funções (`nomesMaterias` e `periodoMaterias`) batendo na mesma
+ * tabela para colher colunas diferentes. Quando a `cor` entrou no jogo, manter
+ * o padrão significaria uma terceira leitura da mesma tabela — então as três
+ * viraram esta, e quem consome fatia nos mapas que precisar (ver `hooks.ts`).
  */
-export async function periodoMaterias(): Promise<
-  Map<string, { data_inicio: string | null; data_fim: string | null }>
+export async function materiasDoCalendario(): Promise<
+  Map<string, MateriaCalendario>
 > {
   const { data, error } = await supabase
     .from('materias')
-    .select('id, data_inicio, data_fim')
+    .select('id, nome, cor, data_inicio, data_fim')
   if (error) throw new Error(error.message)
   return new Map(
     (data ?? []).map((linha) => [
       linha.id,
-      { data_inicio: linha.data_inicio, data_fim: linha.data_fim },
+      {
+        nome: linha.nome,
+        cor: linha.cor,
+        data_inicio: linha.data_inicio,
+        data_fim: linha.data_fim,
+      },
     ]),
   )
 }

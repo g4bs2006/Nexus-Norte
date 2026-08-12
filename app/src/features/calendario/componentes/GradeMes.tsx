@@ -10,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { paraISO } from '@/lib/datas'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { formatarCarga, type DiaCarga } from '../carga'
-import { COR_CAMADA, ehImportante, type EventoCalendario } from '../eventos'
+import { corDoEvento, ehImportante, type EventoCalendario } from '../eventos'
 
 interface GradeMesProps {
   eventos: readonly EventoCalendario[]
@@ -84,7 +84,7 @@ export function GradeMes({
   const eventosFullCalendar = eventos
     .filter((evento) => evento.camada !== 'sono')
     .map((evento) => {
-      const cor = COR_CAMADA[evento.camada]
+      const cor = corDoEvento(evento)
       const prazo = ehImportante(evento)
 
       return {

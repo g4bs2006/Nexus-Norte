@@ -88,6 +88,17 @@ export interface EventoCalendario {
    * fatiar o `id` composto de volta.
    */
   origemId?: string
+  /**
+   * Cor própria do item, quando a entidade dona tem uma escolhida.
+   *
+   * Hoje só matéria tem (`materias.cor`). Existe porque `camada` pinta o pilar,
+   * não o item: sem isso, todas as aulas e provas da semana são do mesmo azul
+   * de "estudos" e a agenda não diz Cálculo de Física sem ler o texto.
+   *
+   * Ausente = usa a cor da camada. Não resolva o fallback à mão nas views —
+   * `corDoEvento` faz isso, e centralizar evita que uma view esqueça.
+   */
+  cor?: string
 }
 
 export interface Intervalo {
@@ -212,6 +223,11 @@ export interface FontesCalendario {
   /** Rótulos para resolver os ids do fluxograma. */
   nomePorMateria: ReadonlyMap<string, string>
   nomePorTreino: ReadonlyMap<string, string>
+  /**
+   * Opcional: sem ela, todo evento de matéria cai na cor da camada — que é
+   * exatamente o comportamento anterior a `materias.cor`.
+   */
+  corPorMateria?: ReadonlyMap<string, string | null>
   /** Opcional: sem ela, aula de fluxograma nunca é limitada por período. */
   periodoPorMateria?: ReadonlyMap<string, PeriodoMateria>
 }
@@ -223,6 +239,7 @@ export function eventosAvaliacoes(
   avaliacoes: readonly FonteAvaliacao[],
   intervalo: Intervalo,
   nomePorMateria: ReadonlyMap<string, string>,
+  corPorMateria: ReadonlyMap<string, string | null> = new Map(),
 ): EventoCalendario[] {
   return avaliacoes.flatMap((avaliacao) => {
     if (avaliacao.data === null) return []
@@ -230,6 +247,7 @@ export function eventosAvaliacoes(
       return []
 
     const materia = nomePorMateria.get(avaliacao.materia_id)
+    const cor = corPorMateria.get(avaliacao.materia_id)
     return [
       {
         id: `avaliacao:${avaliacao.id}`,
@@ -239,6 +257,7 @@ export function eventosAvaliacoes(
         camada: 'estudos' as const,
         tipo: 'prova' as const,
         rota: `/estudos/${avaliacao.materia_id}`,
+        ...(cor ? { cor } : {}),
       },
     ]
   })
@@ -280,6 +299,8 @@ export function eventosFluxograma(
    * não tem período aqui (o id não bate com nenhuma chave do mapa).
    */
   periodoPorMateria: ReadonlyMap<string, PeriodoMateria> = new Map(),
+  /** Cor própria por matéria; ausente cai na cor da camada. */
+  corPorMateria: ReadonlyMap<string, string | null> = new Map(),
 ): EventoCalendario[] {
   return expandirRecorrencia(fluxograma, intervalo, excecoes)
     .filter(
@@ -304,10 +325,11 @@ export function eventosFluxograma(
     })
     .map((ocorrencia) => {
       const { regra, data, remarcada } = ocorrencia
-      const { nome, camada, tipo, rota } = resolverDonoFluxograma(
+      const { nome, camada, tipo, rota, cor } = resolverDonoFluxograma(
         regra,
         nomePorMateria,
         nomePorTreino,
+        corPorMateria,
       )
 
       return {
@@ -320,6 +342,7 @@ export function eventosFluxograma(
         camada,
         tipo,
         rota,
+        ...(cor ? { cor } : {}),
       }
     })
 }
@@ -335,11 +358,14 @@ export function resolverDonoFluxograma(
   regra: Pick<FonteFluxograma, 'materia_id' | 'treino_id' | 'rotulo'>,
   nomePorMateria: ReadonlyMap<string, string>,
   nomePorTreino: ReadonlyMap<string, string>,
+  corPorMateria: ReadonlyMap<string, string | null> = new Map(),
 ): {
   nome: string
   camada: CamadaCalendario
   tipo: TipoEvento
   rota: string | undefined
+  /** Só matéria tem cor própria; treino e trabalho ficam na cor da camada. */
+  cor: string | undefined
 } {
   if (regra.materia_id !== null) {
     return {
@@ -347,6 +373,7 @@ export function resolverDonoFluxograma(
       camada: 'estudos',
       tipo: 'aula',
       rota: `/estudos/${regra.materia_id}`,
+      cor: corPorMateria.get(regra.materia_id) ?? undefined,
     }
   }
   if (regra.treino_id !== null) {
@@ -356,6 +383,7 @@ export function resolverDonoFluxograma(
       tipo: 'treino',
       // Treino não tem sub-página própria; leva para a listagem do pilar
       rota: '/treino',
+      cor: undefined,
     }
   }
   return {
@@ -363,6 +391,7 @@ export function resolverDonoFluxograma(
     camada: 'trabalho',
     tipo: 'trabalho',
     rota: undefined,
+    cor: undefined,
   }
 }
 
@@ -418,11 +447,13 @@ export function eventosSessoesEstudo(
   sessoes: readonly FonteSessaoEstudo[],
   intervalo: Intervalo,
   nomePorMateria: ReadonlyMap<string, string>,
+  corPorMateria: ReadonlyMap<string, string | null> = new Map(),
 ): EventoCalendario[] {
   return sessoes.flatMap((sessao) => {
     if (sessao.data < intervalo.de || sessao.data > intervalo.ate) return []
 
     const nome = nomePorMateria.get(sessao.materia_id) ?? 'Estudo'
+    const cor = corPorMateria.get(sessao.materia_id)
 
     return [
       {
@@ -435,6 +466,7 @@ export function eventosSessoesEstudo(
         tipo: 'estudo' as const,
         estado: 'feito' as const,
         rota: `/estudos/${sessao.materia_id}`,
+        ...(cor ? { cor } : {}),
       },
     ]
   })
@@ -462,6 +494,7 @@ export function eventosCancelados(
   hoje: string,
   nomePorMateria: ReadonlyMap<string, string>,
   nomePorTreino: ReadonlyMap<string, string>,
+  corPorMateria: ReadonlyMap<string, string | null> = new Map(),
 ): EventoCalendario[] {
   const porId = new Map(fluxograma.map((regra) => [regra.id, regra]))
 
@@ -473,10 +506,11 @@ export function eventosCancelados(
     const regra = porId.get(excecao.fluxograma_id)
     if (!regra) return []
 
-    const { nome, camada, tipo } = resolverDonoFluxograma(
+    const { nome, camada, tipo, cor } = resolverDonoFluxograma(
       regra,
       nomePorMateria,
       nomePorTreino,
+      corPorMateria,
     )
 
     return [
@@ -490,6 +524,7 @@ export function eventosCancelados(
         camada,
         tipo,
         estado: 'cancelado' as const,
+        ...(cor ? { cor } : {}),
       },
     ]
   })
@@ -644,7 +679,12 @@ export function construirEventos(
   )
 
   return [
-    ...eventosAvaliacoes(fontes.avaliacoes, intervalo, fontes.nomePorMateria),
+    ...eventosAvaliacoes(
+      fontes.avaliacoes,
+      intervalo,
+      fontes.nomePorMateria,
+      fontes.corPorMateria,
+    ),
     ...eventosFluxograma(
       fontes.fluxograma,
       fontes.excecoes,
@@ -653,12 +693,14 @@ export function construirEventos(
       fontes.nomePorTreino,
       treinosFeitos,
       fontes.periodoPorMateria,
+      fontes.corPorMateria,
     ),
     ...feitos,
     ...eventosSessoesEstudo(
       fontes.sessoesEstudo,
       intervalo,
       fontes.nomePorMateria,
+      fontes.corPorMateria,
     ),
     ...eventosCancelados(
       fontes.fluxograma,
@@ -667,6 +709,7 @@ export function construirEventos(
       hoje,
       fontes.nomePorMateria,
       fontes.nomePorTreino,
+      fontes.corPorMateria,
     ),
     ...eventosContas(fontes.contas, intervalo),
     ...eventosSono(fontes.planejamentoSono, intervalo),
@@ -698,6 +741,25 @@ export function eventosComPrazo(
       dias: differenceInCalendarDays(deISO(evento.inicio.slice(0, 10)), hoje),
     }))
     .sort((a, b) => a.dias - b.dias || a.titulo.localeCompare(b.titulo))
+}
+
+/**
+ * Cor com que pintar um evento: a do item, se ele tiver; senão a da camada.
+ *
+ * É o único lugar que resolve esse fallback. Antes cada view fazia
+ * `COR_CAMADA[evento.camada]` direto, e quando a matéria passou a ter cor
+ * própria isso significaria repetir o `??` em cinco arquivos — com a garantia
+ * de que um deles ficaria para trás.
+ *
+ * Cuidado: isto é para pintar **um evento**. A legenda de camadas e o filtro
+ * por pilar continuam em `COR_CAMADA`, porque ali a cor representa a categoria,
+ * não o item — o azul da legenda "Aulas e provas" não deve virar o vermelho de
+ * uma matéria específica.
+ */
+export function corDoEvento(
+  evento: Pick<EventoCalendario, 'cor' | 'camada'>,
+): string {
+  return evento.cor ?? COR_CAMADA[evento.camada]
 }
 
 /** Cor de cada camada, alinhada à paleta por pilar (plano 1.2 / 6.2). */

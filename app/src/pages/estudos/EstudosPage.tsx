@@ -135,22 +135,26 @@ export default function EstudosPage() {
       fluxogramaAtivoHoje,
       hojeISO,
       excecoes.data ?? [],
-    ).map((ocorrencia) => ({
-      fluxogramaId: ocorrencia.regra.id,
-      rotulo: nomePorMateria.get(ocorrencia.regra.materia_id) ?? 'Matéria',
-      horario: ocorrencia.regra.horario_inicio.slice(0, 5),
-      horarioFim: ocorrencia.regra.horario_fim.slice(0, 5),
-      concluido: concluidos.has(ocorrencia.regra.id),
-      remarcada: ocorrencia.remarcada,
-      // A exceção é identificada pela data de origem, não pela exibida
-      dataExcecao: ocorrencia.dataOriginal ?? ocorrencia.data,
-    }))
+    ).map((ocorrencia) => {
+      const materia = materiaPorId.get(ocorrencia.regra.materia_id)
+      return {
+        fluxogramaId: ocorrencia.regra.id,
+        rotulo: materia?.nome ?? 'Matéria',
+        horario: ocorrencia.regra.horario_inicio.slice(0, 5),
+        horarioFim: ocorrencia.regra.horario_fim.slice(0, 5),
+        concluido: concluidos.has(ocorrencia.regra.id),
+        remarcada: ocorrencia.remarcada,
+        // A exceção é identificada pela data de origem, não pela exibida
+        dataExcecao: ocorrencia.dataOriginal ?? ocorrencia.data,
+        ...(materia?.cor ? { cor: materia.cor } : {}),
+      }
+    })
   }, [
     fluxogramaAtivoHoje,
     hojeISO,
     excecoes.data,
     conclusoes.data,
-    nomePorMateria,
+    materiaPorId,
   ])
 
   /** Aulas de hoje que foram canceladas — seguem listadas, riscadas. */

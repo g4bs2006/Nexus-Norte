@@ -14,6 +14,8 @@ export interface ItemCheckFluxograma {
   horarioFim: string
   concluido: boolean
   remarcada: boolean
+  /** Cor da matéria, quando o item é aula e a matéria tem uma escolhida. */
+  cor?: string
   /**
    * Data que identifica a exceção — a ORIGINAL. Numa ocorrência remarcada é de
    * onde ela saiu, não onde está sendo exibida.
@@ -72,6 +74,7 @@ export function ChecksFluxograma({
                 onAlternar={(marcado) => onAlternar(item.fluxogramaId, marcado)}
                 detalhe={item.horario}
                 {...(item.remarcada ? { aviso: 'remarcado' } : {})}
+                {...(item.cor ? { cor: item.cor } : {})}
               >
                 {item.rotulo}
               </CheckDia>

@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import * as api from './api'
 
@@ -100,16 +101,37 @@ export function useFontesCalendario(
 
   const materias = useQuery({
     queryKey: [...chaves.nomes(), 'materias'],
-    queryFn: api.nomesMaterias,
-  })
-  const periodos = useQuery({
-    queryKey: [...chaves.nomes(), 'periodo-materias'],
-    queryFn: api.periodoMaterias,
+    queryFn: api.materiasDoCalendario,
   })
   const treinos = useQuery({
     queryKey: [...chaves.nomes(), 'treinos'],
     queryFn: api.nomesTreinos,
   })
+
+  /*
+   * Uma leitura de `materias`, três mapas. Ficam separados porque cada
+   * construtor de evento quer só uma das faces (nome para o título, cor para a
+   * pintura, período para filtrar a ocorrência) e receber o objeto inteiro
+   * obrigaria todos eles a saber do resto.
+   */
+  const mapasMateria = useMemo(() => {
+    const linhas = [...(materias.data ?? [])]
+    return {
+      nomePorMateria: new Map(linhas.map(([id, m]) => [id, m.nome])),
+      corPorMateria: new Map(linhas.map(([id, m]) => [id, m.cor])),
+      // `undefined` quando a consulta ainda não voltou: um Map vazio diria
+      // "nenhuma matéria tem período", e aula fora do semestre voltaria a
+      // aparecer durante o carregamento.
+      periodoPorMateria: materias.data
+        ? new Map(
+            linhas.map(([id, m]) => [
+              id,
+              { data_inicio: m.data_inicio, data_fim: m.data_fim },
+            ]),
+          )
+        : undefined,
+    }
+  }, [materias.data])
 
   const consultas = [
     avaliacoes,
@@ -123,7 +145,6 @@ export function useFontesCalendario(
     eventosLivres,
     materias,
     treinos,
-    periodos,
     ...(comCarga ? [sonoFeito, conclusoes] : []),
   ]
 
@@ -138,9 +159,10 @@ export function useFontesCalendario(
       execucoesTreino: execucoesTreino.data ?? [],
       sessoesEstudo: sessoesEstudo.data ?? [],
       eventosLivres: eventosLivres.data ?? [],
-      nomePorMateria: materias.data ?? new Map<string, string>(),
+      nomePorMateria: mapasMateria.nomePorMateria,
+      corPorMateria: mapasMateria.corPorMateria,
       nomePorTreino: treinos.data ?? new Map<string, string>(),
-      periodoPorMateria: periodos.data,
+      periodoPorMateria: mapasMateria.periodoPorMateria,
     },
     /*
      * Fora de `fontes` de propósito: `construirEventos` não usa nenhum dos dois.

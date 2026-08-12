@@ -50,6 +50,10 @@ export const schemaMeta = z
     // frequencia_alvo=7 na submissão, então o schema só cobra frequencia_alvo
     // quando a meta NÃO é diária (o refine abaixo).
     diaria: z.boolean(),
+    // Liga/desliga: a meta entra na lista de checks do dia na Home. Só para
+    // tipos com estado booleano — numérica tem valor e alvo, não "fez/não fez"
+    // (espelha o CHECK metas_check_diario_exige_booleano).
+    no_check_diario: z.boolean(),
   })
   .refine(
     (v) =>
@@ -72,5 +76,9 @@ export const schemaMeta = z
       v.entidadeId !== '',
     { message: 'Selecione o item vinculado', path: ['entidadeId'] },
   )
+  .refine((v) => v.tipo !== 'numerica' || !v.no_check_diario, {
+    message: 'Meta numérica não entra no check do dia',
+    path: ['no_check_diario'],
+  })
 
 export type FormularioMeta = z.infer<typeof schemaMeta>

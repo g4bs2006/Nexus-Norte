@@ -78,9 +78,15 @@ import { DialogSono } from '@/features/sono/componentes/DialogSono'
 import {
   construirEventos,
   eventosComPrazo,
-  COR_CAMADA,
+  corDoEvento,
 } from '@/features/calendario/eventos'
 import { useFontesCalendario } from '@/features/calendario/hooks'
+import {
+  useAlternarCheckinDoDia,
+  useCheckinsDoDia,
+  useConcluirMetaDoDia,
+  useMetas,
+} from '@/features/metas/hooks'
 import { MiniCard } from '@/features/home/componentes/MiniCard'
 import { AvisoTreinoAberto } from '@/features/treino/componentes/AvisoTreinoAberto'
 import { IndicadorSono } from '@/features/home/componentes/IndicadorSono'
@@ -135,6 +141,12 @@ export default function HomePage() {
   // --- Sono -----------------------------------------------------------------
   const sonoOntem = useRegistroSono(ontemISO)
   const planoSonoOntem = usePlanejamentoSono(subDays(hoje, 1).getDay())
+
+  // --- Metas no check do dia ------------------------------------------------
+  const metas = useMetas()
+  const checkinsDoDia = useCheckinsDoDia(hojeISO)
+  const alternarCheckin = useAlternarCheckinDoDia()
+  const concluirMeta = useConcluirMetaDoDia()
 
   /*
    * Exceções do fluxograma (resolução 10.19). A janela da semana já contém
@@ -303,8 +315,8 @@ export default function HomePage() {
 
   const checksFluxograma = useMemo(() => {
     const concluidos = new Set(conclusoes.data ?? [])
-    const nomeMateria = new Map(
-      (materias.data ?? []).map((materia) => [materia.id, materia.nome]),
+    const porMateria = new Map(
+      (materias.data ?? []).map((materia) => [materia.id, materia]),
     )
     const nomeTreino = nomePorTreinoHome
 
@@ -312,16 +324,20 @@ export default function HomePage() {
       fluxogramaEstudos.data ?? [],
       hojeISO,
       listaExcecoes,
-    ).map((ocorrencia) => ({
-      fluxogramaId: ocorrencia.regra.id,
-      rotulo: nomeMateria.get(ocorrencia.regra.materia_id) ?? 'Aula',
-      horario: ocorrencia.regra.horario_inicio.slice(0, 5),
-      horarioFim: ocorrencia.regra.horario_fim.slice(0, 5),
-      concluido: concluidos.has(ocorrencia.regra.id),
-      remarcada: ocorrencia.remarcada,
-      // A exceção é identificada pela data de origem, não pela exibida
-      dataExcecao: ocorrencia.dataOriginal ?? ocorrencia.data,
-    }))
+    ).map((ocorrencia) => {
+      const materia = porMateria.get(ocorrencia.regra.materia_id)
+      return {
+        fluxogramaId: ocorrencia.regra.id,
+        rotulo: materia?.nome ?? 'Aula',
+        horario: ocorrencia.regra.horario_inicio.slice(0, 5),
+        horarioFim: ocorrencia.regra.horario_fim.slice(0, 5),
+        concluido: concluidos.has(ocorrencia.regra.id),
+        remarcada: ocorrencia.remarcada,
+        // A exceção é identificada pela data de origem, não pela exibida
+        dataExcecao: ocorrencia.dataOriginal ?? ocorrencia.data,
+        ...(materia?.cor ? { cor: materia.cor } : {}),
+      }
+    })
 
     const treinosHoje: ItemCheckFluxograma[] = ocorrenciasDoDia(
       fluxogramaTreino.data ?? [],
@@ -393,6 +409,34 @@ export default function HomePage() {
   )
 
   /**
+   * Metas que pediram lugar nos checks do dia (`no_check_diario`).
+   *
+   * Qual booleano representa "feito hoje" depende do tipo: hábito tem check-in
+   * por data (reseta todo dia), marco e livre têm a coluna `concluida` (uma vez
+   * só). Numérica não entra — o banco recusa `no_check_diario` nela, mas o
+   * filtro é explícito para não depender disso na leitura.
+   *
+   * Concluído continua listado, não sai da lista: se marcar fizesse o item
+   * desaparecer, o denominador do placar encolheria no meio do dia e "2 de 4"
+   * viraria "2 de 3" sem nada ter mudado de verdade.
+   */
+  const metasDoDia = useMemo(() => {
+    const feitosHoje = new Set(
+      (checkinsDoDia.data ?? [])
+        .filter((checkin) => checkin.feito)
+        .map((checkin) => checkin.meta_id),
+    )
+
+    return (metas.data ?? [])
+      .filter((meta) => meta.no_check_diario && meta.tipo !== 'numerica')
+      .map((meta) => ({
+        meta,
+        feito:
+          meta.tipo === 'habito' ? feitosHoje.has(meta.id) : meta.concluida,
+      }))
+  }, [metas.data, checkinsDoDia.data])
+
+  /**
    * Contagem do dia. Inclui o check semanal só no domingo, senão o denominador
    * mostraria uma tarefa que não existe hoje.
    */
@@ -402,13 +446,17 @@ export default function HomePage() {
       check.data?.financeiro_registrado ?? false,
       ...(ehDomingo ? [check.data?.planejamento_semana_feito ?? false] : []),
     ]
-    const todos = [...fixos, ...checksFluxograma.map((i) => i.concluido)]
+    const todos = [
+      ...fixos,
+      ...metasDoDia.map((item) => item.feito),
+      ...checksFluxograma.map((i) => i.concluido),
+    ]
 
     return {
       concluidos: todos.filter(Boolean).length,
       totalChecks: todos.length,
     }
-  }, [check.data, checksFluxograma, hoje])
+  }, [check.data, checksFluxograma, metasDoDia, hoje])
 
   /**
    * Só compromissos com prazo: prova, conta e marco.
@@ -445,7 +493,12 @@ export default function HomePage() {
           <CardHeader>
             <div className="flex items-baseline justify-between gap-3">
               <div className="space-y-1.5">
-                <CardTitle className="text-base">O dia</CardTitle>
+                {/* O título é a data de hoje, não um rótulo fixo ("O dia"):
+                    este é o bloco que se toca todo dia, e dizer QUE dia é
+                    ancora a leitura — some a dúvida de "isso é de hoje?". */}
+                <CardTitle className="text-base">
+                  {format(hoje, "d 'de' MMMM")}
+                </CardTitle>
                 <CardDescription>
                   {totalChecks === 0
                     ? 'Nada previsto para hoje.'
@@ -512,6 +565,33 @@ export default function HomePage() {
                   </CheckDia>
                 </li>
               )}
+
+              {/* Metas com `no_check_diario` ligado — hábito alterna o check-in
+                  do dia, marco e livre alternam `concluida`. */}
+              {metasDoDia.map(({ meta, feito }) => (
+                <li key={meta.id}>
+                  <CheckDia
+                    id={`home-check-meta-${meta.id}`}
+                    marcado={feito}
+                    onAlternar={(marcado) => {
+                      if (meta.tipo === 'habito') {
+                        alternarCheckin.mutate({
+                          metaId: meta.id,
+                          data: hojeISO,
+                          feito: marcado,
+                        })
+                      } else {
+                        concluirMeta.mutate({
+                          id: meta.id,
+                          concluida: marcado,
+                        })
+                      }
+                    }}
+                  >
+                    {meta.titulo}
+                  </CheckDia>
+                </li>
+              ))}
             </ul>
 
             <ChecksFluxograma
@@ -657,7 +737,7 @@ export default function HomePage() {
                     <span
                       aria-hidden
                       className="size-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: COR_CAMADA[evento.camada] }}
+                      style={{ backgroundColor: corDoEvento(evento) }}
                     />
                     <span className="min-w-0 flex-1 truncate text-sm">
                       {evento.titulo}

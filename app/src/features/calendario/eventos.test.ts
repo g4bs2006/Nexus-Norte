@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+  COR_CAMADA,
   construirEventos,
+  corDoEvento,
   eventosAvaliacoes,
   eventosCancelados,
   eventosContas,
@@ -21,6 +23,11 @@ const HOJE = '2026-08-05'
 
 const MATERIAS = new Map([['m1', 'Cálculo II']])
 const TREINOS = new Map([['t1', 'Treino A']])
+/** `m1` escolheu cor; `m2` existe e deixou nulo — os dois casos importam. */
+const CORES = new Map([
+  ['m1', '#4a87c4'],
+  ['m2', null],
+])
 
 describe('eventosAvaliacoes', () => {
   const base = { id: 'a1', nome: 'P1', nota: null, materia_id: 'm1' }
@@ -1018,5 +1025,115 @@ describe('reconciliação entre previsto e realizado', () => {
       ['Pull', 'feito'],
       ['Legs', 'cancelado'],
     ])
+  })
+})
+
+/**
+ * Cor própria da matéria (`materias.cor`) chegando ao evento.
+ *
+ * O que se protege aqui é o fallback: `cor` ausente tem de continuar ausente no
+ * evento, e não virar `null` ou `undefined` explícito — as views distinguem
+ * "matéria escolheu cor" de "usa a cor da camada" pela presença do campo.
+ */
+describe('cor da matéria no evento', () => {
+  const aula = {
+    id: 'f1',
+    dia_semana: 1,
+    horario_inicio: '08:00:00',
+    horario_fim: '10:00:00',
+    materia_id: 'm1',
+    treino_id: null,
+    rotulo: null,
+  }
+
+  it('aula da matéria com cor carrega o hex', () => {
+    const eventos = eventosFluxograma(
+      [aula],
+      [],
+      SEMANA,
+      MATERIAS,
+      TREINOS,
+      new Set(),
+      new Map(),
+      CORES,
+    )
+    expect(eventos[0]?.cor).toBe('#4a87c4')
+  })
+
+  it('matéria com cor nula não define o campo', () => {
+    const eventos = eventosFluxograma(
+      [{ ...aula, materia_id: 'm2' }],
+      [],
+      SEMANA,
+      MATERIAS,
+      TREINOS,
+      new Set(),
+      new Map(),
+      CORES,
+    )
+    expect(eventos[0]).not.toHaveProperty('cor')
+  })
+
+  it('sem o mapa de cores, nenhum evento ganha cor — comportamento anterior', () => {
+    const eventos = eventosFluxograma([aula], [], SEMANA, MATERIAS, TREINOS)
+    expect(eventos[0]).not.toHaveProperty('cor')
+  })
+
+  it('treino não recebe cor de matéria', () => {
+    const eventos = eventosFluxograma(
+      [{ ...aula, materia_id: null, treino_id: 't1' }],
+      [],
+      SEMANA,
+      MATERIAS,
+      TREINOS,
+      new Set(),
+      new Map(),
+      CORES,
+    )
+    expect(eventos[0]?.camada).toBe('treino')
+    expect(eventos[0]).not.toHaveProperty('cor')
+  })
+
+  it('prova e sessão de estudo também carregam a cor', () => {
+    const prova = eventosAvaliacoes(
+      [{ id: 'a1', nome: 'P1', nota: null, materia_id: 'm1', data: '2026-08-05' }],
+      SEMANA,
+      MATERIAS,
+      CORES,
+    )
+    expect(prova[0]?.cor).toBe('#4a87c4')
+
+    const sessao = eventosSessoesEstudo(
+      [{ id: 's1', materia_id: 'm1', data: '2026-08-05', duracao_minutos: 50 }],
+      SEMANA,
+      MATERIAS,
+      CORES,
+    )
+    expect(sessao[0]?.cor).toBe('#4a87c4')
+  })
+
+  it('aula cancelada mantém a cor da matéria', () => {
+    const eventos = eventosCancelados(
+      [aula],
+      [{ fluxograma_id: 'f1', data: '2026-08-03', status: 'cancelado' }],
+      SEMANA,
+      HOJE,
+      MATERIAS,
+      TREINOS,
+      CORES,
+    )
+    expect(eventos[0]?.estado).toBe('cancelado')
+    expect(eventos[0]?.cor).toBe('#4a87c4')
+  })
+})
+
+describe('corDoEvento', () => {
+  it('prefere a cor do item quando existe', () => {
+    expect(corDoEvento({ cor: '#c4554d', camada: 'estudos' })).toBe('#c4554d')
+  })
+
+  it('cai na cor da camada quando o item não tem cor', () => {
+    expect(corDoEvento({ camada: 'estudos' })).toBe(COR_CAMADA.estudos)
+    expect(corDoEvento({ camada: 'treino' })).toBe(COR_CAMADA.treino)
   })
 })

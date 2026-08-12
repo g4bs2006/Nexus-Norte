@@ -12,6 +12,7 @@ import { ORDEM_DIAS_SEMANA as ORDEM_DIAS } from '@/lib/fluxograma'
 import { cn } from '@/lib/utils'
 import { expandirRecorrencia } from '@/lib/recorrencia'
 import {
+  corDoEvento,
   resolverDonoFluxograma,
   type EventoCalendario,
 } from '@/features/calendario/eventos'
@@ -262,10 +263,11 @@ function PassoRotina({ intervalo, hojeISO }: PassoRotinaProps) {
   const eventos: EventoCalendario[] = useMemo(
     () =>
       ocorrencias.map((ocorrencia) => {
-        const { nome, camada, tipo, rota } = resolverDonoFluxograma(
+        const { nome, camada, tipo, rota, cor } = resolverDonoFluxograma(
           ocorrencia.regra,
           fontes.nomePorMateria,
           fontes.nomePorTreino,
+          fontes.corPorMateria,
         )
         return {
           id: `fluxograma:${ocorrencia.regra.id}:${ocorrencia.data}`,
@@ -277,9 +279,15 @@ function PassoRotina({ intervalo, hojeISO }: PassoRotinaProps) {
           camada,
           tipo,
           rota,
+          ...(cor ? { cor } : {}),
         }
       }),
-    [ocorrencias, fontes.nomePorMateria, fontes.nomePorTreino],
+    [
+      ocorrencias,
+      fontes.nomePorMateria,
+      fontes.nomePorTreino,
+      fontes.corPorMateria,
+    ],
   )
 
   const conflitos = useMemo(() => detectarConflitos(eventos), [eventos])
@@ -352,16 +360,25 @@ function PassoRotina({ intervalo, hojeISO }: PassoRotinaProps) {
                 ) : (
                   <ul className="space-y-1">
                     {doDia.map((ocorrencia) => {
-                      const { nome } = resolverDonoFluxograma(
+                      const { nome, camada, cor } = resolverDonoFluxograma(
                         ocorrencia.regra,
                         fontes.nomePorMateria,
                         fontes.nomePorTreino,
+                        fontes.corPorMateria,
                       )
                       return (
                         <li
                           key={`${ocorrencia.regra.id}-${ocorrencia.data}`}
-                          className="border-border bg-card flex items-center gap-1 rounded-md border px-2 py-1.5"
+                          className="border-border bg-card flex items-center gap-1.5 rounded-md border px-2 py-1.5"
                         >
+                          {/* Filete de identidade: este passo é onde se confere
+                              a semana inteira de uma vez, e sem cor as linhas
+                              só se distinguem lendo cada texto. */}
+                          <span
+                            aria-hidden
+                            className="h-6 w-0.5 shrink-0 rounded-full"
+                            style={{ backgroundColor: corDoEvento({ cor, camada }) }}
+                          />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-xs">
                               {ocorrencia.remarcada ? `${nome} (remarcado)` : nome}
@@ -412,15 +429,25 @@ function PassoEstudoTreino({
   )
   const eventos = useMemo(
     () =>
-      ocorrencias.map((o) => ({
-        id: `f:${o.regra.id}:${o.data}`,
-        titulo: '',
-        inicio: `${o.data}T${o.regra.horario_inicio.slice(0, 5)}:00`,
-        fim: `${o.data}T${o.regra.horario_fim.slice(0, 5)}:00`,
-        diaInteiro: false,
-        camada: resolverDonoFluxograma(o.regra, fontes.nomePorMateria, fontes.nomePorTreino).camada,
-        tipo: resolverDonoFluxograma(o.regra, fontes.nomePorMateria, fontes.nomePorTreino).tipo,
-      })),
+      ocorrencias.map((o) => {
+        // Só alimenta `cargaPorDia`, que soma minutos por camada — daí o título
+        // vazio e a ausência de cor. Uma resolução por ocorrência: eram duas
+        // chamadas idênticas, uma para `camada` e outra para `tipo`.
+        const { camada, tipo } = resolverDonoFluxograma(
+          o.regra,
+          fontes.nomePorMateria,
+          fontes.nomePorTreino,
+        )
+        return {
+          id: `f:${o.regra.id}:${o.data}`,
+          titulo: '',
+          inicio: `${o.data}T${o.regra.horario_inicio.slice(0, 5)}:00`,
+          fim: `${o.data}T${o.regra.horario_fim.slice(0, 5)}:00`,
+          diaInteiro: false,
+          camada,
+          tipo,
+        }
+      }),
     [ocorrencias, fontes.nomePorMateria, fontes.nomePorTreino],
   )
   const dias = useMemo(
