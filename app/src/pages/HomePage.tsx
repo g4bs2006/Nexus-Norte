@@ -493,12 +493,10 @@ export default function HomePage() {
           <CardHeader>
             <div className="flex items-baseline justify-between gap-3">
               <div className="space-y-1.5">
-                {/* O título é a data de hoje, não um rótulo fixo ("O dia"):
-                    este é o bloco que se toca todo dia, e dizer QUE dia é
-                    ancora a leitura — some a dúvida de "isso é de hoje?". */}
-                <CardTitle className="text-base">
-                  {format(hoje, "d 'de' MMMM")}
-                </CardTitle>
+                {/* Rótulo fixo, não a data: quem diz o dia é a linha de data do
+                    PageHeader, logo acima. Repetir "12 de agosto" aqui punha a
+                    mesma informação duas vezes na mesma dobra da tela. */}
+                <CardTitle className="text-base">O dia</CardTitle>
                 <CardDescription>
                   {totalChecks === 0
                     ? 'Nada previsto para hoje.'
