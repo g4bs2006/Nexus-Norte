@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { addDays, format } from 'date-fns'
 import { Button } from '@/components/ui/button'
 import {
@@ -95,6 +95,22 @@ export function GradePlanejamentoSemanal({
 
   const inicio = deISO(semanaInicio)
 
+  const celulaDeHoje = useRef<HTMLTableCellElement>(null)
+
+  /*
+    Rola a grade até a coluna de hoje ao montar.
+
+    Sem isso, abrir o ritual numa quarta no celular mostra domingo e segunda —
+    dias já vividos — enquanto o que se quer planejar está fora da tela à
+    direita. `block: 'nearest'` é obrigatório: sem ele o navegador também rola
+    a página verticalmente e joga o cabeçalho do ritual para fora da vista.
+
+    No desktop a tabela não transborda e isto é um no-op.
+  */
+  useEffect(() => {
+    celulaDeHoje.current?.scrollIntoView({ inline: 'start', block: 'nearest' })
+  }, [semanaInicio])
+
   if (despesas.length === 0) {
     return (
       <Card>
@@ -126,10 +142,12 @@ export function GradePlanejamentoSemanal({
                 </th>
                 {ORDEM_DIAS.map((dia, indice) => {
                   const data = addDays(inicio, indice)
-                  const passado = paraISO(data) < hojeISO
+                  const dataISO = paraISO(data)
+                  const passado = dataISO < hojeISO
                   return (
                     <th
                       key={dia}
+                      ref={dataISO === hojeISO ? celulaDeHoje : undefined}
                       className={cn(
                         'text-muted-foreground px-1 py-2 text-center text-xs font-normal',
                         passado && 'opacity-40',
@@ -166,7 +184,13 @@ export function GradePlanejamentoSemanal({
                       >
                         <Input
                           // `text`, não `number`: a vírgula do teclado brasileiro
-                          // é inválida num campo numérico e chegaria como vazio
+                          // é inválida num campo numérico e chegaria como vazio.
+                          //
+                          // `h-8` (32px) é exceção consciente à régua de 44px:
+                          // são 7 colunas por categoria, e 44px de altura por
+                          // célula deixaria a tabela alta demais para uma tela
+                          // de celular. O alvo aqui é campo de digitação, não
+                          // botão.
                           type="text"
                           inputMode="decimal"
                           value={valores[id] ?? ''}
