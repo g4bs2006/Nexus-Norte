@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { checkinsNaSemana, progressoNumerico, streakAtual } from './calculos'
 import type { MetaCheckin } from './types'
 
-/** 2026-08-05 é uma quarta-feira; a semana (seg-dom) vai de 08-03 a 08-09. */
+/** 2026-08-05 é uma quarta-feira; a semana (dom-sáb) vai de 08-02 a 08-08. */
 const HOJE = new Date(2026, 7, 5)
 
 function checkin(data: string, feito = true): MetaCheckin {
@@ -40,13 +40,13 @@ describe('streakAtual', () => {
 })
 
 describe('checkinsNaSemana', () => {
-  it('conta só os check-ins dentro da semana (segunda a domingo)', () => {
+  it('conta só os check-ins dentro da semana (domingo a sábado)', () => {
     const checkins = [
-      checkin('2026-08-03'), // segunda — dentro
+      checkin('2026-08-02'), // domingo — abre a semana, dentro
       checkin('2026-08-05'), // dentro
-      checkin('2026-08-09'), // domingo — dentro
-      checkin('2026-08-10'), // fora (semana seguinte)
-      checkin('2026-08-02'), // fora (semana anterior)
+      checkin('2026-08-08'), // sábado — fecha a semana, dentro
+      checkin('2026-08-09'), // fora (domingo seguinte já é outra semana)
+      checkin('2026-08-01'), // fora (semana anterior)
     ]
     expect(checkinsNaSemana(checkins, HOJE)).toBe(3)
   })

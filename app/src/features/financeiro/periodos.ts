@@ -2,10 +2,9 @@ import {
   addDays,
   endOfMonth,
   startOfMonth,
-  startOfWeek,
   subMonths,
 } from 'date-fns'
-import { paraISO } from '@/lib/datas'
+import { inicioSemana, paraISO } from '@/lib/datas'
 
 /**
  * Períodos prontos para a lista de lançamentos (resolução 10.23).
@@ -48,7 +47,7 @@ export function intervaloDoPreset(preset: PresetPeriodo, hoje: Date): Periodo {
     case 'hoje':
       return { de: hojeISO, ate: hojeISO }
     case 'semana': {
-      const inicio = startOfWeek(hoje, { weekStartsOn: 1 })
+      const inicio = inicioSemana(hoje)
       return { de: paraISO(inicio), ate: paraISO(addDays(inicio, 6)) }
     }
     case 'mes-passado': {

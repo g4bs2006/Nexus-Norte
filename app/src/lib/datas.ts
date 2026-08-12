@@ -42,20 +42,14 @@ export function diasRestantesNoMes(data: Date): number {
   return getDaysInMonth(data) - getDate(data) + 1
 }
 
-/** Segunda-feira da semana de `data`. Chave de `planejamento_semanal_financeiro`. */
-export function inicioSemana(data: Date): Date {
-  return startOfWeek(data, { weekStartsOn: 1 })
-}
-
 /**
- * Domingo da semana de `data` — a semana **de exibição** do Calendário.
+ * Domingo da semana de `data` — a semana do sistema inteiro.
  *
- * Deliberadamente diferente de `inicioSemana`, logo acima: aquela é a chave de
- * `planejamento_semanal_financeiro` e continua na segunda. Alinhar as duas
- * exigiria migrar as linhas já gravadas, que estão chaveadas em segundas —
- * está previsto, mas em outro spec.
+ * `weekStartsOn` fica explícito de propósito, apesar de `lib/locale.ts` já
+ * definir o mesmo default: o comentário de lá registra que um default
+ * implícito já desalinhou o cálculo antes. A redundância é o para-raios.
  */
-export function inicioSemanaCalendario(data: Date): Date {
+export function inicioSemana(data: Date): Date {
   return startOfWeek(data, { weekStartsOn: 0 })
 }
 

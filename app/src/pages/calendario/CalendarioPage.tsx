@@ -28,7 +28,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { deISO, inicioSemanaCalendario, paraISO } from '@/lib/datas'
+import { deISO, inicioSemana, paraISO } from '@/lib/datas'
 import { cn } from '@/lib/utils'
 import {
   COR_CAMADA,
@@ -88,7 +88,7 @@ export default function CalendarioPage() {
   )
 
   /** Domingo da semana visível na agenda. */
-  const [ancora, setAncora] = useState(() => inicioSemanaCalendario(hoje))
+  const [ancora, setAncora] = useState(() => inicioSemana(hoje))
   const [diaFocado, setDiaFocado] = useState(() => paraISO(hoje))
 
   /**
@@ -241,7 +241,7 @@ export default function CalendarioPage() {
   }
 
   function irParaHoje() {
-    setAncora(inicioSemanaCalendario(hoje))
+    setAncora(inicioSemana(hoje))
     setDiaFocado(paraISO(hoje))
   }
 

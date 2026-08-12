@@ -27,7 +27,7 @@ export function streakAtual(checkins: MetaCheckin[], hoje: Date): number {
   return streak
 }
 
-/** Quantos check-ins `feito=true` caem na semana (segunda a domingo) de `hoje`. */
+/** Quantos check-ins `feito=true` caem na semana (domingo a sábado) de `hoje`. */
 export function checkinsNaSemana(checkins: MetaCheckin[], hoje: Date): number {
   const segunda = paraISO(inicioSemana(hoje))
   const domingo = paraISO(addDays(inicioSemana(hoje), 6))
