@@ -56,16 +56,16 @@ export default function RitualSemanalPage() {
   const hojeISO = paraISO(hoje)
   const [passo, setPasso] = useState(0)
 
-  // Sempre a PRÓXIMA semana — o ritual de domingo planeja o que vem, não a
-  // semana que está terminando.
-  const proximaSemana = useMemo(
-    () => addDays(inicioSemana(hoje), 7),
-    [hoje],
-  )
-  const semanaInicioISO = paraISO(proximaSemana)
+  // A semana ATUAL, não a seguinte. Com domingo abrindo a semana, o ritual
+  // feito no domingo planeja de hoje até sábado — "próxima" e "atual"
+  // coincidem no dia em que o ritual acontece. Aberto no meio da semana, passa
+  // a corrigir a semana em curso em vez de pular para a seguinte, que era o
+  // comportamento anterior e nunca foi o desejado.
+  const semana = useMemo(() => inicioSemana(hoje), [hoje])
+  const semanaInicioISO = paraISO(semana)
   const intervalo = useMemo(
-    () => ({ de: semanaInicioISO, ate: paraISO(addDays(proximaSemana, 6)) }),
-    [semanaInicioISO, proximaSemana],
+    () => ({ de: semanaInicioISO, ate: paraISO(addDays(semana, 6)) }),
+    [semanaInicioISO, semana],
   )
 
   const salvarCheck = useSalvarCheck()
