@@ -57,7 +57,12 @@ export function SecaoMetas({ hoje }: SecaoMetasProps) {
         ) : (
           <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-1">
             {destaque.map((meta) => (
-              <CardMeta key={meta.id} meta={meta} hoje={hoje} />
+              // Largura fixa vive aqui, no item do carrossel — não em CardMeta,
+              // que agora só entende w-full/h-full e se adapta a quem o hospeda
+              // (ver rationale em CardMeta.tsx).
+              <div key={meta.id} className="w-40 shrink-0 snap-start">
+                <CardMeta meta={meta} hoje={hoje} />
+              </div>
             ))}
           </div>
         )}

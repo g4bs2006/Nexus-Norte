@@ -1,6 +1,5 @@
 // app/src/features/metas/componentes/DialogListaMetas.tsx
 import { useState } from 'react'
-import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -74,18 +73,19 @@ export function DialogListaMetas({
             Nenhuma meta {filtro === 'concluidas' ? 'concluída' : 'ativa'} por aqui.
           </p>
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          // auto-fill em vez de grid-cols-2/3 fixo: cada célula nasce do
+          // tamanho natural do card (min 10rem) e a última linha nunca sobra
+          // coluna vazia — que era exatamente o espaço onde o botão de
+          // excluir, antes absolute no wrapper, ficava flutuando sem card.
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-3">
             {metas.map((meta) => (
-              <div key={meta.id} className="relative">
-                <CardMeta meta={meta} hoje={hoje} />
-                <DialogConfirmarExclusao
-                  titulo="Excluir meta"
-                  mensagem={`"${meta.titulo}" será removida permanentemente.`}
-                  pendente={excluir.isPending}
-                  onConfirmar={() => excluir.mutateAsync(meta.id)}
-                  classeTrigger="text-muted-foreground hover:text-status-risco absolute bottom-1 right-1 size-6"
-                />
-              </div>
+              <CardMeta
+                key={meta.id}
+                meta={meta}
+                hoje={hoje}
+                onExcluir={() => excluir.mutateAsync(meta.id)}
+                excluindo={excluir.isPending}
+              />
             ))}
           </div>
         )}

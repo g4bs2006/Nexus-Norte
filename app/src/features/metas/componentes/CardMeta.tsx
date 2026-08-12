@@ -1,6 +1,7 @@
 // app/src/features/metas/componentes/CardMeta.tsx
 import { useRef } from 'react'
 import { Pencil } from 'lucide-react'
+import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { BarraProgresso } from '@/components/BarraProgresso'
 import { CampoDecimal } from '@/components/CampoDecimal'
 import { CheckDia } from '@/components/CheckDia'
@@ -14,22 +15,38 @@ import {
   useCheckinsMeta,
   useProgressoMeta,
 } from '../hooks'
-import { CLASSE_COR_PILAR, pilarDaMeta, type Meta } from '../types'
+import { CLASSE_BG_PILAR, CLASSE_COR_PILAR, pilarDaMeta, type Meta } from '../types'
 import { DialogMeta } from './DialogMeta'
 
 interface CardMetaProps {
   meta: Meta
   hoje: Date
+  /**
+   * Exclusão opcional — só a lista completa (`DialogListaMetas`) oferece.
+   * Passar aqui, e não posicionar o gatilho por fora do card, é o que evita o
+   * botão flutuar fora da borda em grades com colunas mais largas que o card.
+   */
+  onExcluir?: () => void | Promise<void>
+  excluindo?: boolean
 }
 
-/** Card compacto de uma meta — a forma varia por `meta.tipo`. */
-export function CardMeta({ meta, hoje }: CardMetaProps) {
+/**
+ * Card compacto de uma meta — a forma varia por `meta.tipo`.
+ *
+ * Sem largura fixa: quem posiciona (carrossel da Home ou grade do modal "Ver
+ * todas") controla a largura por fora. Um card com `w-40` embutido cabia bem
+ * no carrossel e sobrava espaço morto nas colunas mais largas da grade — e é
+ * nesse espaço morto que o botão de excluir, antes posicionado `absolute` no
+ * wrapper em vez do card, ficava flutuando.
+ */
+export function CardMeta({ meta, hoje, onExcluir, excluindo }: CardMetaProps) {
   // Guarda o valor digitado entre teclas; só grava no blur, como o campo fazia
   // antes de trocar para CampoDecimal — CampoDecimal chama onValorChange a cada
   // tecla, e mutar a cada tecla faria uma requisição por caractere digitado.
   const valorDigitadoRef = useRef(meta.valor_atual_manual)
   const link = pilarDaMeta(meta)
   const classeCor = link ? CLASSE_COR_PILAR[link.pilar] : 'text-foreground'
+  const classeListra = link ? CLASSE_BG_PILAR[link.pilar] : 'bg-transparent'
   const usaLinkNumerico = meta.tipo === 'numerica' && link !== null
 
   const progresso = useProgressoMeta(meta.id, usaLinkNumerico)
@@ -40,24 +57,45 @@ export function CardMeta({ meta, hoje }: CardMetaProps) {
   const hojeISO = paraISO(hoje)
 
   return (
-    <div className="border-border bg-card flex w-40 shrink-0 snap-start flex-col gap-2 rounded-lg border p-3">
+    <div className="group border-border bg-card relative flex h-full w-full flex-col gap-2 overflow-hidden rounded-lg border p-3">
+      {/* Listra de identidade do pilar — mesmo motivo de MiniCard.tsx: qual
+          pilar é a meta lê antes do detalhe, num rastreio rápido da grade. */}
+      <span
+        aria-hidden
+        className={cn('absolute inset-y-0 left-0 w-[3px]', classeListra)}
+      />
+
       <div className="flex items-start justify-between gap-1">
         <span className={cn('truncate text-sm font-medium', classeCor)}>
           {meta.titulo}
         </span>
-        <DialogMeta
-          meta={meta}
-          trigger={
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-6 shrink-0"
-              aria-label="Editar meta"
-            >
-              <Pencil className="size-3" />
-            </Button>
-          }
-        />
+        {/* Ações só aparecem no hover/foco em telas com mouse — no toque
+            (sem hover) ficam sempre visíveis, mesma régua do
+            DialogConfirmarExclusao para não depender de gesto que não existe. */}
+        <div className="flex shrink-0 items-center opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+          <DialogMeta
+            meta={meta}
+            trigger={
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-6 shrink-0"
+                aria-label="Editar meta"
+              >
+                <Pencil className="size-3" />
+              </Button>
+            }
+          />
+          {onExcluir && (
+            <DialogConfirmarExclusao
+              titulo="Excluir meta"
+              mensagem={`"${meta.titulo}" será removida permanentemente.`}
+              pendente={excluindo}
+              onConfirmar={onExcluir}
+              classeTrigger="text-muted-foreground hover:text-status-risco size-6 shrink-0"
+            />
+          )}
+        </div>
       </div>
 
       {meta.tipo === 'numerica' &&
@@ -73,7 +111,7 @@ export function CardMeta({ meta, hoje }: CardMetaProps) {
                 rotulo={`Progresso de ${meta.titulo}`}
               />
               <div className="flex items-center gap-1">
-                <span className="text-muted-foreground text-xs">
+                <span className="metric-sm text-muted-foreground">
                   {valorAtual === null ? '—' : valorAtual} /{' '}
                   {meta.valor_alvo ?? '—'} {meta.unidade ?? ''}
                 </span>

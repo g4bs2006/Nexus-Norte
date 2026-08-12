@@ -49,6 +49,19 @@ export const CLASSE_COR_PILAR: Record<PilarMeta, string> = {
   corporal: 'text-treino',
 }
 
+/**
+ * Mesma paleta de `CLASSE_COR_PILAR`, como cor de preenchimento em vez de
+ * texto — usada na listra de identidade do `CardMeta` (mesmo motivo de
+ * `MiniCard.tsx`: estado/categoria lê antes do detalhe).
+ */
+export const CLASSE_BG_PILAR: Record<PilarMeta, string> = {
+  financeiro: 'bg-financeiro',
+  estudos: 'bg-estudos',
+  treino: 'bg-treino',
+  projetos: 'bg-projetos',
+  corporal: 'bg-treino',
+}
+
 export const ROTULOS_PILAR_LINK: Record<PilarMeta, string> = {
   financeiro: 'Financeiro',
   estudos: 'Estudos',
