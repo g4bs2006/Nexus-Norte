@@ -93,7 +93,19 @@ export function GradePlanejamentoSemanal({
     return entradas
   }
 
-  const inicio = deISO(semanaInicio)
+  // `semanaInicio` é sempre o domingo da semana (grade e tabela concordam
+  // nisso), e a coluna de índice N em `ORDEM_DIAS` é o próprio `dia_semana`
+  // N. Isso é o que autoriza derivar a data de cada coluna só somando o
+  // índice ao início da semana, sem consultar `dia_semana` de novo.
+  const colunas = useMemo(
+    () =>
+      ORDEM_DIAS.map((dia, indice) => {
+        const data = addDays(deISO(semanaInicio), indice)
+        const dataISO = paraISO(data)
+        return { dia, data, dataISO, passado: dataISO < hojeISO }
+      }),
+    [semanaInicio, hojeISO],
+  )
 
   const celulaDeHoje = useRef<HTMLTableCellElement>(null)
 
@@ -106,10 +118,16 @@ export function GradePlanejamentoSemanal({
     a página verticalmente e joga o cabeçalho do ritual para fora da vista.
 
     No desktop a tabela não transborda e isto é um no-op.
+
+    `despesas.length` entra nas dependências porque no Ritual este card monta
+    sem esperar `useCategorias` resolver: o primeiro render cai no early
+    return de baixo com o `ref` ainda nulo, e só quando as categorias chegam
+    a tabela (e o `ref`) passam a existir. Sem essa dependência o efeito já
+    rodou (em vão) e não roda de novo.
   */
   useEffect(() => {
     celulaDeHoje.current?.scrollIntoView({ inline: 'start', block: 'nearest' })
-  }, [semanaInicio])
+  }, [semanaInicio, despesas.length])
 
   if (despesas.length === 0) {
     return (
@@ -140,26 +158,21 @@ export function GradePlanejamentoSemanal({
                 <th className="text-muted-foreground sticky left-0 bg-inherit px-2 py-2 text-left text-xs font-normal">
                   Categoria
                 </th>
-                {ORDEM_DIAS.map((dia, indice) => {
-                  const data = addDays(inicio, indice)
-                  const dataISO = paraISO(data)
-                  const passado = dataISO < hojeISO
-                  return (
-                    <th
-                      key={dia}
-                      ref={dataISO === hojeISO ? celulaDeHoje : undefined}
-                      className={cn(
-                        'text-muted-foreground px-1 py-2 text-center text-xs font-normal',
-                        passado && 'opacity-40',
-                      )}
-                    >
-                      <div className="capitalize">{format(data, 'EEEEEE')}</div>
-                      <div className="text-[10px] opacity-60">
-                        {format(data, 'dd/MM')}
-                      </div>
-                    </th>
-                  )
-                })}
+                {colunas.map(({ dia, data, dataISO, passado }) => (
+                  <th
+                    key={dia}
+                    ref={dataISO === hojeISO ? celulaDeHoje : undefined}
+                    className={cn(
+                      'text-muted-foreground px-1 py-2 text-center text-xs font-normal',
+                      passado && 'opacity-40',
+                    )}
+                  >
+                    <div className="capitalize">{format(data, 'EEEEEE')}</div>
+                    <div className="text-[10px] opacity-60">
+                      {format(data, 'dd/MM')}
+                    </div>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -168,9 +181,8 @@ export function GradePlanejamentoSemanal({
                   <td className="border-border max-w-[10rem] truncate border-t px-2 py-1.5 text-xs">
                     {categoria.nome}
                   </td>
-                  {ORDEM_DIAS.map((dia, indice) => {
+                  {colunas.map(({ dia, passado }) => {
                     const id = chave(categoria.id, dia)
-                    const passado = paraISO(addDays(inicio, indice)) < hojeISO
                     return (
                       <td
                         key={dia}

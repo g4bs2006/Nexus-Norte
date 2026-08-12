@@ -82,7 +82,7 @@ export default function RitualSemanalPage() {
     <>
       <PageHeader
         titulo="Ritual de domingo"
-        descricao="Sono, rotina, estudo/treino e financeiro da semana que vem, num fluxo só."
+        descricao="Sono, rotina, estudo/treino e financeiro desta semana, num fluxo só."
         pilar="sono"
         icone={CalendarCheck}
       />
