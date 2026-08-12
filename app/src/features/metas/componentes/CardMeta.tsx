@@ -173,8 +173,10 @@ export function CardMeta({ meta, hoje, onExcluir, excluindo }: CardMetaProps) {
                 Hoje
               </CheckDia>
               <span className="text-muted-foreground text-xs">
-                {streak} dia{streak === 1 ? '' : 's'} · {semana}/
-                {meta.frequencia_alvo ?? '—'} na semana
+                {streak} dia{streak === 1 ? '' : 's'} ·{' '}
+                {meta.frequencia_alvo === 7
+                  ? 'meta diária'
+                  : `${semana}/${meta.frequencia_alvo ?? '—'} na semana`}
               </span>
             </>
           )

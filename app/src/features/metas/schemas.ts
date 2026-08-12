@@ -45,6 +45,11 @@ export const schemaMeta = z
       z.number().int().positive('Informe quantas vezes por semana'),
       z.nan(),
     ]),
+    // Liga/desliga: hábito todo santo dia (7x/semana) em vez de uma frequência
+    // configurável. Não é uma coluna própria — DialogMeta traduz para
+    // frequencia_alvo=7 na submissão, então o schema só cobra frequencia_alvo
+    // quando a meta NÃO é diária (o refine abaixo).
+    diaria: z.boolean(),
   })
   .refine(
     (v) =>
@@ -52,10 +57,14 @@ export const schemaMeta = z
       (!Number.isNaN(v.valor_alvo) && v.unidade.trim() !== ''),
     { message: 'Informe o alvo e a unidade', path: ['valor_alvo'] },
   )
-  .refine((v) => v.tipo !== 'habito' || !Number.isNaN(v.frequencia_alvo), {
-    message: 'Informe quantas vezes por semana',
-    path: ['frequencia_alvo'],
-  })
+  .refine(
+    (v) =>
+      v.tipo !== 'habito' || v.diaria || !Number.isNaN(v.frequencia_alvo),
+    {
+      message: 'Informe quantas vezes por semana',
+      path: ['frequencia_alvo'],
+    },
+  )
   .refine(
     (v) =>
       v.pilarLink === '' ||

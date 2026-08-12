@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Pencil, Plus } from 'lucide-react'
 import { CampoDecimal } from '@/components/CampoDecimal'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -69,6 +70,7 @@ const VAZIO: FormularioMeta = {
   valor_alvo: Number.NaN,
   unidade: '',
   frequencia_alvo: Number.NaN,
+  diaria: false,
 }
 
 interface DialogMetaProps {
@@ -107,6 +109,10 @@ export function DialogMeta({ meta, trigger }: DialogMetaProps = {}) {
         valor_alvo: meta.valor_alvo ?? Number.NaN,
         unidade: meta.unidade ?? '',
         frequencia_alvo: meta.frequencia_alvo ?? Number.NaN,
+        // 7x/semana É todo dia — não há coluna separada para "diária", então
+        // uma meta salva com frequencia_alvo=7 volta a abrir com o checkbox
+        // ligado, e não com "7" solto no campo numérico.
+        diaria: meta.tipo === 'habito' && meta.frequencia_alvo === 7,
       })
     } else if (aberto && !meta) {
       form.reset(VAZIO)
@@ -115,6 +121,7 @@ export function DialogMeta({ meta, trigger }: DialogMetaProps = {}) {
 
   const tipo = form.watch('tipo') ?? 'numerica'
   const pilarLink = form.watch('pilarLink') ?? ''
+  const diaria = form.watch('diaria') ?? false
   const pendente = criar.isPending || atualizar.isPending
 
   const opcoesEntidade: { id: string; nome: string }[] =
@@ -144,9 +151,12 @@ export function DialogMeta({ meta, trigger }: DialogMetaProps = {}) {
 
       valor_alvo: Number.isNaN(valores.valor_alvo) ? null : valores.valor_alvo,
       unidade: textoOuNulo(valores.unidade),
-      frequencia_alvo: Number.isNaN(valores.frequencia_alvo)
-        ? null
-        : valores.frequencia_alvo,
+      frequencia_alvo:
+        valores.tipo === 'habito' && valores.diaria
+          ? 7
+          : Number.isNaN(valores.frequencia_alvo)
+            ? null
+            : valores.frequencia_alvo,
       frequencia_periodo: valores.tipo === 'habito' ? 'semana' : null,
     }
 
@@ -356,23 +366,54 @@ export function DialogMeta({ meta, trigger }: DialogMetaProps = {}) {
             )}
 
             {tipo === 'habito' && (
-              <FormField
-                control={form.control}
-                name="frequencia_alvo"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Vezes por semana</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        value={Number.isNaN(field.value) ? '' : field.value}
-                        onChange={(e) => field.onChange(e.target.valueAsNumber)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+              <>
+                <FormField
+                  control={form.control}
+                  name="diaria"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row-reverse items-center justify-end gap-2">
+                      <FormLabel className="font-normal">
+                        Meta diária (todo santo dia, sem número pra configurar)
+                      </FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={(checado) => {
+                            const ligado = checado === true
+                            field.onChange(ligado)
+                            // Zera o número ao desligar: se deixasse "7" parado
+                            // no campo, pareceria que o usuário escolheu 7x —
+                            // desligar o diário deve pedir uma escolha explícita.
+                            if (!ligado) {
+                              form.setValue('frequencia_alvo', Number.NaN)
+                            }
+                          }}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                {!diaria && (
+                  <FormField
+                    control={form.control}
+                    name="frequencia_alvo"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Vezes por semana</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            value={Number.isNaN(field.value) ? '' : field.value}
+                            onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 )}
-              />
+              </>
             )}
 
             <DialogFooter>
