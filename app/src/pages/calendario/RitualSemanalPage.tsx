@@ -123,12 +123,14 @@ export default function RitualSemanalPage() {
 
         {passo === 0 && <PassoSono />}
         {passo === 1 && (
-          <PassoRotina semanaInicio={semanaInicioISO} intervalo={intervalo} />
+          <PassoRotina semanaInicio={semanaInicioISO} intervalo={intervalo} hojeISO={hojeISO} />
         )}
         {passo === 2 && (
-          <PassoEstudoTreino semanaInicio={semanaInicioISO} intervalo={intervalo} />
+          <PassoEstudoTreino semanaInicio={semanaInicioISO} intervalo={intervalo} hojeISO={hojeISO} />
         )}
-        {passo === 3 && <PassoFinanceiro semanaInicio={semanaInicioISO} />}
+        {passo === 3 && (
+          <PassoFinanceiro semanaInicio={semanaInicioISO} hojeISO={hojeISO} />
+        )}
       </div>
 
       {/*
@@ -244,9 +246,10 @@ function PassoSono() {
 interface PassoRotinaProps {
   semanaInicio: string
   intervalo: { de: string; ate: string }
+  hojeISO: string
 }
 
-function PassoRotina({ intervalo }: PassoRotinaProps) {
+function PassoRotina({ intervalo, hojeISO }: PassoRotinaProps) {
   const { fontes, carga } = useFontesCalendario(intervalo.de, intervalo.ate, {
     comCarga: true,
   })
@@ -336,8 +339,11 @@ function PassoRotina({ intervalo }: PassoRotinaProps) {
             const doDia = (porDia.get(dia) ?? []).sort((a, b) =>
               a.regra.horario_inicio.localeCompare(b.regra.horario_inicio),
             )
+            // O índice na constante é o próprio dia_semana e `intervalo.de` é
+            // sempre o domingo, então a data do dia é `de + dia`.
+            const passado = paraISO(addDays(deISO(intervalo.de), dia)) < hojeISO
             return (
-              <div key={dia} className="space-y-1.5">
+              <div key={dia} className={cn('space-y-1.5', passado && 'opacity-50')}>
                 <p className="text-muted-foreground text-xs font-medium">
                   {DIAS_SEMANA[dia]}
                 </p>
@@ -391,9 +397,11 @@ function PassoRotina({ intervalo }: PassoRotinaProps) {
 
 function PassoEstudoTreino({
   intervalo,
+  hojeISO,
 }: {
   semanaInicio: string
   intervalo: { de: string; ate: string }
+  hojeISO: string
 }) {
   const { fontes, carga } = useFontesCalendario(intervalo.de, intervalo.ate, {
     comCarga: true,
@@ -480,7 +488,13 @@ function PassoEstudoTreino({
       <CardContent className="space-y-4">
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
           {dias.map((dia) => (
-            <div key={dia.data} className="rounded-md border p-2 text-center">
+            <div
+              key={dia.data}
+              className={cn(
+                'rounded-md border p-2 text-center',
+                dia.data < hojeISO && 'opacity-50',
+              )}
+            >
               <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
                 {DIAS_SEMANA[deISO(dia.data).getDay()]?.slice(0, 3)}
               </p>
@@ -523,7 +537,13 @@ function PassoEstudoTreino({
 
 // --- Passo 4: Financeiro -------------------------------------------------------
 
-function PassoFinanceiro({ semanaInicio }: { semanaInicio: string }) {
+function PassoFinanceiro({
+  semanaInicio,
+  hojeISO,
+}: {
+  semanaInicio: string
+  hojeISO: string
+}) {
   const categorias = useCategorias()
   const planejamento = usePlanejamentoSemana(semanaInicio)
   const salvar = useSalvarPlanejamento()
@@ -537,6 +557,7 @@ function PassoFinanceiro({ semanaInicio }: { semanaInicio: string }) {
       onSalvar={(entradas) =>
         salvar.mutate({ semanaInicio, entradas })
       }
+      hojeISO={hojeISO}
     />
   )
 }

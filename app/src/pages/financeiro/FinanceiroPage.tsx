@@ -253,6 +253,7 @@ export default function FinanceiroPage() {
             onSalvar={(entradas) =>
               salvarPlanejamento.mutate({ semanaInicio: semana, entradas })
             }
+            hojeISO={hojeISO}
           />
 
           <section className="space-y-3">

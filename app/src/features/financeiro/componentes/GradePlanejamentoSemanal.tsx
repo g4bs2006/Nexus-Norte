@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { deISO, formatarMoeda } from '@/lib/datas'
+import { deISO, formatarMoeda, paraISO } from '@/lib/datas'
 import { ORDEM_DIAS_SEMANA as ORDEM_DIAS } from '@/lib/fluxograma'
 import { formatarDecimal, parseDecimal } from '@/lib/numeros'
 import { cn } from '@/lib/utils'
@@ -26,6 +26,13 @@ interface GradePlanejamentoSemanalProps {
   planejamento: readonly PlanejamentoSemanal[]
   salvando: boolean
   onSalvar: (entradas: EntradaPlanejamento[]) => void
+  /**
+   * Data de hoje em `YYYY-MM-DD`, usada só para esmaecer os dias já vividos.
+   * Entra como prop em vez de `new Date()` interno para o componente continuar
+   * previsível — as duas páginas que o montam já têm a data estabilizada por
+   * render.
+   */
+  hojeISO: string
 }
 
 /**
@@ -40,6 +47,7 @@ export function GradePlanejamentoSemanal({
   planejamento,
   salvando,
   onSalvar,
+  hojeISO,
 }: GradePlanejamentoSemanalProps) {
   const despesas = useMemo(
     () => categorias.filter((c) => c.natureza === 'despesa'),
@@ -116,19 +124,24 @@ export function GradePlanejamentoSemanal({
                 <th className="text-muted-foreground sticky left-0 bg-inherit px-2 py-2 text-left text-xs font-normal">
                   Categoria
                 </th>
-                {ORDEM_DIAS.map((dia, indice) => (
-                  <th
-                    key={dia}
-                    className="text-muted-foreground px-1 py-2 text-center text-xs font-normal"
-                  >
-                    <div className="capitalize">
-                      {format(addDays(inicio, indice), 'EEEEEE')}
-                    </div>
-                    <div className="text-[10px] opacity-60">
-                      {format(addDays(inicio, indice), 'dd/MM')}
-                    </div>
-                  </th>
-                ))}
+                {ORDEM_DIAS.map((dia, indice) => {
+                  const data = addDays(inicio, indice)
+                  const passado = paraISO(data) < hojeISO
+                  return (
+                    <th
+                      key={dia}
+                      className={cn(
+                        'text-muted-foreground px-1 py-2 text-center text-xs font-normal',
+                        passado && 'opacity-40',
+                      )}
+                    >
+                      <div className="capitalize">{format(data, 'EEEEEE')}</div>
+                      <div className="text-[10px] opacity-60">
+                        {format(data, 'dd/MM')}
+                      </div>
+                    </th>
+                  )
+                })}
               </tr>
             </thead>
             <tbody>
@@ -137,10 +150,20 @@ export function GradePlanejamentoSemanal({
                   <td className="border-border max-w-[10rem] truncate border-t px-2 py-1.5 text-xs">
                     {categoria.nome}
                   </td>
-                  {ORDEM_DIAS.map((dia) => {
+                  {ORDEM_DIAS.map((dia, indice) => {
                     const id = chave(categoria.id, dia)
+                    const passado = paraISO(addDays(inicio, indice)) < hojeISO
                     return (
-                      <td key={dia} className="border-border border-t p-0.5">
+                      <td
+                        key={dia}
+                        className={cn(
+                          'border-border border-t p-0.5',
+                          // Esmaecido, não desabilitado: o plano de um dia pode
+                          // mudar depois do fato, e travar o campo impediria a
+                          // correção.
+                          passado && 'opacity-50',
+                        )}
+                      >
                         <Input
                           // `text`, não `number`: a vírgula do teclado brasileiro
                           // é inválida num campo numérico e chegaria como vazio
