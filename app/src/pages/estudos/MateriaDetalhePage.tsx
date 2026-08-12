@@ -127,8 +127,9 @@ export default function MateriaDetalhePage() {
       <PageHeader
         titulo={materia.nome}
         descricao={
-          [materia.professor, materia.semestre].filter(Boolean).join(' · ') ||
-          undefined
+          [materia.professor, materia.local, materia.semestre]
+            .filter(Boolean)
+            .join(' · ') || undefined
         }
         pilar="estudos"
         acoes={
@@ -199,6 +200,7 @@ export default function MateriaDetalhePage() {
             <TabsTrigger value="sessoes">Sessões</TabsTrigger>
             <TabsTrigger value="documentos">Documentos</TabsTrigger>
             <TabsTrigger value="listas">Listas</TabsTrigger>
+            <TabsTrigger value="notas">Notas</TabsTrigger>
           </TabsList>
 
           <TabsContent value="avaliacoes" className="mt-5">
@@ -239,6 +241,38 @@ export default function MateriaDetalhePage() {
               registros={registros.data ?? []}
               hoje={hoje}
             />
+          </TabsContent>
+
+          <TabsContent value="notas" className="mt-5 space-y-4">
+            <Card>
+              <CardContent className="space-y-1.5">
+                <p className="text-sm font-medium">Notas de estudo</p>
+                {materia.notas_estudo ? (
+                  <p className="text-muted-foreground text-sm whitespace-pre-wrap">
+                    {materia.notas_estudo}
+                  </p>
+                ) : (
+                  <p className="text-muted-foreground text-sm">
+                    Nada anotado ainda — edite a matéria para adicionar.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="space-y-1.5">
+                <p className="text-sm font-medium">Particularidades</p>
+                {materia.notas_particularidades ? (
+                  <p className="text-muted-foreground text-sm whitespace-pre-wrap">
+                    {materia.notas_particularidades}
+                  </p>
+                ) : (
+                  <p className="text-muted-foreground text-sm">
+                    Nada anotado ainda — edite a matéria para adicionar.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
