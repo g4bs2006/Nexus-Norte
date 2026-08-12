@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { CORES_DISPONIVEIS } from '@/lib/cores'
 
 /**
  * Schemas dos formulários de Estudos.
@@ -48,6 +49,20 @@ export const schemaMateria = z
     /** Vazio = sem limite naquele lado do período de aulas. */
     data_inicio: z.string(),
     data_fim: z.string(),
+    local: z.string(),
+    notas_estudo: z.string(),
+    notas_particularidades: z.string(),
+    // Restrita à paleta do design system, igual a categorias.cor — o campo é
+    // um seletor de swatches, não entrada livre. `''` = sem cor (cai na cor
+    // do pilar Estudos).
+    cor: z
+      .string()
+      .refine(
+        (valor) =>
+          valor === '' ||
+          CORES_DISPONIVEIS.some((opcao) => opcao.valor === valor),
+        { message: 'Selecione uma cor da paleta' },
+      ),
   })
   .refine(
     (v) =>

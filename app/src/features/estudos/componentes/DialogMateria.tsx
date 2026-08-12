@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Pencil, Plus } from 'lucide-react'
+import { SeletorCor } from '@/components/SeletorCor'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -22,6 +23,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { useCriarMateria, useAtualizarMateria } from '../hooks'
 import {
   numeroOuNulo,
@@ -39,6 +41,10 @@ const VAZIO: FormularioMateria = {
   semestre: '',
   data_inicio: '',
   data_fim: '',
+  local: '',
+  notas_estudo: '',
+  notas_particularidades: '',
+  cor: '',
 }
 
 interface DialogMateriaProps {
@@ -67,6 +73,10 @@ export function DialogMateria({ materia }: DialogMateriaProps = {}) {
         semestre: materia.semestre ?? '',
         data_inicio: materia.data_inicio ?? '',
         data_fim: materia.data_fim ?? '',
+        local: materia.local ?? '',
+        notas_estudo: materia.notas_estudo ?? '',
+        notas_particularidades: materia.notas_particularidades ?? '',
+        cor: materia.cor ?? '',
       })
     } else if (aberto && !materia) {
       form.reset(VAZIO)
@@ -84,6 +94,10 @@ export function DialogMateria({ materia }: DialogMateriaProps = {}) {
       semestre: textoOuNulo(valores.semestre),
       data_inicio: valores.data_inicio === '' ? null : valores.data_inicio,
       data_fim: valores.data_fim === '' ? null : valores.data_fim,
+      local: textoOuNulo(valores.local),
+      notas_estudo: textoOuNulo(valores.notas_estudo),
+      notas_particularidades: textoOuNulo(valores.notas_particularidades),
+      cor: textoOuNulo(valores.cor),
     }
 
     if (modoEdicao && materia) {
@@ -140,15 +154,43 @@ export function DialogMateria({ materia }: DialogMateriaProps = {}) {
               )}
             />
 
+            <div className="grid grid-cols-2 gap-3">
+              <FormField
+                control={form.control}
+                name="professor"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Professor</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Opcional" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="local"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Local</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Ex: Bloco B, sala 204" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <FormField
               control={form.control}
-              name="professor"
+              name="cor"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Professor</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Opcional" {...field} />
-                  </FormControl>
+                  <FormLabel>Cor</FormLabel>
+                  <SeletorCor valor={field.value} onChange={field.onChange} />
                   <FormMessage />
                 </FormItem>
               )}
@@ -249,6 +291,45 @@ export function DialogMateria({ materia }: DialogMateriaProps = {}) {
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="notas_estudo"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notas de estudo</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      rows={3}
+                      placeholder="Resumos, o que revisar…"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="notas_particularidades"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Particularidades</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      rows={3}
+                      placeholder="Email do professor, política de faltas…"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription className="text-[11px]">
+                    Informação estável, de referência.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <DialogFooter>
               <Button type="submit" disabled={pendente}>

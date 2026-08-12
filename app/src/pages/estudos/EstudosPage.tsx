@@ -183,8 +183,9 @@ export default function EstudosPage() {
         horario_inicio: item.horario_inicio,
         horario_fim: item.horario_fim,
         rotulo: nomePorMateria.get(item.materia_id) ?? 'Matéria',
+        cor: materiaPorId.get(item.materia_id)?.cor ?? undefined,
       })),
-    [listaFluxograma, nomePorMateria],
+    [listaFluxograma, nomePorMateria, materiaPorId],
   )
 
   if (materias.isPending) {
@@ -265,6 +266,8 @@ export default function EstudosPage() {
                   id={card.materia.id}
                   nome={card.materia.nome}
                   professor={card.materia.professor}
+                  local={card.materia.local}
+                  cor={card.materia.cor}
                   media={card.media}
                   faltasRestantes={card.faltasRestantes}
                   limiteFaltas={card.materia.limite_faltas}

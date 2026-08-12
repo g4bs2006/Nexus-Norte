@@ -771,37 +771,49 @@ export type Database = {
       materias: {
         Row: {
           carga_horaria_total: number | null
+          cor: string | null
           created_at: string
           data_fim: string | null
           data_inicio: string | null
           id: string
           limite_faltas: number
+          local: string | null
           media_atual: number | null
           nome: string
+          notas_estudo: string | null
+          notas_particularidades: string | null
           professor: string | null
           semestre: string | null
         }
         Insert: {
           carga_horaria_total?: number | null
+          cor?: string | null
           created_at?: string
           data_fim?: string | null
           data_inicio?: string | null
           id?: string
           limite_faltas?: number
+          local?: string | null
           media_atual?: number | null
           nome: string
+          notas_estudo?: string | null
+          notas_particularidades?: string | null
           professor?: string | null
           semestre?: string | null
         }
         Update: {
           carga_horaria_total?: number | null
+          cor?: string | null
           created_at?: string
           data_fim?: string | null
           data_inicio?: string | null
           id?: string
           limite_faltas?: number
+          local?: string | null
           media_atual?: number | null
           nome?: string
+          notas_estudo?: string | null
+          notas_particularidades?: string | null
           professor?: string | null
           semestre?: string | null
         }

@@ -27,6 +27,9 @@ interface CardMateriaProps {
   id: string
   nome: string
   professor: string | null
+  local: string | null
+  /** Hex da paleta fixa (lib/cores.ts), ou nulo para cair na cor do pilar. */
+  cor: string | null
   media: number | null
   faltasRestantes: number
   limiteFaltas: number
@@ -39,6 +42,8 @@ export function CardMateria({
   id,
   nome,
   professor,
+  local,
+  cor,
   media,
   faltasRestantes,
   limiteFaltas,
@@ -47,6 +52,7 @@ export function CardMateria({
 }: CardMateriaProps) {
   // Faltas próximas do limite ganham cor de alerta (plano 3.3)
   const faltasCriticas = limiteFaltas > 0 && faltasRestantes <= 2
+  const professorELocal = [professor, local].filter(Boolean).join(' · ')
 
   return (
     <Card className="hover:border-foreground/20 transition-colors">
@@ -55,13 +61,18 @@ export function CardMateria({
           <div className="min-w-0">
             <Link
               to={`/estudos/${id}`}
-              className="block truncate text-sm font-medium hover:underline"
+              className="flex items-center gap-1.5 truncate text-sm font-medium hover:underline"
             >
-              {nome}
+              <span
+                aria-hidden
+                className={cn('size-2 shrink-0 rounded-full', !cor && 'bg-estudos')}
+                style={cor ? { backgroundColor: cor } : undefined}
+              />
+              <span className="truncate">{nome}</span>
             </Link>
-            {professor && (
+            {professorELocal && (
               <p className="text-muted-foreground truncate text-xs">
-                {professor}
+                {professorELocal}
               </p>
             )}
           </div>
