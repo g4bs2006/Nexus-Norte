@@ -10,17 +10,11 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { deISO, formatarMoeda } from '@/lib/datas'
+import { ORDEM_DIAS_SEMANA as ORDEM_DIAS } from '@/lib/fluxograma'
 import { formatarDecimal, parseDecimal } from '@/lib/numeros'
 import { cn } from '@/lib/utils'
 import type { EntradaPlanejamento } from '../api'
 import type { Categoria, PlanejamentoSemanal } from '../types'
-
-/**
- * Dias na ordem da grade. `semana_inicio` é sempre a segunda-feira, então a
- * grade começa na segunda e o domingo fecha a semana — apesar de
- * `dia_semana` seguir a convenção de `Date.getDay()` (0 = domingo).
- */
-const ORDEM_DIAS = [1, 2, 3, 4, 5, 6, 0] as const
 
 function chave(categoriaId: string, dia: number): string {
   return `${categoriaId}:${dia}`

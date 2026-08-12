@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { AlertTriangle } from 'lucide-react'
 import { deISO, inicioSemana, paraISO } from '@/lib/datas'
 import { DIAS_SEMANA } from '@/lib/constants'
+import { ORDEM_DIAS_SEMANA as ORDEM_DIAS } from '@/lib/fluxograma'
 import { cn } from '@/lib/utils'
 import { expandirRecorrencia } from '@/lib/recorrencia'
 import {
@@ -36,8 +37,6 @@ import {
   useSalvarPlanejamento,
 } from '@/features/financeiro/hooks'
 import { GradePlanejamentoSemanal } from '@/features/financeiro/componentes/GradePlanejamentoSemanal'
-
-const ORDEM_DIAS = [1, 2, 3, 4, 5, 6, 0] as const
 
 const PASSOS = ['Sono', 'Rotina', 'Estudo e treino', 'Financeiro'] as const
 

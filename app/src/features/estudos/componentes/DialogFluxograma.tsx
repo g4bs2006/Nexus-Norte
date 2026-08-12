@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { DIAS_SEMANA } from '@/lib/constants'
+import { ORDEM_DIAS_SEMANA as ORDEM_DIAS } from '@/lib/fluxograma'
 import {
   useCriarFluxograma,
   useAtualizarFluxograma,
@@ -36,9 +37,6 @@ import {
 } from '../hooks'
 import { schemaFluxograma, type FormularioFluxograma } from '../schemas'
 import type { FluxogramaAula, Materia } from '../types'
-
-/** Segunda a domingo na exibição, mantendo 0 = domingo no valor. */
-const ORDEM_DIAS = [1, 2, 3, 4, 5, 6, 0] as const
 
 interface DialogFluxogramaProps {
   materias: readonly Materia[]

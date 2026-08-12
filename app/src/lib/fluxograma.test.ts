@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { agruparPorDiaSemana, horaCurta, minutosDe } from './fluxograma'
+import { ORDEM_DIAS_SEMANA, agruparPorDiaSemana, horaCurta, minutosDe } from './fluxograma'
+
+describe('ORDEM_DIAS_SEMANA', () => {
+  it('começa no domingo e termina no sábado', () => {
+    expect(ORDEM_DIAS_SEMANA).toEqual([0, 1, 2, 3, 4, 5, 6])
+  })
+
+  // Garante o que as grades assumem: a coluna de índice N é o dia_semana N.
+  // Sem isso, derivar a data de uma coluna como `inicio + indice` erra.
+  it('o índice de cada dia é o próprio dia_semana', () => {
+    ORDEM_DIAS_SEMANA.forEach((dia, indice) => {
+      expect(dia).toBe(indice)
+    })
+  })
+})
 
 describe('horaCurta', () => {
   it('trunca HH:MM:SS para HH:MM', () => {

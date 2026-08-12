@@ -20,10 +20,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { DIAS_SEMANA } from '@/lib/constants'
+import { ORDEM_DIAS_SEMANA as ORDEM_DIAS } from '@/lib/fluxograma'
 import { useCriarFluxogramaTreino } from '../hooks'
 import type { Treino } from '../types'
-
-const ORDEM_DIAS = [1, 2, 3, 4, 5, 6, 0] as const
 
 interface DialogFluxogramaTreinoProps {
   treinos: readonly Treino[]

@@ -7,8 +7,17 @@
  * a mesma regra em dois arquivos que ninguém lembraria de mudar juntos.
  */
 
-/** Ordem de exibição: segunda a domingo, apesar de `dia_semana` usar 0 = domingo. */
-export const ORDEM_DIAS_SEMANA = [1, 2, 3, 4, 5, 6, 0] as const
+/**
+ * Ordem de exibição das grades semanais: domingo a sábado, igual ao valor de
+ * `dia_semana` — o índice na lista é o próprio dia.
+ *
+ * Nasceu como `[1,2,3,4,5,6,0]` no spec dos blocos fixos, com o argumento de
+ * que o fluxograma é configuração de rotina e não visualização de calendário.
+ * O spec 2 revogou isso: as duas ordens se encontram dentro de
+ * `GradePlanejamentoSemanal`, que é grade de rotina e de calendário ao mesmo
+ * tempo. Duas ordens convivendo custam mais do que o argumento vale.
+ */
+export const ORDEM_DIAS_SEMANA = [0, 1, 2, 3, 4, 5, 6] as const
 
 /** `08:00:00` → `08:00` */
 export function horaCurta(valor: string): string {

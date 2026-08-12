@@ -23,6 +23,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DIAS_SEMANA } from '@/lib/constants'
 import { paraISO } from '@/lib/datas'
+import { ORDEM_DIAS_SEMANA as ORDEM_DIAS } from '@/lib/fluxograma'
 import { formatarHoras, horasEntre } from '../calculos'
 import {
   useExcluirRegistroSono,
@@ -30,8 +31,6 @@ import {
   useSalvarPlanejamentoSono,
   useSalvarRegistroSono,
 } from '../hooks'
-
-const ORDEM_DIAS = [1, 2, 3, 4, 5, 6, 0] as const
 
 interface DialogSonoProps {
   hoje: Date
