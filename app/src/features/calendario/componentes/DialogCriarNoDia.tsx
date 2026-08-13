@@ -99,6 +99,13 @@ export function DialogCriarNoDia({ data, trigger }: DialogCriarNoDiaProps) {
 
   const [materiaId, setMateriaId] = useState('')
   const [duracaoMinutos, setDuracaoMinutos] = useState(30)
+  /*
+   * Hora da sessão de estudo, separada de `horarioInicio` de propósito: aquele
+   * nasce '09:00' porque trabalho e evento com horário precisam de um chute
+   * razoável. Sessão não — vazio grava nulo e vira dia inteiro, que é melhor que
+   * uma hora inventada (mesma regra da 10.24 e do campo em `AbaSessoes`).
+   */
+  const [horaEstudo, setHoraEstudo] = useState('')
   const [rotulo, setRotulo] = useState('')
   const [horarioInicio, setHorarioInicio] = useState('09:00')
   const [horarioFim, setHorarioFim] = useState('10:00')
@@ -146,6 +153,7 @@ export function DialogCriarNoDia({ data, trigger }: DialogCriarNoDiaProps) {
       await criarSessao.mutateAsync({
         materia_id: materiaId,
         data: dataEditavel,
+        hora_inicio: horaEstudo === '' ? null : `${horaEstudo}:00`,
         duracao_minutos: duracaoMinutos,
       })
     } else if (tipo === 'trabalho') {
@@ -247,15 +255,29 @@ export function DialogCriarNoDia({ data, trigger }: DialogCriarNoDiaProps) {
                   <SelectContent>{opcoesMateria(materias.data ?? [])}</SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5">
-                <Label>Duração (min)</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  value={duracaoMinutos}
-                  onChange={(e) => setDuracaoMinutos(Number(e.target.value) || 1)}
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Início (opcional)</Label>
+                  <Input
+                    type="time"
+                    value={horaEstudo}
+                    onChange={(e) => setHoraEstudo(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Duração (min)</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={duracaoMinutos}
+                    onChange={(e) => setDuracaoMinutos(Number(e.target.value) || 1)}
+                  />
+                </div>
               </div>
+              <p className="text-muted-foreground text-xs">
+                Sem hora, a sessão aparece no topo do dia. Com hora, ocupa o
+                horário na agenda — o fim sai da duração.
+              </p>
             </>
           )}
 
