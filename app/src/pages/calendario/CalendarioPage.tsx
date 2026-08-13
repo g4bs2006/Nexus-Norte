@@ -41,6 +41,7 @@ import {
 import { cargaPorDia, type DiaCarga } from '@/features/calendario/carga'
 import type { EventoLivre } from '@/features/eventos/api'
 import { useFontesCalendario } from '@/features/calendario/hooks'
+import { useMoverEvento } from '@/features/calendario/hooks/useMoverEvento'
 import {
   detectarConflitos,
   detectarFalhas,
@@ -50,6 +51,10 @@ import {
 import { Agenda } from '@/features/calendario/componentes/Agenda'
 import { FaixaCarga } from '@/features/calendario/componentes/FaixaCarga'
 import { CardPressaoPrazos } from '@/features/calendario/componentes/CardPressaoPrazos'
+import {
+  DialogConfirmarMoverProva,
+  type PedidoMoverProva,
+} from '@/features/calendario/componentes/DialogConfirmarMoverProva'
 
 /**
  * A grade de mês só é baixada por quem abre a vista de mês. É o maior pedaço do
@@ -100,6 +105,10 @@ export default function CalendarioPage() {
    * mesmo dado.
    */
   const [diaDetalhado, setDiaDetalhado] = useState<string | null>(null)
+
+  const { mover, pendente: movendoEvento } = useMoverEvento()
+  const [pedidoConfirmacaoMovimento, setPedidoConfirmacaoMovimento] =
+    useState<PedidoMoverProva | null>(null)
 
   /**
    * Intervalo do mês, controlado pelo próprio FullCalendar via `datesSet`. Fica
@@ -521,10 +530,25 @@ export default function CalendarioPage() {
                 }
               }}
               onClicarDia={setDiaDetalhado}
+              onMoverEvento={mover}
+              onPedirConfirmacaoMovimento={(evento, novaData) =>
+                setPedidoConfirmacaoMovimento({ evento, novaData })
+              }
             />
           </Suspense>
         </div>
       )}
+
+      <DialogConfirmarMoverProva
+        pedido={pedidoConfirmacaoMovimento}
+        pendente={movendoEvento}
+        onFechar={() => setPedidoConfirmacaoMovimento(null)}
+        onConfirmar={({ evento, novaData }) => {
+          void mover(evento, novaData, null, null).then(() =>
+            setPedidoConfirmacaoMovimento(null),
+          )
+        }}
+      />
 
       <div className="surgir-grupo mt-4 space-y-4">
         <CardPressaoPrazos hoje={hojeISO} />

@@ -3,14 +3,23 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import ptBrLocale from '@fullcalendar/core/locales/pt-br'
-import type { DateClickArg } from '@fullcalendar/interaction'
-import type { DatesSetArg, EventClickArg } from '@fullcalendar/core'
+import type { DateClickArg, EventResizeDoneArg } from '@fullcalendar/interaction'
+import type {
+  DatesSetArg,
+  EventClickArg,
+  EventDropArg,
+} from '@fullcalendar/core'
 import { useMemo } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { formatarDuracao, paraISO } from '@/lib/datas'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { type DiaCarga } from '../carga'
-import { corDoEvento, ehBlocoCheio, type EventoCalendario } from '../eventos'
+import {
+  corDoEvento,
+  ehBlocoCheio,
+  precisaConfirmarMovimento,
+  type EventoCalendario,
+} from '../eventos'
 
 interface GradeMesProps {
   eventos: readonly EventoCalendario[]
@@ -20,6 +29,27 @@ interface GradeMesProps {
   onClicarEvento: (id: string) => void
   /** Clique no número do dia (não num evento) — abre o detalhe daquele dia. */
   onClicarDia: (data: string) => void
+  /**
+   * Arrastar ou redimensionar um evento (resolução "arrastar eventos",
+   * ago/2026). Ausente = grade só de leitura, sem `editable` em nenhum
+   * evento.
+   */
+  onMoverEvento?: (
+    evento: EventoCalendario,
+    novaData: string,
+    novoInicio: string | null,
+    novoFim: string | null,
+  ) => Promise<void>
+  /**
+   * Chamado no lugar de `onMoverEvento` quando o tipo exige confirmação
+   * (prova — `precisaConfirmarMovimento`). O arrasto já foi revertido
+   * visualmente quando isto dispara.
+   */
+  onPedirConfirmacaoMovimento?: (
+    evento: EventoCalendario,
+    novaData: string,
+    novoInicio: string | null,
+  ) => void
   /**
    * Vista inicial do FullCalendar (resolução "criar eventos", ago/2026).
    *
@@ -44,6 +74,11 @@ interface GradeMesProps {
  */
 const VISTA_HORAS_MOBILE = 'timeGridTresDias'
 
+/** `Date` → `HH:mm:ss`, o formato que as mutations de mover esperam. */
+function formatarHoraISO(data: Date): string {
+  return data.toTimeString().slice(0, 8)
+}
+
 /**
  * A grade de mês, agora secundária.
  *
@@ -63,6 +98,8 @@ export function GradeMes({
   onMudarDatas,
   onClicarEvento,
   onClicarDia,
+  onMoverEvento,
+  onPedirConfirmacaoMovimento,
   initialView = 'dayGridMonth',
 }: GradeMesProps) {
   const telaEstreita = useMediaQuery('(width < 40rem)')
@@ -131,6 +168,13 @@ export function GradeMes({
            */
           ...(evento.tipo === 'estudo' ? ['evento-sessao'] : []),
         ],
+        editable: Boolean(onMoverEvento) && evento.movimento !== undefined,
+        // Redimensionar só faz sentido pra quem tem hora — prova e marco são
+        // datas soltas, sem `fim` que dependa do horário.
+        durationEditable:
+          Boolean(onMoverEvento) &&
+          evento.movimento !== undefined &&
+          !evento.diaInteiro,
       }
     })
 
@@ -149,6 +193,66 @@ export function GradeMes({
 
   function aoClicarDia(arg: DateClickArg) {
     onClicarDia(paraISO(arg.date))
+  }
+
+  async function aoSoltarEvento(arg: EventDropArg) {
+    const evento = eventos.find((e) => e.id === arg.event.id)
+    if (!evento) {
+      arg.revert()
+      return
+    }
+    const novaData = paraISO(arg.event.start as Date)
+    const novoInicio = evento.diaInteiro
+      ? null
+      : formatarHoraISO(arg.event.start as Date)
+
+    if (precisaConfirmarMovimento(evento)) {
+      // Prova recalcula pressão de prazo e risco em outras telas — não é
+      // operação para acontecer por esbarrão no touch. Reverte o movimento
+      // visual e devolve a decisão pra quem monta a página.
+      arg.revert()
+      onPedirConfirmacaoMovimento?.(evento, novaData, novoInicio)
+      return
+    }
+
+    if (!onMoverEvento) {
+      arg.revert()
+      return
+    }
+
+    try {
+      await onMoverEvento(
+        evento,
+        novaData,
+        novoInicio,
+        evento.diaInteiro || !arg.event.end
+          ? null
+          : formatarHoraISO(arg.event.end),
+      )
+    } catch {
+      // A mutation já mostra o toast de erro (hooks de cada feature dona);
+      // aqui só desfazemos o movimento visual, senão o bloco fica no lugar
+      // novo na tela com o banco no lugar antigo até o próximo refresh.
+      arg.revert()
+    }
+  }
+
+  async function aoRedimensionarEvento(arg: EventResizeDoneArg) {
+    const evento = eventos.find((e) => e.id === arg.event.id)
+    if (!evento || !onMoverEvento || !arg.event.end) {
+      arg.revert()
+      return
+    }
+    try {
+      await onMoverEvento(
+        evento,
+        paraISO(arg.event.start as Date),
+        formatarHoraISO(arg.event.start as Date),
+        formatarHoraISO(arg.event.end),
+      )
+    } catch {
+      arg.revert()
+    }
   }
 
   return (
@@ -172,6 +276,15 @@ export function GradeMes({
           datesSet={aoMudarDatas}
           eventClick={aoClicarEvento}
           dateClick={aoClicarDia}
+          eventDrop={aoSoltarEvento}
+          eventResize={aoRedimensionarEvento}
+          // Imã de 15 min: sem isto o arrasto grava `14:03:27` e a agenda
+          // fica ilegível.
+          snapDuration="00:15:00"
+          // Dois blocos no mesmo horário é conflito real — a grade não deve
+          // impedir o registro de uma sobreposição que existe de fato; quem
+          // avisa é a detecção de conflito, não o FullCalendar.
+          eventOverlap
           dayCellContent={(arg) => {
             const minutosLivres = livresPorData.get(paraISO(arg.date))
             return (
