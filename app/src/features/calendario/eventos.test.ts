@@ -16,6 +16,8 @@ import {
   eventosComPrazo,
   ehBlocoCheio,
   ehImportante,
+  idRealEntidade,
+  precisaConfirmarMovimento,
   type EventoCalendario,
   type FontesCalendario,
 } from './eventos'
@@ -1396,5 +1398,163 @@ describe('ehBlocoCheio', () => {
     // O que impede a sessao de ontem de aparecer como prazo a vencer no card
     // de pressao, e de ser excluida da barra de carga como se fosse deadline.
     expect(ehImportante(sessao)).toBe(false)
+  })
+})
+
+describe('movimento', () => {
+  it('conta e sono nunca recebem movimento', () => {
+    const [conta] = eventosContas(
+      [
+        {
+          id: 'c1',
+          descricao: 'Luz',
+          valor: 100,
+          data: '2026-08-05',
+          data_vencimento: null,
+          categoria_id: 'cat-1',
+          categoria_tipo: 'fixo',
+          categoria_natureza: 'despesa',
+        },
+      ],
+      SEMANA,
+    )
+    expect(conta?.movimento).toBeUndefined()
+
+    const [sono] = eventosSono(
+      [
+        {
+          id: 's1',
+          dia_semana: 3,
+          hora_dormir_alvo: '23:00:00',
+          hora_acordar_alvo: '07:00:00',
+        },
+      ],
+      SEMANA,
+    )
+    expect(sono?.movimento).toBeUndefined()
+  })
+
+  it('ocorrência de fluxograma recebe movimento "ocorrencia"', () => {
+    const [aula] = eventosFluxograma(
+      [
+        {
+          id: 'f1',
+          dia_semana: 3,
+          horario_inicio: '08:00:00',
+          horario_fim: '09:00:00',
+          materia_id: 'm1',
+          treino_id: null,
+          rotulo: null,
+        },
+      ],
+      [],
+      SEMANA,
+      MATERIAS,
+      TREINOS,
+    )
+    expect(aula?.movimento).toBe('ocorrencia')
+  })
+
+  it('sessão, evento avulso, marco e prova recebem movimento "entidade"', () => {
+    const [sessao] = eventosSessoesEstudo(
+      [
+        {
+          id: 'sessao-1',
+          materia_id: 'm1',
+          data: '2026-08-05',
+          hora_inicio: null,
+          duracao_minutos: 30,
+        },
+      ],
+      SEMANA,
+      MATERIAS,
+    )
+    expect(sessao?.movimento).toBe('entidade')
+
+    const [evento] = eventosLivres(
+      [
+        {
+          id: 'evento-1',
+          titulo: 'Dentista',
+          descricao: null,
+          data: '2026-08-05',
+          hora_inicio: null,
+          hora_fim: null,
+        },
+      ],
+      SEMANA,
+    )
+    expect(evento?.movimento).toBe('entidade')
+
+    const [marco] = eventosMarcos(
+      [
+        {
+          id: 'marco-1',
+          nome: 'Entrega',
+          data_prevista: '2026-08-05',
+          projeto_id: 'projeto-1',
+          projeto_nome: 'TCC',
+        },
+      ],
+      SEMANA,
+    )
+    expect(marco?.movimento).toBe('entidade')
+
+    const [prova] = eventosAvaliacoes(
+      [{ id: 'prova-1', nome: 'P1', data: '2026-08-05', nota: null, materia_id: 'm1' }],
+      SEMANA,
+      MATERIAS,
+    )
+    expect(prova?.movimento).toBe('entidade')
+  })
+
+  it('rastro de remarcação na origem não é arrastável', () => {
+    const [origem] = eventosRemarcadosNaOrigem(
+      [
+        {
+          id: 'f1',
+          dia_semana: 3,
+          horario_inicio: '08:00:00',
+          horario_fim: '09:00:00',
+          materia_id: 'm1',
+          treino_id: null,
+          rotulo: null,
+        },
+      ],
+      [
+        {
+          fluxograma_id: 'f1',
+          data: '2026-08-05',
+          status: 'remarcado',
+          nova_data: '2026-08-07',
+        },
+      ],
+      SEMANA,
+      MATERIAS,
+      TREINOS,
+    )
+    expect(origem?.movimento).toBeUndefined()
+  })
+})
+
+describe('idRealEntidade', () => {
+  it('extrai o uuid depois do primeiro dois-pontos', () => {
+    expect(idRealEntidade({ id: 'marco:abc-123' } as EventoCalendario)).toBe(
+      'abc-123',
+    )
+    expect(
+      idRealEntidade({ id: 'sessao-estudo:sessao-9' } as EventoCalendario),
+    ).toBe('sessao-9')
+  })
+})
+
+describe('precisaConfirmarMovimento', () => {
+  it('só prova pede confirmação', () => {
+    expect(
+      precisaConfirmarMovimento({ tipo: 'prova' } as EventoCalendario),
+    ).toBe(true)
+    expect(
+      precisaConfirmarMovimento({ tipo: 'estudo' } as EventoCalendario),
+    ).toBe(false)
   })
 })

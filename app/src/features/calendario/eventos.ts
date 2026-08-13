@@ -134,6 +134,21 @@ export interface EventoCalendario {
    * casa com `conclusoes_fluxograma`) — o mesmo bug que a 10.31 corrigiu.
    */
   rotina?: boolean
+  /**
+   * Se a ocorrência pode ser movida arrastando na grade, e por qual caminho
+   * (spec 2026-08-13, seção 1).
+   *
+   * `'ocorrencia'` — grava uma exceção sem tocar a regra recorrente
+   * (fluxograma: aula, treino previsto, trabalho). `'entidade'` — grava
+   * direto na linha dona (sessão, evento avulso, marco, prova).
+   *
+   * Ausente = não arrastável: conta (mudaria todos os meses), sono (mudaria
+   * o dia da semana inteiro), o rastro de remarcação na origem (o que se
+   * move é a ocorrência no destino, não a marca de que saiu de algum lugar) e
+   * treino já realizado (fato registrado, sem tela de edição de data — mover
+   * na grade reescreveria histórico sem passar por nenhum formulário).
+   */
+  movimento?: 'ocorrencia' | 'entidade'
 }
 
 export interface Intervalo {
@@ -168,6 +183,31 @@ export function ehImportante(evento: EventoCalendario): boolean {
  */
 export function ehBlocoCheio(evento: EventoCalendario): boolean {
   return ehImportante(evento) || evento.estado === 'feito'
+}
+
+/**
+ * Extrai o id real da entidade dona a partir do id composto do evento
+ * (`prefixo:uuid`), para as mutations de mover — spec, seção 1.
+ *
+ * Só serve para `movimento === 'entidade'`: fluxograma usa `origemId` (o id
+ * da regra) direto, porque o id composto ali tem um segmento extra (a data
+ * da ocorrência) que este corte ingênuo não deveria remover.
+ */
+export function idRealEntidade(evento: Pick<EventoCalendario, 'id'>): string {
+  return evento.id.slice(evento.id.indexOf(':') + 1)
+}
+
+/**
+ * Se mover este evento precisa de confirmação antes de gravar.
+ *
+ * Só prova: mudar a data de uma avaliação recalcula pressão de prazo e risco
+ * em outras telas — não é operação para acontecer por esbarrão no touch
+ * (spec, seção 1).
+ */
+export function precisaConfirmarMovimento(
+  evento: Pick<EventoCalendario, 'tipo'>,
+): boolean {
+  return evento.tipo === 'prova'
 }
 
 /** `08:00:00` → `08:00` */
@@ -332,6 +372,7 @@ export function eventosAvaliacoes(
         camada: 'estudos' as const,
         tipo: 'prova' as const,
         rota: `/estudos/${avaliacao.materia_id}`,
+        movimento: 'entidade' as const,
         ...(cor ? { cor } : {}),
       },
     ]
@@ -430,6 +471,7 @@ export function eventosFluxograma(
         tipo,
         rota,
         rotina: true,
+        movimento: 'ocorrencia' as const,
         // Mesma chave que a barra de carga já usava para o anel de "sem check",
         // agora lida também aqui — uma origem só para "isto aconteceu".
         ...(feitosFluxograma.has(`${regra.id}@${data}`)
@@ -585,6 +627,7 @@ export function eventosSessoesEstudo(
         // hora o `fim` foi derivado justamente deste numero
         minutos: sessao.duracao_minutos,
         rota: `/estudos/${sessao.materia_id}`,
+        movimento: 'entidade' as const,
         ...(cor ? { cor } : {}),
       },
     ]
@@ -821,6 +864,7 @@ export function eventosMarcos(
         camada: 'projetos' as const,
         tipo: 'marco' as const,
         rota: `/projetos/${marco.projeto_id}`,
+        movimento: 'entidade' as const,
       },
     ]
   })
@@ -854,6 +898,7 @@ export function eventosLivres(
         diaInteiro: !comHora,
         camada: 'evento' as const,
         tipo: 'evento' as const,
+        movimento: 'entidade' as const,
       },
     ]
   })
