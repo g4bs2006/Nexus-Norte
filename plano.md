@@ -2329,3 +2329,49 @@ Sem hora continua dia inteiro. Derivar hora de `created_at` mediria quando o
 A duração segue no título nos dois casos: no bloco com horário ela é redundante
 com a altura na grade de horas, mas a agenda e a vista de mês não têm escala, e
 ler "90 min" é mais rápido que comparar alturas.
+
+### 10.51 Barra de carga da semana ganha a cor da matéria (corrige 10.48.1 / 6.2) — descoberta em uso
+
+A faixa acima da agenda pintava cada segmento na cor do **pilar**: toda aula da
+semana era o mesmo azul de estudos. A barra respondia "quarta tem 4h de rotina"
+sem dizer **de quê** — e numa semana em que três matérias competem pelo mesmo
+tempo, é justamente essa a informação que decide o que cortar.
+
+O comentário anterior no código dava duas razões para não fazer isso, e as duas
+eram fracas quando examinadas:
+
+- *"os minutos vêm somados por camada"* — verdade, mas é uma escolha de
+  `cargaPorDia`, não uma restrição. Agrupar por camada **e cor** é a mesma soma
+  com uma chave a mais.
+- *"uma barra com uma fatia por matéria não caberia na largura de um dia"* —
+  errado sobre o eixo: a barra empilha na **vertical**, com 40px de altura. Três
+  matérias num dia são três fatias empilhadas, não três colunas.
+
+`SegmentoCarga` ganhou `cor` e `rotulo`, ambos opcionais. Ausentes = a fatia é a
+camada inteira, que segue sendo o caso de treino, trabalho e sono — nenhum tem
+cor por item. Só matéria tem (`materias.cor`, 12/08), e matéria que não escolheu
+cor cai na fatia da camada, exatamente como antes.
+
+A chave do agrupamento é a **cor**, não o nome nem o id: `EventoCalendario` não
+carrega o id da matéria (o `origemId` da aula é o id da regra do fluxograma), e a
+cor é o que a barra desenha. Consequência aceita: duas matérias que escolherem a
+mesma cor viram uma fatia só. É o mesmo limite que a paleta fixa já impõe em
+qualquer outra vista, e o rótulo cai na primeira delas.
+
+**Ordem estável em dois níveis:** camada por `ORDEM_CAMADAS`, e dentro da camada
+a fatia maior primeiro com o nome como desempate. Sem o desempate, duas matérias
+de duração igual podiam trocar de lugar entre renders — a barra mudaria de forma
+sem o dado ter mudado.
+
+**O rótulo acessível passou a listar a composição** ("Cálculo II 2h, Física IV
+1h"). A fatia por matéria é informação transmitida só por cor; sem o texto, quem
+usa leitor de tela ouviria "4h de rotina" e perderia de que ela é feita — a mesma
+regra que a 10.31 aplicou ao "cancelado" da agenda.
+
+O sufixo `(remarcado)` é removido do rótulo da fatia: ele descreve uma
+ocorrência, e a fatia soma a matéria inteira do dia.
+
+**Fora de escopo:** a legenda de camadas e o filtro por pilar continuam em
+`COR_CAMADA`. Ali a cor representa a categoria, não o item — o azul de "Aulas e
+provas" não deve virar o vermelho de uma matéria específica, mesmo raciocínio já
+registrado em `corDoEvento`.

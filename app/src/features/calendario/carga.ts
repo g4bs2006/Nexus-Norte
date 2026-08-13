@@ -40,6 +40,22 @@ const ORDEM_CAMADAS: readonly CamadaCalendario[] = [
 export interface SegmentoCarga {
   camada: CamadaCalendario
   minutos: number
+  /**
+   * Cor própria do item que gerou o segmento, quando ele tem uma.
+   *
+   * Hoje só matéria tem (`materias.cor`), então o efeito prático é uma fatia por
+   * matéria dentro da camada de estudos, em vez de um bloco azul só. Ausente =
+   * a fatia é a camada inteira e a cor sai de `COR_CAMADA` — é o que acontece
+   * com treino, trabalho e sono, que não têm cor por item.
+   */
+  cor?: string
+  /**
+   * Nome do que ocupa a fatia, para o rótulo acessível e o tooltip.
+   *
+   * Ausente quando a fatia é a camada inteira — ali o rótulo da camada
+   * (`ROTULO_CAMADA`) já responde, e repetir seria ruído.
+   */
+  rotulo?: string
 }
 
 export interface DiaCarga {
@@ -82,6 +98,18 @@ export interface DiaCarga {
 function duracaoMinutos(inicio: string, fim: string | undefined): number {
   if (!fim) return 0
   return Math.round(horasEntre(inicio.slice(11, 16), fim.slice(11, 16)) * 60)
+}
+
+/**
+ * `"Cálculo II (remarcado)"` → `"Cálculo II"`.
+ *
+ * O sufixo é acrescentado por `eventosFluxograma` na ocorrência remarcada, e
+ * serve na agenda, onde a linha fala do compromisso daquele dia. No rótulo da
+ * fatia ele atrapalharia: a fatia soma a matéria inteira do dia, e "remarcado"
+ * descreve uma ocorrência, não o total.
+ */
+function semMarcaDeRemarcacao(titulo: string): string {
+  return titulo.replace(/ \(remarcado\)$/, '')
 }
 
 /**
@@ -133,7 +161,19 @@ export function cargaPorDia(
     const data = paraISO(dia)
     const doDia = porData.get(data) ?? []
 
-    const minutosPorCamada = new Map<CamadaCalendario, number>()
+    /*
+     * Agrupado por camada **e cor**: duas matérias distintas no mesmo dia viram
+     * duas fatias de estudos, cada uma na sua cor. A chave é a cor e não o nome
+     * porque é a cor que a barra desenha — e `EventoCalendario` não carrega o id
+     * da matéria (o `origemId` da aula é o id da regra do fluxograma).
+     *
+     * Matéria sem cor escolhida cai na chave vazia e se junta ao resto da
+     * camada, que é o comportamento anterior a esta mudança.
+     */
+    const porCamadaECor = new Map<
+      string,
+      { camada: CamadaCalendario; cor?: string; rotulo?: string; minutos: number }
+    >()
     const prazos: EventoCalendario[] = []
     let temRotina = false
     let checkPendente = false
@@ -165,10 +205,19 @@ export function cargaPorDia(
 
       temRotina = true
       const minutos = duracaoMinutos(evento.inicio, evento.fim)
-      minutosPorCamada.set(
-        evento.camada,
-        (minutosPorCamada.get(evento.camada) ?? 0) + minutos,
-      )
+      const chave = `${evento.camada}|${evento.cor ?? ''}`
+      const grupo = porCamadaECor.get(chave)
+      if (grupo) {
+        grupo.minutos += minutos
+      } else {
+        porCamadaECor.set(chave, {
+          camada: evento.camada,
+          minutos,
+          ...(evento.cor
+            ? { cor: evento.cor, rotulo: semMarcaDeRemarcacao(evento.titulo) }
+            : {}),
+        })
+      }
 
       /*
        * Trabalho não tem entidade nem check (resolução 10.48.0): não entra
@@ -185,10 +234,21 @@ export function cargaPorDia(
       }
     }
 
-    const segmentos = ORDEM_CAMADAS.flatMap((camada) => {
-      const minutos = minutosPorCamada.get(camada) ?? 0
-      return minutos > 0 ? [{ camada, minutos }] : []
-    })
+    /*
+     * Ordem estável em dois níveis: camada por `ORDEM_CAMADAS`, e dentro da
+     * camada a fatia maior primeiro, com o nome como desempate. Sem o desempate,
+     * duas matérias com a mesma duração poderiam trocar de lugar entre renders —
+     * a barra mudaria de forma sem nada ter mudado no dado.
+     */
+    const segmentos = ORDEM_CAMADAS.flatMap((camada) =>
+      [...porCamadaECor.values()]
+        .filter((grupo) => grupo.camada === camada && grupo.minutos > 0)
+        .sort(
+          (a, b) =>
+            b.minutos - a.minutos ||
+            (a.rotulo ?? '').localeCompare(b.rotulo ?? ''),
+        ),
+    )
 
     const ehPassado = data < hojeISO
     const meta = metaPorDiaSemana.get(dia.getDay())

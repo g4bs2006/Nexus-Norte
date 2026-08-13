@@ -111,6 +111,119 @@ describe('cargaPorDia', () => {
     ])
   })
 
+  describe('fatia por matéria dentro da camada (13/08)', () => {
+    function aulaColorida(
+      materia: string,
+      cor: string,
+      data: string,
+      inicio: string,
+      fim: string,
+    ): EventoCalendario {
+      return {
+        ...aula(data, inicio, fim),
+        id: `fluxograma:${materia}:${data}`,
+        origemId: materia,
+        titulo: materia,
+        cor,
+      }
+    }
+
+    it('duas matérias com cor viram duas fatias de estudos', () => {
+      const dias = cargaPorDia(
+        [
+          aulaColorida('Cálculo II', '#4a87c4', '2026-08-03', '08:00', '10:00'),
+          aulaColorida('Física IV', '#c4554d', '2026-08-03', '14:00', '15:00'),
+        ],
+        SEMANA,
+        QUARTA,
+      )
+
+      expect(dias[0]?.segmentos).toEqual([
+        { camada: 'estudos', minutos: 120, cor: '#4a87c4', rotulo: 'Cálculo II' },
+        { camada: 'estudos', minutos: 60, cor: '#c4554d', rotulo: 'Física IV' },
+      ])
+      // O total não muda: a fatia é um corte da mesma soma
+      expect(dias[0]?.minutosRotina).toBe(180)
+    })
+
+    it('duas aulas da MESMA matéria somam numa fatia só', () => {
+      const dias = cargaPorDia(
+        [
+          aulaColorida('Cálculo II', '#4a87c4', '2026-08-03', '08:00', '10:00'),
+          aulaColorida('Cálculo II', '#4a87c4', '2026-08-03', '16:00', '17:00'),
+        ],
+        SEMANA,
+        QUARTA,
+      )
+
+      expect(dias[0]?.segmentos).toHaveLength(1)
+      expect(dias[0]?.segmentos[0]?.minutos).toBe(180)
+    })
+
+    it('matéria sem cor continua caindo na fatia da camada', () => {
+      const dias = cargaPorDia(
+        [
+          aula('2026-08-03', '08:00', '10:00'),
+          aulaColorida('Física IV', '#c4554d', '2026-08-03', '14:00', '15:00'),
+        ],
+        SEMANA,
+        QUARTA,
+      )
+
+      const semCor = dias[0]?.segmentos.find((s) => s.cor === undefined)
+      expect(semCor).toEqual({ camada: 'estudos', minutos: 120 })
+      expect(semCor?.rotulo).toBeUndefined()
+    })
+
+    it('fatia maior primeiro, e a ordem das camadas se mantém', () => {
+      const dias = cargaPorDia(
+        [
+          treino('2026-08-03', '18:00', '19:30'),
+          aulaColorida('Física IV', '#c4554d', '2026-08-03', '14:00', '15:00'),
+          aulaColorida('Cálculo II', '#4a87c4', '2026-08-03', '08:00', '11:00'),
+        ],
+        SEMANA,
+        QUARTA,
+      )
+
+      expect(
+        dias[0]?.segmentos.map((s) => [s.camada, s.minutos]),
+      ).toEqual([
+        ['estudos', 180],
+        ['estudos', 60],
+        ['treino', 90],
+      ])
+    })
+
+    it('remarcada soma na matéria, sem duplicar o rótulo', () => {
+      const base = aulaColorida(
+        'Cálculo II',
+        '#4a87c4',
+        '2026-08-03',
+        '08:00',
+        '09:00',
+      )
+      const dias = cargaPorDia(
+        [
+          base,
+          {
+            ...base,
+            id: 'fluxograma:calculo:2026-08-03:remarcada',
+            titulo: 'Cálculo II (remarcado)',
+            inicio: '2026-08-03T15:00:00',
+            fim: '2026-08-03T16:00:00',
+          },
+        ],
+        SEMANA,
+        QUARTA,
+      )
+
+      expect(dias[0]?.segmentos).toEqual([
+        { camada: 'estudos', minutos: 120, cor: '#4a87c4', rotulo: 'Cálculo II' },
+      ])
+    })
+  })
+
   it('separa prazo de rotina — prazo não entra na barra', () => {
     const dias = cargaPorDia(
       [aula('2026-08-06', '08:00', '10:00'), prova('2026-08-06')],

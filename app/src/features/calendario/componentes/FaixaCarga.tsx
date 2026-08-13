@@ -2,7 +2,12 @@ import { format } from 'date-fns'
 import { deISO } from '@/lib/datas'
 import { cn } from '@/lib/utils'
 import { escalaCarga, formatarCarga, type DiaCarga } from '../carga'
-import { COR_CAMADA, corDoEvento, ROTULO_TIPO } from '../eventos'
+import {
+  COR_CAMADA,
+  corDoEvento,
+  ROTULO_CAMADA,
+  ROTULO_TIPO,
+} from '../eventos'
 
 /** Altura da área da barra, em px. Fora do Tailwind porque entra em cálculo. */
 const ALTURA_BARRA = 40
@@ -84,19 +89,25 @@ export function FaixaCarga({
                 style={{ height: ALTURA_BARRA }}
               >
                 {/*
-                  Segmento fica na cor da CAMADA, não da matéria: aqui a barra
-                  responde "quanto tempo em quê", e os minutos vêm somados por
-                  camada (carga.ts). Pintar de matéria exigiria agregar por
-                  matéria — outra pergunta, e uma barra com uma fatia por
-                  matéria não caberia na largura de um dia.
+                  Uma fatia por matéria dentro da camada de estudos, na cor da
+                  própria matéria (13/08). Antes a camada inteira era um bloco
+                  azul, e a barra dizia "4h de estudo" sem dizer de quê — numa
+                  semana em que três matérias competem, é a informação que falta
+                  para decidir o que cortar.
+
+                  `carga.ts` agrupa por camada **e cor**; quem não tem cor por
+                  item (treino, trabalho, sono) continua vindo como uma fatia só,
+                  na cor da camada. A `key` inclui a cor porque uma camada agora
+                  pode render várias fatias.
                 */}
                 {dia.segmentos.map((segmento) => (
                   <span
-                    key={segmento.camada}
+                    key={`${segmento.camada}|${segmento.cor ?? ''}`}
                     className="w-full"
                     style={{
                       height: `${(segmento.minutos / escala) * ALTURA_BARRA}px`,
-                      backgroundColor: COR_CAMADA[segmento.camada],
+                      backgroundColor:
+                        segmento.cor ?? COR_CAMADA[segmento.camada],
                       opacity: dia.ehPassado ? 0.45 : 1,
                     }}
                   />
@@ -192,6 +203,17 @@ function resumoAcessivel(dia: DiaCarga): string {
       : 'sem rotina',
     `${formatarCarga(dia.minutosLivres)} livres`,
   ]
+
+  /*
+   * A composição da barra em texto. Existe porque a fatia por matéria é
+   * informação transmitida só por cor — sem isto, quem usa leitor de tela ouve
+   * "4h de rotina" e perde de quais matérias ela é feita. Usa o nome da matéria
+   * quando a fatia tem um, e o rótulo da camada quando é a camada inteira.
+   */
+  for (const segmento of dia.segmentos) {
+    const nome = segmento.rotulo ?? ROTULO_CAMADA[segmento.camada]
+    partes.push(`${nome} ${formatarCarga(segmento.minutos)}`)
+  }
 
   for (const prazo of dia.prazos) {
     partes.push(`${ROTULO_TIPO[prazo.tipo]}: ${prazo.titulo}`)
