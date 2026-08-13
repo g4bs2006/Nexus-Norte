@@ -1,0 +1,59 @@
+# Portão de qualidade do Nexus.
+#
+# Por que existe: `lint`, `typecheck` e `test` já existiam no package.json e só
+# rodavam quando alguém lembrava. Rodar sozinho é a diferença entre um script e
+# uma garantia — e num repo de um dev só, que commita direto na main, este é o
+# único lugar onde um erro é pego antes do deploy da Vercel.
+#
+# Deliberadamente NÃO roda `build`: a Vercel já constrói em todo push, e um
+# `tsc -b` no typecheck cobre o que quebraria a compilação. Duplicar o build
+# aqui gastaria minuto de CI para a mesma resposta.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Um push novo cancela a checagem do anterior — o que importa é o estado atual
+# da branch, não a fila de estados intermediários.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    # O app é um subdiretório do repo (a raiz guarda plano.md, docs e o
+    # design-system). Sem isto, todo passo precisaria de `cd app`.
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Mesma major do @types/node do projeto — checar contra uma versão
+          # diferente da que roda em dev anula metade do valor da checagem.
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      # `ci` e não `install`: respeita o lockfile e falha se ele estiver
+      # dessincronizado do package.json, o que é em si um erro que queremos ver.
+      - run: npm ci
+
+      # Os três em passos separados de propósito. Encadeados com && , a primeira
+      # falha esconderia as outras duas e cada correção custaria um ciclo novo.
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Testes
+        run: npm test

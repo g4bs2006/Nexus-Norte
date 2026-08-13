@@ -89,26 +89,80 @@ flowchart LR
     PRO <--> DB
 ```
 
+### A regra de dependência entre módulos
+
+O diagrama acima é sobre **dados**. Este é sobre **imports**, e é a única regra
+que decide em que pasta uma coisa nova mora:
+
+> **O que duas features precisam sobe para o kernel. Nada desce, nada anda de
+> lado.**
+
+Três camadas, com direção única:
+
+| Camada | Quem | Pode importar de |
+| --- | --- | --- |
+| **Composição** | `pages/`, `components/layout/` | qualquer coisa |
+| **Features** | os 4 pilares + `metas`, `sono`, `eventos`, `fluxograma`, `notificacoes`, `comandos` | só o kernel |
+| **Kernel** | `lib/`, `hooks/`, `components/`, `components/ui/` | nada de feature |
+
+**Duas exceções, ambas deliberadas:**
+
+- **Agregadores** (`home`, `calendario`) leem qualquer feature — é a função
+  deles. E `metas` lê os 4 pilares, pela mesma razão de ser transversal que o
+  diagrama acima já registra. O que nenhum dos três faz é ser lido de volta.
+- **`components/layout/`** importa `features/comandos` porque é a *shell* da
+  aplicação, camada de composição como `pages/` — não primitivo reutilizável.
+
+O que a regra proíbe, e por que ela existe: um pilar importando de outro pilar.
+Já aconteceu duas vezes, e as duas por motivo pequeno — `estudos` importava
+`Status` de `financeiro` (um union de três strings) e `fluxograma` importava
+`formatarCarga` de `calendario` (sete linhas de formatação, fechando um ciclo).
+Nos dois casos o certo era subir para `lib/`, e é onde estão hoje
+(`lib/dominio.ts` e `formatarDuracao` em `lib/datas.ts`).
+
+Vantagem de ser uma regra e não um princípio: dá para checar.
+
+```bash
+# tem que voltar vazio para cada pilar
+grep -rn "from '@/features/" app/src/features/financeiro
+# o kernel não conhece feature nenhuma (só layout/ aparece, e é a exceção)
+grep -rn "from '@/features/" app/src/components app/src/hooks app/src/lib
+```
+
+**Domínio disfarçado de genérico** é o outro jeito de a regra ser furada:
+componente que sabe o domínio mas mora em `components/`. O teste é o import — se
+ele precisa de `features/x`, ele *é* de `features/x`. `CheckDia` fica no kernel
+porque não sabe o que é fluxograma; `ChecksFluxograma` não ficou, porque sabia.
+
 ### Estrutura de pastas
 
 ```
 .
 ├── plano.md              # Plano de execução (fonte de verdade do escopo)
+├── docs/                 # specs e planos de features (superpowers)
+├── design-system/        # gerador dos previews (ver design-system/README.md)
+├── .github/workflows/    # CI: lint + typecheck + testes
 └── app/
     ├── src/
-    │   ├── components/
-    │   │   ├── layout/   # AppShell, Sidebar, ThemeToggle
-    │   │   └── ui/       # shadcn/ui (vendored)
-    │   ├── features/     # um módulo por pilar: api, hooks, calculos, componentes
-    │   │   └── financeiro/
-    │   ├── hooks/
-    │   ├── lib/          # supabase, queryClient, pilares, constants, datas
-    │   ├── pages/        # uma pasta por pilar (rotas)
-    │   ├── stores/       # Zustand
+    │   ├── components/   # ── KERNEL: primitivos sem domínio ───────────
+    │   │   ├── layout/   #    AppShell, Sidebar, ThemeToggle (shell)
+    │   │   └── ui/       #    shadcn/ui (vendored)
+    │   ├── hooks/        #    (kernel)
+    │   ├── lib/          #    supabase, queryClient, datas, dominio, pilares
+    │   ├── features/     # ── FEATURES: api, hooks, calculos, schemas,
+    │   │   └── financeiro/  #  types, componentes/ — uma pasta por assunto
+    │   ├── pages/        # ── COMPOSIÇÃO: uma pasta por pilar (rotas)
+    │   ├── stores/       # Zustand (UI efêmera)
     │   └── types/        # database.ts (gerado)
     └── supabase/
         └── migrations/   # schema versionado (resolução 10.11)
 ```
+
+Dentro de `features/`, os arquivos têm nome por papel, não por invenção:
+`api.ts` (queries), `hooks.ts` (React Query), `calculos.ts` (lógica pura,
+testada), `schemas.ts` (Zod), `types.ts`, `componentes/`. Cálculo mora em
+`calculos.ts` e **não** em componente — é o que permite os 380 testes rodarem
+sem DOM.
 
 ---
 
@@ -200,6 +254,12 @@ não está em campo de texto; `Ctrl`/`⌘` + `K` funciona de qualquer lugar.
 > `tsc -b` é o comando que importa — ele constrói os sub-projetos de verdade.
 > Um `tsc --noEmit` solto na raiz lê um `tsconfig.json` com `"files": []` e
 > não checa nada, mesmo saindo "limpo".
+
+`lint`, `typecheck` e `test` também rodam sozinhos em todo push na `main`, via
+[`.github/workflows/ci.yml`](./.github/workflows/ci.yml) — num repo que commita
+direto na main, é o único lugar onde um erro é pego antes do deploy. O `build`
+fica de fora de propósito: a Vercel já constrói em todo push, e o `typecheck`
+cobre o que quebraria a compilação.
 
 </details>
 
