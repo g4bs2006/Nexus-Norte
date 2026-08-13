@@ -51,9 +51,6 @@ export interface CandidatoCorte {
   meses_estourados: number
 }
 
-/** Status do semáforo usado pelos pilares (🟢/🟡/🔴). */
-export type Status = 'ok' | 'atencao' | 'risco'
-
 // --- Planejamento de longo prazo (resoluções 10.43-10.45) -------------------
 
 export type CompromissoRecorrente = Tables<'compromissos_recorrentes'>

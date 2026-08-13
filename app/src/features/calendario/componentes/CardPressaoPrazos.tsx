@@ -3,15 +3,14 @@ import { addDays } from 'date-fns'
 import { AlertTriangle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Link } from 'react-router-dom'
-import { paraISO } from '@/lib/datas'
+import { deISO, formatarDuracao, paraISO } from '@/lib/datas'
 import { cn } from '@/lib/utils'
-import { formatarCarga } from '../carga'
+
 import { cargaPorDia } from '../carga'
 import { construirEventos } from '../eventos'
 import { useFontesCalendario } from '../hooks'
 import { alocarSugestao, pressaoDosPrazos, type SugestaoAlocacao } from '../planejador'
 import { useMetas } from '@/features/metas/hooks'
-import { deISO } from '@/lib/datas'
 import { format } from 'date-fns'
 
 const HORIZONTE_DIAS = 30
@@ -142,9 +141,9 @@ export function CardPressaoPrazos({ hoje }: { hoje: string }) {
                   pressao.status === 'risco' && 'text-status-risco',
                 )}
               >
-                Você tem {formatarCarga(pressao.minutosLivresAte)} livres até lá
+                Você tem {formatarDuracao(pressao.minutosLivresAte)} livres até lá
                 {pressao.minutosMetaRestante !== undefined &&
-                  ` · meta: ${formatarCarga(pressao.minutosMetaRestante)} restantes`}
+                  ` · meta: ${formatarDuracao(pressao.minutosMetaRestante)} restantes`}
               </p>
               {/* Alocação sugerida (10.48.5) — propõe, não agenda */}
               {sugestao.length > 0 && (
@@ -153,7 +152,7 @@ export function CardPressaoPrazos({ hoje }: { hoje: string }) {
                   {sugestao
                     .map(
                       (bloco) =>
-                        `${format(deISO(bloco.data), 'EEE')} ${formatarCarga(bloco.minutos)}`,
+                        `${format(deISO(bloco.data), 'EEE')} ${formatarDuracao(bloco.minutos)}`,
                     )
                     .join(', ')}
                 </p>

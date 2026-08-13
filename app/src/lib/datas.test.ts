@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { inicioSemana, paraISO } from './datas'
+import { formatarDuracao, inicioSemana, paraISO } from './datas'
 
 /**
  * Datas fixas de 2026-08: 02 é domingo, 05 quarta, 08 sábado, 09 domingo.
@@ -22,5 +22,17 @@ describe('inicioSemana', () => {
 
   it('o domingo seguinte já abre a semana seguinte', () => {
     expect(paraISO(inicioSemana(new Date(2026, 7, 9)))).toBe('2026-08-09')
+  })
+})
+
+describe('formatarDuracao', () => {
+  it('formata horas e minutos', () => {
+    expect(formatarDuracao(210)).toBe('3h30')
+    expect(formatarDuracao(120)).toBe('2h')
+    expect(formatarDuracao(45)).toBe('45min')
+  })
+
+  it('usa travessão para zero', () => {
+    expect(formatarDuracao(0)).toBe('—')
   })
 })

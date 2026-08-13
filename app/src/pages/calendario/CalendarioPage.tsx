@@ -28,7 +28,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { deISO, inicioSemana, paraISO } from '@/lib/datas'
+import { deISO, formatarDuracao, inicioSemana, paraISO } from '@/lib/datas'
 import { cn } from '@/lib/utils'
 import {
   COR_CAMADA,
@@ -37,7 +37,7 @@ import {
   type CamadaCalendario,
   type EventoCalendario,
 } from '@/features/calendario/eventos'
-import { cargaPorDia, formatarCarga, type DiaCarga } from '@/features/calendario/carga'
+import { cargaPorDia, type DiaCarga } from '@/features/calendario/carga'
 import type { EventoLivre } from '@/features/eventos/api'
 import { useFontesCalendario } from '@/features/calendario/hooks'
 import {
@@ -561,7 +561,7 @@ export default function CalendarioPage() {
                         {item.sugestao
                           .map(
                             (b) =>
-                              `${format(deISO(b.data), 'dd/MM')} (${formatarCarga(b.minutos)})`,
+                              `${format(deISO(b.data), 'dd/MM')} (${formatarDuracao(b.minutos)})`,
                           )
                           .join(', ')}
                         ?

@@ -1,11 +1,11 @@
 import { format } from 'date-fns'
 import { Check } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { deISO } from '@/lib/datas'
+import { deISO, formatarDuracao } from '@/lib/datas'
 import { cn } from '@/lib/utils'
 import { DialogEventoLivre } from '@/features/eventos/componentes/DialogEventoLivre'
 import type { EventoLivre } from '@/features/eventos/api'
-import { formatarCarga, ordenarDoDia, type DiaCarga } from '../carga'
+import { ordenarDoDia, type DiaCarga } from '../carga'
 import {
   corDoEvento,
   ROTULO_TIPO,
@@ -94,13 +94,13 @@ export function Agenda({
               </p>
               {dia.minutosRotina > 0 && (
                 <p className="text-muted-foreground mt-1.5 font-mono text-[10px] tabular-nums">
-                  {formatarCarga(dia.minutosRotina)}
+                  {formatarDuracao(dia.minutosRotina)}
                 </p>
               )}
               {/* Tempo livre (resolução 10.48.1) — "quinta tem 3h20" */}
               {dia.minutosLivres > 0 && (
                 <p className="text-muted-foreground/70 font-mono text-[10px] tabular-nums">
-                  {formatarCarga(dia.minutosLivres)} livres
+                  {formatarDuracao(dia.minutosLivres)} livres
                 </p>
               )}
             </div>

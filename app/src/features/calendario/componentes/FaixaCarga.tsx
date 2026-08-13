@@ -1,7 +1,7 @@
 import { format } from 'date-fns'
-import { deISO } from '@/lib/datas'
+import { deISO, formatarDuracao } from '@/lib/datas'
 import { cn } from '@/lib/utils'
-import { escalaCarga, formatarCarga, type DiaCarga } from '../carga'
+import { escalaCarga, type DiaCarga } from '../carga'
 import {
   COR_CAMADA,
   corDoEvento,
@@ -177,7 +177,7 @@ export function FaixaCarga({
               */}
               {dia.minutosLivres > 0 && (
                 <span className="text-muted-foreground/70 hidden font-mono text-[9px] tabular-nums sm:inline">
-                  {formatarCarga(dia.minutosLivres)}
+                  {formatarDuracao(dia.minutosLivres)}
                 </span>
               )}
             </button>
@@ -199,9 +199,9 @@ function resumoAcessivel(dia: DiaCarga): string {
     format(deISO(dia.data), "EEEE, d 'de' MMMM"),
     dia.ehHoje ? 'hoje' : '',
     dia.minutosRotina > 0
-      ? `${formatarCarga(dia.minutosRotina)} de rotina`
+      ? `${formatarDuracao(dia.minutosRotina)} de rotina`
       : 'sem rotina',
-    `${formatarCarga(dia.minutosLivres)} livres`,
+    `${formatarDuracao(dia.minutosLivres)} livres`,
   ]
 
   /*
@@ -212,7 +212,7 @@ function resumoAcessivel(dia: DiaCarga): string {
    */
   for (const segmento of dia.segmentos) {
     const nome = segmento.rotulo ?? ROTULO_CAMADA[segmento.camada]
-    partes.push(`${nome} ${formatarCarga(segmento.minutos)}`)
+    partes.push(`${nome} ${formatarDuracao(segmento.minutos)}`)
   }
 
   for (const prazo of dia.prazos) {

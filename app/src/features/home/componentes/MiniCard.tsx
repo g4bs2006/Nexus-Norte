@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { Status } from '@/features/financeiro/types'
+import type { Status } from '@/lib/dominio'
 
 /** Listra de severidade — encoda estado em forma, não só em cor. */
 const LISTRA: Record<Status, string> = {

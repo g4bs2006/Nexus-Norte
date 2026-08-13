@@ -7,9 +7,9 @@ import type { DateClickArg } from '@fullcalendar/interaction'
 import type { DatesSetArg, EventClickArg } from '@fullcalendar/core'
 import { useMemo } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
-import { paraISO } from '@/lib/datas'
+import { formatarDuracao, paraISO } from '@/lib/datas'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-import { formatarCarga, type DiaCarga } from '../carga'
+import { type DiaCarga } from '../carga'
 import { corDoEvento, ehImportante, type EventoCalendario } from '../eventos'
 
 interface GradeMesProps {
@@ -162,7 +162,7 @@ export function GradeMes({
                 {/* Tempo livre do dia (resolução 10.48.1) — omitido em zero */}
                 {minutosLivres !== undefined && minutosLivres > 0 && (
                   <span className="text-muted-foreground font-mono text-[9px] tabular-nums">
-                    {formatarCarga(minutosLivres)}
+                    {formatarDuracao(minutosLivres)}
                   </span>
                 )}
               </div>

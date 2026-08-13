@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cargaPorDia, escalaCarga, formatarCarga, ordenarDoDia } from './carga'
+import { cargaPorDia, escalaCarga, ordenarDoDia } from './carga'
 import type { EventoCalendario } from './eventos'
 
 // 2026-08-03 é segunda; 2026-08-05, quarta (dia 3 em getDay()).
@@ -489,18 +489,6 @@ describe('escalaCarga', () => {
 
   it('não quebra sem dias', () => {
     expect(escalaCarga([])).toBe(120)
-  })
-})
-
-describe('formatarCarga', () => {
-  it('formata horas e minutos', () => {
-    expect(formatarCarga(210)).toBe('3h30')
-    expect(formatarCarga(120)).toBe('2h')
-    expect(formatarCarga(45)).toBe('45min')
-  })
-
-  it('usa travessão para zero', () => {
-    expect(formatarCarga(0)).toBe('—')
   })
 })
 

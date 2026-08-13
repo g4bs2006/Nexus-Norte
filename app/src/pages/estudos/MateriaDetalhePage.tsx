@@ -34,7 +34,8 @@ import { AbaListas } from '@/features/estudos/componentes/AbaListas'
 import { AbaNotas } from '@/features/estudos/componentes/AbaNotas'
 import { AbaSessoes } from '@/features/estudos/componentes/AbaSessoes'
 import { DialogMateria } from '@/features/estudos/componentes/DialogMateria'
-import type { NotaEstudo, Status } from '@/features/estudos/types'
+import type { Status } from '@/lib/dominio'
+import type { NotaEstudo } from '@/features/estudos/types'
 
 const ROTULO_STATUS: Record<Status, string> = {
   ok: 'Tranquilo',

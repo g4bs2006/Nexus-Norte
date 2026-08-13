@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { DialogNota } from './DialogNota'
-import type { Status } from '../types'
+import type { Status } from '@/lib/dominio'
 
 const ROTULO_STATUS: Record<Status, string> = {
   ok: 'Tranquilo',

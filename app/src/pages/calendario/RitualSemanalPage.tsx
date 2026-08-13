@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { AlertTriangle } from 'lucide-react'
-import { deISO, inicioSemana, paraISO } from '@/lib/datas'
+import { deISO, formatarDuracao, inicioSemana, paraISO } from '@/lib/datas'
 import { DIAS_SEMANA } from '@/lib/constants'
 import { ORDEM_DIAS_SEMANA as ORDEM_DIAS } from '@/lib/fluxograma'
 import { cn } from '@/lib/utils'
@@ -16,7 +16,7 @@ import {
   resolverDonoFluxograma,
   type EventoCalendario,
 } from '@/features/calendario/eventos'
-import { cargaPorDia, formatarCarga } from '@/features/calendario/carga'
+import { cargaPorDia } from '@/features/calendario/carga'
 import { useFontesCalendario } from '@/features/calendario/hooks'
 import {
   alocarSugestao,
@@ -526,7 +526,7 @@ function PassoEstudoTreino({
                 {DIAS_SEMANA[deISO(dia.data).getDay()]?.slice(0, 3)}
               </p>
               <p className="font-mono text-sm tabular-nums">
-                {formatarCarga(dia.minutosLivres)}
+                {formatarDuracao(dia.minutosLivres)}
               </p>
             </div>
           ))}
@@ -541,7 +541,7 @@ function PassoEstudoTreino({
                 {sugestao
                   .map(
                     (bloco) =>
-                      `${DIAS_SEMANA[deISO(bloco.data).getDay()]?.slice(0, 3)} ${formatarCarga(bloco.minutos)}`,
+                      `${DIAS_SEMANA[deISO(bloco.data).getDay()]?.slice(0, 3)} ${formatarDuracao(bloco.minutos)}`,
                   )
                   .join(', ')}
               </p>

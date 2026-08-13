@@ -5,12 +5,12 @@ import {
   NOTA_MINIMA_APROVACAO,
 } from '@/lib/constants'
 import { deISO } from '@/lib/datas'
+import type { Status } from '@/lib/dominio'
 import type {
   Avaliacao,
   ConfigCalculoMedia,
   Materia,
   SessaoEstudo,
-  Status,
 } from './types'
 
 /**

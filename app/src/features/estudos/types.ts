@@ -1,5 +1,4 @@
 import type { Tables } from '@/types/database'
-import type { Status } from '@/features/financeiro/types'
 
 /** Tipos de domínio de Estudos — estreitam as colunas `text` com CHECK. */
 
@@ -53,8 +52,6 @@ export type ExcecaoFluxograma = Omit<
 > & {
   status: StatusExcecao
 }
-
-export type { Status }
 
 export const ROTULOS_TIPO_DOCUMENTO: Record<TipoDocumento, string> = {
   lista: 'Lista',

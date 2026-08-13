@@ -1,5 +1,6 @@
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { DIAS_SEMANA } from '@/lib/constants'
+import { formatarDuracao } from '@/lib/datas'
 import {
   ORDEM_DIAS_SEMANA,
   agruparPorDiaSemana,
@@ -7,7 +8,7 @@ import {
   minutosDe,
 } from '@/lib/fluxograma'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-import { formatarCarga } from '@/features/calendario/carga'
+
 import { DialogFluxogramaLivre } from './DialogFluxogramaLivre'
 import type { FluxogramaLivre } from '../api'
 
@@ -32,7 +33,7 @@ function LinhaBloco({
         <p className="truncate text-xs">{item.rotulo}</p>
         <p className="text-muted-foreground text-[11px] tabular-nums">
           {horaCurta(item.horario_inicio)}–{horaCurta(item.horario_fim)} ·{' '}
-          {formatarCarga(minutosDe(item.horario_fim) - minutosDe(item.horario_inicio))}
+          {formatarDuracao(minutosDe(item.horario_fim) - minutosDe(item.horario_inicio))}
         </p>
       </div>
       <div

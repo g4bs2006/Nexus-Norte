@@ -293,16 +293,6 @@ export function escalaCarga(dias: readonly DiaCarga[]): number {
   return Math.max(maior, 120)
 }
 
-/** `210` → `3h30`; `60` → `1h`; `0` → `—` */
-export function formatarCarga(minutos: number): string {
-  if (minutos <= 0) return '—'
-  const h = Math.floor(minutos / 60)
-  const m = minutos % 60
-  if (h === 0) return `${m}min`
-  if (m === 0) return `${h}h`
-  return `${h}h${String(m).padStart(2, '0')}`
-}
-
 /**
  * Eventos do dia na ordem em que a agenda deve mostrá-los.
  *

@@ -78,6 +78,25 @@ export function formatarMoeda(valor: number): string {
   return FORMATADOR_MOEDA.format(valor)
 }
 
+/**
+ * Duração em minutos como a gente fala: `210` → `3h30`; `60` → `1h`; `45` →
+ * `45min`; `0` → `—`.
+ *
+ * Vivia em `features/calendario/carga.ts` como `formatarCarga`, e de lá era
+ * importada por `features/fluxograma` — criando um ciclo entre as duas
+ * features por causa de sete linhas de formatação. Formatar duração não é
+ * domínio de calendário nenhum: é o mesmo tipo de regra que `formatarMoeda`
+ * logo acima, e mora no mesmo lugar.
+ */
+export function formatarDuracao(minutos: number): string {
+  if (minutos <= 0) return '—'
+  const h = Math.floor(minutos / 60)
+  const m = minutos % 60
+  if (h === 0) return `${m}min`
+  if (m === 0) return `${h}h`
+  return `${h}h${String(m).padStart(2, '0')}`
+}
+
 const FORMATADOR_MES = new Intl.DateTimeFormat('pt-BR', {
   month: 'short',
   year: '2-digit',
