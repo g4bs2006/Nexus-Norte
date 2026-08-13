@@ -12,7 +12,7 @@ import {
   type TooltipContentProps,
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { EIXO, ESTILO_TOOLTIP } from '@/components/grafico'
+import { EIXO, ESTILO_TOOLTIP } from '@/components/Grafico'
 import { formatarMoeda, rotuloMes } from '@/lib/datas'
 import {
   HORIZONTE_PROJECAO_PADRAO,

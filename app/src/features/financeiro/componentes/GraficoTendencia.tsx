@@ -25,7 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { EIXO, ESTILO_TOOLTIP, pontoFinal } from '@/components/grafico'
+import { EIXO, ESTILO_TOOLTIP, pontoFinal } from '@/components/Grafico'
 import { formatarMoeda, rotuloMes } from '@/lib/datas'
 import { metaEfetiva, tendenciaMensal } from '../calculos'
 import type { ResumoMensal } from '../api'

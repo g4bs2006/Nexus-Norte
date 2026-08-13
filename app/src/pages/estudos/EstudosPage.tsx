@@ -3,11 +3,11 @@ import { GraduationCap } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
 import { EstadoVazio } from '@/components/EstadoVazio'
 import { SkeletonPagina } from '@/components/Skeletons'
-import { ChecksFluxograma } from '@/components/ChecksFluxograma'
+import { ChecksFluxograma } from '@/features/fluxograma/componentes/ChecksFluxograma'
 import {
   GradeFluxograma,
   type ItemFluxograma,
-} from '@/components/GradeFluxograma'
+} from '@/features/fluxograma/componentes/GradeFluxograma'
 import {
   Card,
   CardContent,

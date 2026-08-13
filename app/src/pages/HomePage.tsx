@@ -13,7 +13,7 @@ import { PageHeader } from '@/components/PageHeader'
 import {
   ChecksFluxograma,
   type ItemCheckFluxograma,
-} from '@/components/ChecksFluxograma'
+} from '@/features/fluxograma/componentes/ChecksFluxograma'
 import { CheckDia } from '@/components/CheckDia'
 import { BarraProgresso } from '@/components/BarraProgresso'
 import {

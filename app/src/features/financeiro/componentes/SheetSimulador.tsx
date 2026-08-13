@@ -30,7 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
-import { EIXO, ESTILO_TOOLTIP } from '@/components/grafico'
+import { EIXO, ESTILO_TOOLTIP } from '@/components/Grafico'
 import { useDebounced } from '@/hooks/useDebounced'
 import { deISO, formatarMoeda, mesDeISO, rotuloMes } from '@/lib/datas'
 import { MESES_MEDIA_VARIAVEL } from '@/lib/constants'

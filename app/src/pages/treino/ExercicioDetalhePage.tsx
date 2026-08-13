@@ -28,7 +28,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { ESTILO_TOOLTIP, pontoFinal } from '@/components/grafico'
+import { ESTILO_TOOLTIP, pontoFinal } from '@/components/Grafico'
 import { deISO } from '@/lib/datas'
 import { SEMANAS_SINAL_ESTAGNACAO } from '@/lib/constants'
 import { cn } from '@/lib/utils'

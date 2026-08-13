@@ -7,7 +7,7 @@ import { SkeletonPagina } from '@/components/Skeletons'
 import {
   GradeFluxograma,
   type ItemFluxograma,
-} from '@/components/GradeFluxograma'
+} from '@/features/fluxograma/componentes/GradeFluxograma'
 import {
   Card,
   CardContent,

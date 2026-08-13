@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ESTILO_TOOLTIP } from '@/components/grafico'
+import { ESTILO_TOOLTIP } from '@/components/Grafico'
 import { deISO, paraISO } from '@/lib/datas'
 import { formatarDecimal, parseDecimal } from '@/lib/numeros'
 import { enviarFotoProgresso } from '../api'

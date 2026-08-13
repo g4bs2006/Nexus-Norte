@@ -1,8 +1,8 @@
 import { RotateCcw } from 'lucide-react'
 import { CheckDia } from '@/components/CheckDia'
 import { Button } from '@/components/ui/button'
-import { MenuOcorrencia } from '@/features/fluxograma/componentes/MenuOcorrencia'
-import { useLimparExcecao } from '@/features/fluxograma/hooks'
+import { MenuOcorrencia } from './MenuOcorrencia'
+import { useLimparExcecao } from '../hooks'
 
 export interface ItemCheckFluxograma {
   /** Id do registro em `fluxograma_semanal`. */
