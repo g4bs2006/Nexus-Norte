@@ -14,6 +14,9 @@ import {
   eventosSessoesEstudo,
   eventosSono,
   eventosComPrazo,
+  ehBlocoCheio,
+  ehImportante,
+  type EventoCalendario,
   type FontesCalendario,
 } from './eventos'
 
@@ -1299,5 +1302,55 @@ describe('corDoEvento', () => {
   it('cai na cor da camada quando o item não tem cor', () => {
     expect(corDoEvento({ camada: 'estudos' })).toBe(COR_CAMADA.estudos)
     expect(corDoEvento({ camada: 'treino' })).toBe(COR_CAMADA.treino)
+  })
+})
+
+describe('ehBlocoCheio', () => {
+  /** Só os campos que o predicado lê — o resto do evento é irrelevante aqui. */
+  function evento(
+    parcial: Partial<EventoCalendario> & Pick<EventoCalendario, 'tipo'>,
+  ): EventoCalendario {
+    return {
+      id: 'x',
+      titulo: 'x',
+      inicio: '2026-08-05',
+      diaInteiro: true,
+      camada: 'estudos',
+      ...parcial,
+    }
+  }
+
+  it('preenche prazo, como ehImportante ja fazia', () => {
+    for (const tipo of ['prova', 'conta', 'marco', 'evento'] as const) {
+      expect(ehBlocoCheio(evento({ tipo }))).toBe(true)
+    }
+  })
+
+  it('preenche fato registrado: sessao de estudo e treino executado', () => {
+    expect(ehBlocoCheio(evento({ tipo: 'estudo', estado: 'feito' }))).toBe(true)
+    expect(ehBlocoCheio(evento({ tipo: 'treino', estado: 'feito' }))).toBe(true)
+  })
+
+  it('deixa a rotina prevista no contorno', () => {
+    expect(ehBlocoCheio(evento({ tipo: 'aula' }))).toBe(false)
+    expect(ehBlocoCheio(evento({ tipo: 'treino' }))).toBe(false)
+    expect(ehBlocoCheio(evento({ tipo: 'trabalho' }))).toBe(false)
+  })
+
+  it('nao preenche o que nao aconteceu ali', () => {
+    expect(ehBlocoCheio(evento({ tipo: 'aula', estado: 'cancelado' }))).toBe(
+      false,
+    )
+    expect(ehBlocoCheio(evento({ tipo: 'aula', estado: 'remarcado' }))).toBe(
+      false,
+    )
+  })
+
+  it('separa-se de ehImportante: a sessao enche o bloco sem virar prazo', () => {
+    const sessao = evento({ tipo: 'estudo', estado: 'feito' })
+    expect(ehBlocoCheio(sessao)).toBe(true)
+    // O que impede a sessao de ontem de aparecer como prazo a vencer no card
+    // de pressao, e de ser excluida da barra de carga como se fosse deadline.
+    expect(ehImportante(sessao)).toBe(false)
   })
 })

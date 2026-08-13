@@ -121,6 +121,31 @@ export function ehImportante(evento: EventoCalendario): boolean {
   return TIPOS_IMPORTANTES.includes(evento.tipo)
 }
 
+/**
+ * Se o bloco é pintado por inteiro nas grades (mês e horas).
+ *
+ * **Por que não é `ehImportante`.** As grades usavam `ehImportante` para decidir
+ * o preenchimento, e com isso empataram duas coisas que o dado já separava: a
+ * sessão de estudo registrada saía com o mesmo contorno da aula prevista, na
+ * mesma cor da matéria e no mesmo horário. Duas caixas iguais, uma sendo o plano
+ * e a outra o fato. O mesmo valia para treino executado contra treino previsto.
+ *
+ * `ehImportante` responde *"isto é prazo?"* e governa coisas que não são
+ * pintura: a ordem da agenda, o card de pressão e a exclusão da barra de carga.
+ * Acrescentar `estudo` ali faria a sessão de ontem aparecer como prazo a vencer.
+ * O preenchimento é outra pergunta, e ganha função própria.
+ *
+ * A regra que sobra é legível em uma linha: **cheio = isto tem data própria
+ * (prazo) ou aconteceu (fato); contorno = rotina prevista pelo fluxograma.**
+ *
+ * `estado` só preenche em `feito`. `cancelado` e `remarcado` também são desfecho
+ * conhecido, mas de coisa que **não** aconteceu ali — preenchê-los daria a um
+ * não-evento mais peso que à aula que de fato ocorreu.
+ */
+export function ehBlocoCheio(evento: EventoCalendario): boolean {
+  return ehImportante(evento) || evento.estado === 'feito'
+}
+
 /** `08:00:00` → `08:00` */
 function hhmm(hora: string): string {
   return hora.slice(0, 5)

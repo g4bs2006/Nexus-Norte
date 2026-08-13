@@ -10,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { formatarDuracao, paraISO } from '@/lib/datas'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { type DiaCarga } from '../carga'
-import { corDoEvento, ehImportante, type EventoCalendario } from '../eventos'
+import { corDoEvento, ehBlocoCheio, type EventoCalendario } from '../eventos'
 
 interface GradeMesProps {
   eventos: readonly EventoCalendario[]
@@ -51,9 +51,11 @@ const VISTA_HORAS_MOBILE = 'timeGridTresDias'
  * o FullCalendar é o maior pedaço do app (67 kB gzip) e a vista padrão passou a
  * ser a agenda, que não precisa dele. Quem nunca abrir "Mês" nunca baixa.
  *
- * Mantém o mesmo peso de dois níveis da agenda: prazo com preenchimento sólido,
- * rotina só com a borda. Antes tudo era bloco cheio, e a prova pesava igual à
- * terceira aula da semana.
+ * Mantém o peso de dois níveis da agenda: preenchimento sólido para o que tem
+ * data própria ou já aconteceu, borda só para a rotina prevista. Antes tudo era
+ * bloco cheio, e a prova pesava igual à terceira aula da semana; depois o
+ * critério era só `ehImportante`, e aí a sessão de estudo registrada ficava
+ * idêntica à aula prevista da mesma matéria. Quem decide é `ehBlocoCheio`.
  */
 export function GradeMes({
   eventos,
@@ -85,7 +87,7 @@ export function GradeMes({
     .filter((evento) => evento.camada !== 'sono')
     .map((evento) => {
       const cor = corDoEvento(evento)
-      const prazo = ehImportante(evento)
+      const cheio = ehBlocoCheio(evento)
       /*
        * O que não acontece naquele slot — desmarcado, ou movido para outro dia.
        * Sem esta marca, a grade mostrava a aula cancelada da semana passada
@@ -105,10 +107,11 @@ export function GradeMes({
         start: evento.inicio,
         ...(evento.fim ? { end: evento.fim } : {}),
         allDay: evento.diaInteiro,
-        // Prazo preenche; rotina fica só com a borda e o texto na cor do tema
-        backgroundColor: prazo ? cor : 'transparent',
+        // Prazo e fato preenchem; rotina prevista fica só com a borda e o texto
+        // na cor do tema (`ehBlocoCheio` documenta por que não é `ehImportante`)
+        backgroundColor: cheio ? cor : 'transparent',
         borderColor: cor,
-        textColor: prazo ? '#ffffff' : 'var(--foreground)',
+        textColor: cheio ? '#ffffff' : 'var(--foreground)',
         classNames: [
           ...(evento.rota ? ['evento-clicavel'] : []),
           ...(riscado ? ['evento-riscado'] : []),
