@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { format } from 'date-fns'
 import { Pencil, Plus } from 'lucide-react'
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { BarraProgresso } from '@/components/BarraProgresso'
 import { deISO, paraISO } from '@/lib/datas'
 import { cn } from '@/lib/utils'
+import { comportamentoRolagem } from '@/lib/movimento'
 import { useCriarFalta, useAtualizarFalta, useExcluirFalta } from '../hooks'
 import { faltasRestantes } from '../calculos'
 import type { Falta } from '../types'
@@ -33,16 +34,29 @@ export function AbaFaltas({
   const [data, setData] = useState(paraISO(hoje))
   const [motivo, setMotivo] = useState('')
   const [idEditando, setIdEditando] = useState<string | null>(null)
+  const formulario = useRef<HTMLDivElement>(null)
+
+  const emEdicao = faltas.find((falta) => falta.id === idEditando)
 
   const restantes = faltasRestantes(limiteFaltas, faltas.length)
   const percentualUsado =
     limiteFaltas > 0 ? (faltas.length / limiteFaltas) * 100 : 0
   const critico = limiteFaltas > 0 && restantes <= 2
 
+  /*
+   * O lápis da linha carrega este formulário, que fica acima da lista e some da
+   * tela em qualquer lista com algumas linhas — o clique parecia não fazer nada.
+   * Mesmo conserto de `AbaSessoes`: levar a tela até ele e marcar que é edição,
+   * já que o formulário de editar é o MESMO de registrar.
+   */
   function iniciarEdicao(falta: Falta) {
     setIdEditando(falta.id)
     setData(falta.data)
     setMotivo(falta.motivo ?? '')
+    formulario.current?.scrollIntoView({
+      block: 'center',
+      behavior: comportamentoRolagem(),
+    })
   }
 
   function cancelarEdicao() {
@@ -103,8 +117,22 @@ export function AbaFaltas({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card
+        ref={formulario}
+        className={cn(
+          'transition-shadow',
+          idEditando && 'ring-estudos/50 ring-2',
+        )}
+      >
         <CardContent className="flex flex-wrap items-end gap-2">
+          {emEdicao && (
+            <p className="text-muted-foreground w-full text-xs">
+              Editando a falta de{' '}
+              <span className="text-foreground font-medium tabular-nums">
+                {format(deISO(emEdicao.data), 'dd/MM/yyyy')}
+              </span>
+            </p>
+          )}
           <div className="space-y-1.5">
             <Label className="text-xs" htmlFor="falta-data">
               Data

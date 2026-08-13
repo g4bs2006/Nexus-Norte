@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { format } from 'date-fns'
 import { Pencil, Plus } from 'lucide-react'
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { deISO, paraISO } from '@/lib/datas'
 import { cn } from '@/lib/utils'
+import { comportamentoRolagem } from '@/lib/movimento'
 import {
   useCriarRegistroLista,
   useAtualizarRegistroLista,
@@ -39,6 +40,9 @@ export function AbaListas({ materiaId, registros, hoje }: AbaListasProps) {
   const [erradas, setErradas] = useState('')
   const [topico, setTopico] = useState('')
   const [idEditando, setIdEditando] = useState<string | null>(null)
+  const formulario = useRef<HTMLDivElement>(null)
+
+  const emEdicao = registros.find((registro) => registro.id === idEditando)
 
   const listaErradas = parsearQuestoesErradas(erradas)
   const totalNumero = Number(total)
@@ -47,6 +51,12 @@ export function AbaListas({ materiaId, registros, hoje }: AbaListasProps) {
     totalNumero > 0 &&
     listaErradas.some((numero) => numero > totalNumero)
 
+  /*
+   * O lápis da linha carrega este formulário, que fica acima da lista e some da
+   * tela em qualquer lista com algumas linhas — o clique parecia não fazer nada.
+   * Mesmo conserto de `AbaSessoes`: levar a tela até ele e marcar que é edição,
+   * já que o formulário de editar é o MESMO de registrar.
+   */
   function iniciarEdicao(registro: RegistroLista) {
     setIdEditando(registro.id)
     setNome(registro.nome_lista)
@@ -54,6 +64,10 @@ export function AbaListas({ materiaId, registros, hoje }: AbaListasProps) {
     setTotal(String(registro.total_questoes))
     setErradas(registro.questoes_erradas.join(', '))
     setTopico(registro.topico ?? '')
+    formulario.current?.scrollIntoView({
+      block: 'center',
+      behavior: comportamentoRolagem(),
+    })
   }
 
   function cancelarEdicao() {
@@ -102,8 +116,25 @@ export function AbaListas({ materiaId, registros, hoje }: AbaListasProps) {
 
   return (
     <div className="space-y-5">
-      <Card>
+      <Card
+        ref={formulario}
+        className={cn(
+          'transition-shadow',
+          idEditando && 'ring-estudos/50 ring-2',
+        )}
+      >
         <CardContent className="space-y-3">
+          {emEdicao && (
+            <p className="text-muted-foreground text-xs">
+              Editando{' '}
+              <span className="text-foreground font-medium">
+                {emEdicao.nome_lista}
+              </span>{' '}
+              <span className="tabular-nums">
+                · {format(deISO(emEdicao.data), 'dd/MM/yyyy')}
+              </span>
+            </p>
+          )}
           <div className="flex flex-wrap items-end gap-2">
             <div className="min-w-[10rem] flex-1 space-y-1.5">
               <Label className="text-xs" htmlFor="lista-nome">

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import { Pencil, Plus, X } from 'lucide-react'
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { deISO, paraISO } from '@/lib/datas'
+import { comportamentoRolagem } from '@/lib/movimento'
 import { formatarDecimal, parseDecimal } from '@/lib/numeros'
 import { NOTA_MINIMA_APROVACAO } from '@/lib/constants'
 import {
@@ -51,6 +52,9 @@ export function AbaAvaliacoes({
   // nulo enquanto uma avaliação existente está sendo editada, em vez de
   // criada. O id basta; os outros campos do card já vêm do estado acima.
   const [editandoId, setEditandoId] = useState<string | null>(null)
+  const formulario = useRef<HTMLDivElement>(null)
+
+  const emEdicao = avaliacoes.find((avaliacao) => avaliacao.id === editandoId)
 
   const tipoMedia = config?.tipo ?? 'ponderada'
   const [notaManual, setNotaManual] = useState(
@@ -66,11 +70,20 @@ export function AbaAvaliacoes({
     setData('')
   }
 
+  /*
+   * O card de edição é o mesmo de cadastro e fica acima da lista — de uma linha
+   * lá embaixo ele está fora da tela, e o anel que ele já ganhava ao entrar em
+   * edição não ajudava em nada se ninguém o vê. Mesmo conserto de `AbaSessoes`.
+   */
   function iniciarEdicao(avaliacao: Avaliacao) {
     setEditandoId(avaliacao.id)
     setNome(avaliacao.nome)
     setPeso(formatarDecimal(avaliacao.peso))
     setData(avaliacao.data ?? '')
+    formulario.current?.scrollIntoView({
+      block: 'center',
+      behavior: comportamentoRolagem(),
+    })
   }
 
   async function salvar() {
@@ -182,11 +195,23 @@ export function AbaAvaliacoes({
       </Card>
 
       {/* Nova avaliação — o mesmo card edita quando `editandoId` está setado */}
-      <Card className={editandoId ? 'border-estudos/50' : undefined}>
+      <Card
+        ref={formulario}
+        className={
+          editandoId ? 'border-estudos/50 transition-shadow' : 'transition-shadow'
+        }
+      >
         <CardContent className="flex flex-wrap items-end gap-2">
-          {editandoId && (
-            <p className="text-estudos w-full text-xs font-medium">
-              Editando avaliação
+          {emEdicao && (
+            <p className="text-muted-foreground w-full text-xs">
+              Editando{' '}
+              <span className="text-estudos font-medium">{emEdicao.nome}</span>
+              {emEdicao.data && (
+                <span className="tabular-nums">
+                  {' '}
+                  · {format(deISO(emEdicao.data), 'dd/MM/yyyy')}
+                </span>
+              )}
             </p>
           )}
           <div className="min-w-[10rem] flex-1 space-y-1.5">
