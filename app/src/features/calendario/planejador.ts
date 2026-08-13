@@ -123,7 +123,10 @@ export function detectarConflitos(
   const porDia = new Map<string, EventoCalendario[]>()
   for (const evento of eventos) {
     if (evento.diaInteiro || !evento.fim) continue
-    if (evento.estado === 'cancelado') continue
+    // Nem o cancelado nem o rastro do remarcado ocupam o slot: um não acontece,
+    // o outro acontece noutro dia. Contá-los inventaria conflito com a rotina
+    // que ficou no horário.
+    if (evento.estado === 'cancelado' || evento.estado === 'remarcado') continue
     const dia = evento.inicio.slice(0, 10)
     const lista = porDia.get(dia)
     if (lista) lista.push(evento)

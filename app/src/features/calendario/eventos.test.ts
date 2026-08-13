@@ -10,6 +10,7 @@ import {
   eventosFluxograma,
   eventosLivres,
   eventosMarcos,
+  eventosRemarcadosNaOrigem,
   eventosSessoesEstudo,
   eventosSono,
   eventosComPrazo,
@@ -548,7 +549,7 @@ describe('construirEventos', () => {
       nomePorTreino: TREINOS,
     }
 
-    const eventos = construirEventos(fontes, SEMANA, HOJE)
+    const eventos = construirEventos(fontes, SEMANA)
     const camadas = new Set(eventos.map((e) => e.camada))
 
     expect(camadas).toEqual(
@@ -572,7 +573,7 @@ describe('construirEventos', () => {
       nomePorTreino: new Map(),
     }
 
-    expect(construirEventos(vazio, SEMANA, HOJE)).toEqual([])
+    expect(construirEventos(vazio, SEMANA)).toEqual([])
   })
 })
 
@@ -839,7 +840,6 @@ describe('eventosCancelados', () => {
       [regra],
       [{ fluxograma_id: 'f1', data: '2026-08-05', status: 'cancelado' }],
       SEMANA,
-      HOJE,
       MATERIAS,
       TREINOS,
     )
@@ -863,7 +863,6 @@ describe('eventosCancelados', () => {
       [regraTrabalho],
       [{ fluxograma_id: 'f3', data: '2026-08-05', status: 'cancelado' }],
       SEMANA,
-      HOJE,
       MATERIAS,
       TREINOS,
     )
@@ -873,17 +872,24 @@ describe('eventosCancelados', () => {
     expect(evento?.titulo).toBe('Escritório')
   })
 
-  it('não mostra cancelado no futuro — ali é só fora do plano', () => {
-    expect(
-      eventosCancelados(
-        [{ ...regra, dia_semana: 6 }],
-        [{ fluxograma_id: 'f1', data: '2026-08-08', status: 'cancelado' }],
-        SEMANA,
-        HOJE,
-        MATERIAS,
-        TREINOS,
-      ),
-    ).toEqual([])
+  /*
+   * A 10.31 recortava em `<= hoje`. Caiu quando o Ritual Semanal e a página de
+   * Treino passaram a cancelar dias à frente: ali o item sumia do calendário
+   * sem deixar rastro, que é o defeito que a própria 10.31 tinha corrigido para
+   * o passado.
+   */
+  it('mostra o cancelado de um dia que ainda não chegou', () => {
+    const [evento] = eventosCancelados(
+      [{ ...regra, dia_semana: 6 }],
+      [{ fluxograma_id: 'f1', data: '2026-08-08', status: 'cancelado' }],
+      SEMANA,
+      MATERIAS,
+      TREINOS,
+    )
+
+    expect(evento?.estado).toBe('cancelado')
+    expect(evento?.inicio).toBe('2026-08-08T18:00:00')
+    expect(HOJE < '2026-08-08').toBe(true)
   })
 
   it('ignora remarcado: a ocorrência não deixou de existir, só mudou de dia', () => {
@@ -899,11 +905,116 @@ describe('eventosCancelados', () => {
           },
         ],
         SEMANA,
-        HOJE,
         MATERIAS,
         TREINOS,
       ),
     ).toEqual([])
+  })
+})
+
+describe('eventosRemarcadosNaOrigem', () => {
+  const regra = {
+    id: 'f1',
+    dia_semana: 3,
+    horario_inicio: '18:00:00',
+    horario_fim: '19:00:00',
+    materia_id: null,
+    treino_id: 't1',
+    rotulo: null,
+  }
+
+  const remarcacao = {
+    fluxograma_id: 'f1',
+    data: '2026-08-05',
+    status: 'remarcado' as const,
+    nova_data: '2026-08-06',
+  }
+
+  it('deixa o rastro na data original, apontando o destino', () => {
+    const [evento] = eventosRemarcadosNaOrigem(
+      [regra],
+      [remarcacao],
+      SEMANA,
+      MATERIAS,
+      TREINOS,
+    )
+
+    expect(evento?.estado).toBe('remarcado')
+    expect(evento?.remarcadoPara).toBe('2026-08-06')
+    expect(evento?.inicio).toBe('2026-08-05T18:00:00')
+    expect(evento?.titulo).toBe('Treino A')
+  })
+
+  it('não duplica quando a remarcação só muda o horário do mesmo dia', () => {
+    expect(
+      eventosRemarcadosNaOrigem(
+        [regra],
+        [
+          {
+            ...remarcacao,
+            nova_data: '2026-08-05',
+            novo_horario_inicio: '20:00:00',
+            novo_horario_fim: '21:00:00',
+          },
+        ],
+        SEMANA,
+        MATERIAS,
+        TREINOS,
+      ),
+    ).toEqual([])
+  })
+
+  it('ignora cancelado: quem trata dele é eventosCancelados', () => {
+    expect(
+      eventosRemarcadosNaOrigem(
+        [regra],
+        [{ fluxograma_id: 'f1', data: '2026-08-05', status: 'cancelado' }],
+        SEMANA,
+        MATERIAS,
+        TREINOS,
+      ),
+    ).toEqual([])
+  })
+
+  it('não emite quando a data de origem está fora do intervalo visível', () => {
+    expect(
+      eventosRemarcadosNaOrigem(
+        [regra],
+        [{ ...remarcacao, data: '2026-07-29', nova_data: '2026-08-05' }],
+        SEMANA,
+        MATERIAS,
+        TREINOS,
+      ),
+    ).toEqual([])
+  })
+
+  it('origem e destino convivem no mesmo intervalo, com ids distintos', () => {
+    const eventos = construirEventos(
+      {
+        avaliacoes: [],
+        fluxograma: [regra],
+        excecoes: [remarcacao],
+        contas: [],
+        planejamentoSono: [],
+        marcos: [],
+        execucoesTreino: [],
+        sessoesEstudo: [],
+        eventosLivres: [],
+        nomePorMateria: MATERIAS,
+        nomePorTreino: TREINOS,
+      },
+      SEMANA,
+    )
+
+    const doTreino = eventos.filter((e) => e.camada === 'treino')
+    expect(doTreino).toHaveLength(2)
+    expect(new Set(doTreino.map((e) => e.id)).size).toBe(2)
+
+    const origem = doTreino.find((e) => e.estado === 'remarcado')
+    const destino = doTreino.find((e) => e.estado === undefined)
+    expect(origem?.inicio.slice(0, 10)).toBe('2026-08-05')
+    expect(destino?.inicio.slice(0, 10)).toBe('2026-08-06')
+    expect(destino?.titulo).toBe('Treino A (remarcado)')
   })
 })
 
@@ -947,7 +1058,6 @@ describe('reconciliação entre previsto e realizado', () => {
         ],
       },
       SEMANA,
-      HOJE,
     )
 
     const doTreino = eventos.filter((e) => e.camada === 'treino')
@@ -977,7 +1087,6 @@ describe('reconciliação entre previsto e realizado', () => {
         ],
       },
       SEMANA,
-      HOJE,
     )
 
     const doTreino = eventos.filter((e) => e.camada === 'treino')
@@ -1017,7 +1126,6 @@ describe('reconciliação entre previsto e realizado', () => {
         ],
       },
       SEMANA,
-      HOJE,
     )
 
     const doDia = eventos.filter((e) => e.inicio.startsWith('2026-08-05'))
@@ -1117,7 +1225,6 @@ describe('cor da matéria no evento', () => {
       [aula],
       [{ fluxograma_id: 'f1', data: '2026-08-03', status: 'cancelado' }],
       SEMANA,
-      HOJE,
       MATERIAS,
       TREINOS,
       CORES,

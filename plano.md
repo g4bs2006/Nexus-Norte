@@ -2194,3 +2194,59 @@ Em um novo `planejador.test.ts`:
 - prazo sem meta cadastrada não gera sugestão nem status de risco
 - detecção de conflito acusa sobreposição parcial e ignora eventos adjacentes
   (fim de um igual ao início do outro)
+
+### 10.49 Cancelar e remarcar não chegava ao calendário inteiro (corrige 10.31) — descoberta em uso
+
+Cancelar um item na Home escrevia certo em `excecoes_fluxograma`, e a invalidação
+já alcançava `['calendario']` — o dado propagava. O que não propagava era a
+**leitura**: o risquinho só existia numa das três vistas, e em dois casos não
+existia em nenhuma.
+
+**Três buracos, com a mesma origem — `estado` nasceu na 10.31 e só a agenda o lia:**
+
+- **Vistas "Mês" e "Horas" ignoravam `estado`.** `GradeMes` montava o evento do
+  FullCalendar com cor, borda e título, e nada mais. Uma aula cancelada na semana
+  passada saía idêntica a uma que aconteceu — a grade dizia que houve aula.
+- **Cancelamento no futuro não aparecia em vista nenhuma.** O recorte `<= hoje`
+  fazia sentido quando só a Home cancelava, e na Home é sempre hoje. Desde que o
+  Ritual Semanal (10.48.3) e a página de Treino ganharam o `MenuOcorrencia`, dá
+  para desmarcar a sexta na quarta — e o item **sumia** do calendário, sem rastro.
+  Indistinguível de "nunca teve nada na sexta", que é exatamente o defeito que a
+  10.31 tinha ido corrigir para o passado.
+- **Remarcado não deixava rastro na origem.** A ocorrência migrava em silêncio:
+  quem olhava a terça não via que aquela aula tinha ido para a quinta, e a quinta
+  cheia não tinha explicação.
+
+**O que mudou:**
+
+- `eventosCancelados` perdeu o parâmetro `hoje` e o recorte. Cancelado vale para
+  qualquer dia do intervalo. `construirEventos` perdeu o `hoje` junto — era o
+  único uso.
+- `eventosRemarcadosNaOrigem`, irmã de `eventosCancelados`: emite na data
+  **original** o rastro do que foi movido, com `estado: 'remarcado'` e
+  `remarcadoPara` apontando o destino. Remarcação que só troca o horário dentro
+  do mesmo dia não gera rastro — origem e destino são a mesma linha.
+- `EventoCalendario.estado` virou `'feito' | 'cancelado' | 'remarcado'`.
+  Remarcado é estado próprio, e não `cancelado`, porque cancelado sai do
+  denominador da frequência (10.17) e entra em "o que ficou pra trás"
+  (`detectarFalhas`); remarcado não faz nem um nem outro — a ocorrência continua
+  existindo, noutro dia.
+- Na agenda, cancelado e remarcado dividem o tratamento — riscado, filete a 40% —
+  e se separam no rótulo do fim da linha: `cancelado` ou `→ 14/08`. O destino é o
+  que transforma o risco em informação: a linha diz para onde a coisa foi.
+- Nas vistas de Mês e Horas, classe `evento-riscado`: `opacity: .5` no bloco e
+  `line-through` no título e na hora. A decoração vai nos filhos, não no
+  container — o FullCalendar monta título e hora como irmãos e a decoração no pai
+  não atravessa o `.fc-event-main` de todas as vistas.
+
+**Cuidado herdado da 10.31:** todo evento com `estado` continua fora de
+`cargaPorDia` (`estado !== undefined`), então nem o cancelado futuro nem o rastro
+do remarcado somam "tempo comprometido". `detectarConflitos` passou a pular os
+dois pelo mesmo motivo — o rastro carrega o horário do padrão e inventaria
+conflito com a rotina que ficou no slot. `detectarFalhas` já recortava em
+`data >= hoje` e não precisou mudar; remarcado não cai em nenhum dos seus dois
+ramos, que é o certo: não é falha, é mudança de dia.
+
+**Consequência aceita:** feito continua sem o **✓** nas vistas de Mês e Horas —
+lá o bloco é pequeno demais para ícone, e a agenda segue sendo a superfície que
+conta o desfecho por inteiro.

@@ -86,6 +86,18 @@ export function GradeMes({
     .map((evento) => {
       const cor = corDoEvento(evento)
       const prazo = ehImportante(evento)
+      /*
+       * O que não acontece naquele slot — desmarcado, ou movido para outro dia.
+       * Sem esta marca, a grade mostrava a aula cancelada da semana passada
+       * exatamente igual à que aconteceu: `estado` existia no dado desde a
+       * 10.31 e só a agenda o lia, então o risco existia numa vista e não nas
+       * outras duas.
+       *
+       * O destino da remarcação não é riscado: ele vem de `eventosFluxograma`
+       * sem `estado`, e é onde a ocorrência de fato está.
+       */
+      const riscado =
+        evento.estado === 'cancelado' || evento.estado === 'remarcado'
 
       return {
         id: evento.id,
@@ -97,7 +109,10 @@ export function GradeMes({
         backgroundColor: prazo ? cor : 'transparent',
         borderColor: cor,
         textColor: prazo ? '#ffffff' : 'var(--foreground)',
-        classNames: evento.rota ? ['evento-clicavel'] : [],
+        classNames: [
+          ...(evento.rota ? ['evento-clicavel'] : []),
+          ...(riscado ? ['evento-riscado'] : []),
+        ],
       }
     })
 

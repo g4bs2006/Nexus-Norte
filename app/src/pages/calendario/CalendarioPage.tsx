@@ -126,8 +126,8 @@ export default function CalendarioPage() {
   const hojeISO = paraISO(hoje)
 
   const eventos = useMemo(
-    () => construirEventos(fontes, intervalo, hojeISO),
-    [fontes, intervalo, hojeISO],
+    () => construirEventos(fontes, intervalo),
+    [fontes, intervalo],
   )
 
   /** Camadas escondidas saem de tudo: da faixa, da agenda e da grade. */

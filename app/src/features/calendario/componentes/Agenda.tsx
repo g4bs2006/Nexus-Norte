@@ -153,7 +153,13 @@ function LinhaEvento({
   const cor = corDoEvento(evento)
   const hora = evento.diaInteiro ? null : evento.inicio.slice(11, 16)
   const feito = evento.estado === 'feito'
-  const cancelado = evento.estado === 'cancelado'
+  const remarcado = evento.estado === 'remarcado'
+  /*
+   * Cancelado e remarcado dividem o tratamento visual — riscado e apagado, "não
+   * acontece aqui" — e se separam só no rótulo do fim da linha, que é onde a
+   * diferença mora: um não acontece, o outro acontece noutro dia.
+   */
+  const riscado = evento.estado === 'cancelado' || remarcado
 
   const conteudo = (
     <>
@@ -184,7 +190,7 @@ function LinhaEvento({
           className={cn(
             'h-4 w-0.5 shrink-0 rounded-full',
             // Cancelado não ganha a cor cheia do pilar: ele não aconteceu
-            cancelado && 'opacity-40',
+            riscado && 'opacity-40',
           )}
           style={{ backgroundColor: cor }}
         />
@@ -194,7 +200,7 @@ function LinhaEvento({
         <span
           className={cn(
             'text-muted-foreground shrink-0 font-mono text-xs tabular-nums',
-            cancelado && 'line-through',
+            riscado && 'line-through',
           )}
         >
           {hora}
@@ -206,8 +212,8 @@ function LinhaEvento({
           'min-w-0 flex-1 truncate text-sm',
           prazo && 'font-medium',
           evento.tipo === 'sono' && 'text-muted-foreground',
-          // Riscado e apagado: estava previsto e não aconteceu
-          cancelado && 'text-muted-foreground line-through',
+          // Riscado e apagado: estava previsto e não acontece aqui
+          riscado && 'text-muted-foreground line-through',
         )}
       >
         {evento.titulo}
@@ -217,10 +223,16 @@ function LinhaEvento({
         Rótulo em texto, não só o risco: "cancelado" precisa ser legível por leitor
         de tela e por quem não percebe o `line-through`. Fica no fim da linha para
         não empurrar o nome do compromisso.
+
+        No remarcado o rótulo carrega o destino — "→ 14/08" é o que transforma o
+        risco em informação útil: a linha diz para onde a ocorrência foi, sem
+        obrigar a caçá-la no resto do calendário.
       */}
-      {cancelado && (
+      {riscado && (
         <span className="text-muted-foreground shrink-0 text-[10px] tracking-wide uppercase">
-          cancelado
+          {remarcado && evento.remarcadoPara
+            ? `→ ${format(deISO(evento.remarcadoPara), 'dd/MM')}`
+            : 'cancelado'}
         </span>
       )}
     </>

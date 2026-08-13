@@ -41,7 +41,7 @@ export function CardPressaoPrazos({ hoje }: { hoje: string }) {
   const metas = useMetas()
 
   const pressoes = useMemo(() => {
-    const eventos = construirEventos(fontes, janela, hoje)
+    const eventos = construirEventos(fontes, janela)
     const dias = cargaPorDia(
       eventos,
       janela,

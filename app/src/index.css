@@ -490,6 +490,22 @@
     filter: brightness(1.08);
 }
 
+/*
+   Cancelado e remarcado: riscado e a meio tom, a mesma leitura da agenda.
+   `opacity` no bloco inteiro (borda e fundo incluídos), `line-through` no texto
+   — aplicado no título e na hora, e não no container, porque o FullCalendar
+   monta os dois em elementos irmãos e a decoração no pai não atravessa o
+   `.fc-event-main` de todas as vistas.
+*/
+.calendario-nexus .fc .evento-riscado {
+    opacity: 0.5;
+}
+
+.calendario-nexus .fc .evento-riscado .fc-event-title,
+.calendario-nexus .fc .evento-riscado .fc-event-time {
+    text-decoration: line-through;
+}
+
 .calendario-nexus .fc .fc-timegrid-slot-label-cushion,
 .calendario-nexus .fc .fc-list-day-text {
     color: var(--muted-foreground);

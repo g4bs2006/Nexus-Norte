@@ -60,8 +60,8 @@ export default function HistoricoPage() {
   })
 
   const eventos = useMemo(
-    () => construirEventos(fontes, intervalo, hojeISO),
-    [fontes, intervalo, hojeISO],
+    () => construirEventos(fontes, intervalo),
+    [fontes, intervalo],
   )
 
   const eventosFiltrados = useMemo(

@@ -77,10 +77,21 @@ export interface EventoCalendario {
    *
    * - `feito` — aconteceu de verdade, vindo de `execucoes_treino` ou
    *   `sessoes_estudo`.
-   * - `cancelado` — estava previsto e foi desmarcado. Só é emitido para dias que
-   *   já chegaram: no futuro, desmarcado é simplesmente fora do plano.
+   * - `cancelado` — estava previsto e foi desmarcado.
+   * - `remarcado` — o rastro na data de ORIGEM de uma ocorrência que foi movida
+   *   para outro dia. A ocorrência em si aparece na data de destino, por
+   *   `eventosFluxograma`; este estado é só a marca de "saiu daqui", e traz
+   *   `remarcadoPara` com o destino.
    */
-  estado?: 'feito' | 'cancelado'
+  estado?: 'feito' | 'cancelado' | 'remarcado'
+  /**
+   * Para onde a ocorrência foi, em ISO. Só em `estado === 'remarcado'`.
+   *
+   * Sem isto o rastro na origem diria apenas "foi remarcado" e obrigaria a
+   * procurar o destino varrendo o calendário — que é justamente o trabalho que
+   * o rastro existe para poupar.
+   */
+  remarcadoPara?: string
   /**
    * Id da linha de origem, sem a data. Nos eventos de fluxograma é o id da
    * regra, que é o que `conclusoes_fluxograma` referencia — a faixa de carga usa
@@ -473,25 +484,27 @@ export function eventosSessoesEstudo(
 }
 
 /**
- * O que foi desmarcado, em dias que já chegaram (resolução 10.31).
+ * O que foi desmarcado (resolução 10.31).
  *
  * `expandirRecorrencia` **omite** a ocorrência cancelada, e é o comportamento
  * certo para a frequência: cancelado sai do denominador (10.17). Mas para a
- * agenda de um dia passado isso apagava a informação de que havia algo previsto —
- * "cancelei o Legs" e "nunca teve nada na quarta" ficavam idênticos.
+ * agenda isso apagava a informação de que havia algo previsto — "cancelei o
+ * Legs" e "nunca teve nada na quarta" ficavam idênticos.
  *
  * Não reaproveita `expandirRecorrencia` de propósito: mudar aquela função para
  * emitir canceladas afetaria a frequência do treino e a faixa de carga, que
  * dependem da omissão. Aqui as exceções são lidas direto.
  *
- * Só dias `<= hoje`: no futuro, desmarcado é simplesmente fora do plano, e
- * mostrar riscado o que não vai acontecer é ruído.
+ * Vale para qualquer dia do intervalo, inclusive futuros. A 10.31 recortava em
+ * `<= hoje` porque só a Home cancelava, e ali sempre é hoje; desde que o Ritual
+ * Semanal e a página de Treino passaram a cancelar dias à frente, esse recorte
+ * fazia o item desaparecer do calendário sem rastro — indistinguível de nunca
+ * ter existido, que é exatamente o defeito que a 10.31 tinha ido corrigir.
  */
 export function eventosCancelados(
   fluxograma: readonly FonteFluxograma[],
   excecoes: readonly ExcecaoRecorrencia[],
   intervalo: Intervalo,
-  hoje: string,
   nomePorMateria: ReadonlyMap<string, string>,
   nomePorTreino: ReadonlyMap<string, string>,
   corPorMateria: ReadonlyMap<string, string | null> = new Map(),
@@ -501,7 +514,6 @@ export function eventosCancelados(
   return excecoes.flatMap((excecao) => {
     if (excecao.status !== 'cancelado') return []
     if (excecao.data < intervalo.de || excecao.data > intervalo.ate) return []
-    if (excecao.data > hoje) return []
 
     const regra = porId.get(excecao.fluxograma_id)
     if (!regra) return []
@@ -524,6 +536,72 @@ export function eventosCancelados(
         camada,
         tipo,
         estado: 'cancelado' as const,
+        ...(cor ? { cor } : {}),
+      },
+    ]
+  })
+}
+
+/**
+ * O rastro, na data de origem, do que foi movido para outro dia.
+ *
+ * Irmã de `eventosCancelados`, e pela mesma razão: `expandirRecorrencia` emite a
+ * remarcada só no destino, então a data de origem ficava idêntica a um dia que
+ * nunca teve nada. "A aula de terça foi para quinta" e "terça não tem aula" são
+ * fatos diferentes, e só o primeiro explica por que a quinta ficou cheia.
+ *
+ * Não é uma falha nem uma ausência — é um ponteiro. Por isso `estado` próprio, e
+ * não `cancelado`: cancelado sai do denominador da frequência e entra em "o que
+ * ficou pra trás" (`detectarFalhas`); remarcado não faz nem um nem outro, porque
+ * a ocorrência continua existindo, noutro dia.
+ *
+ * Remarcação que só muda o horário dentro do mesmo dia não gera rastro: origem e
+ * destino são a mesma linha da agenda, e duas linhas ali seriam ruído.
+ */
+export function eventosRemarcadosNaOrigem(
+  fluxograma: readonly FonteFluxograma[],
+  excecoes: readonly ExcecaoRecorrencia[],
+  intervalo: Intervalo,
+  nomePorMateria: ReadonlyMap<string, string>,
+  nomePorTreino: ReadonlyMap<string, string>,
+  corPorMateria: ReadonlyMap<string, string | null> = new Map(),
+): EventoCalendario[] {
+  const porId = new Map(fluxograma.map((regra) => [regra.id, regra]))
+
+  return excecoes.flatMap((excecao) => {
+    if (excecao.status !== 'remarcado') return []
+    if (!excecao.nova_data) return []
+    if (excecao.nova_data === excecao.data) return []
+    if (excecao.data < intervalo.de || excecao.data > intervalo.ate) return []
+
+    const regra = porId.get(excecao.fluxograma_id)
+    if (!regra) return []
+
+    const { nome, camada, tipo, cor } = resolverDonoFluxograma(
+      regra,
+      nomePorMateria,
+      nomePorTreino,
+      corPorMateria,
+    )
+
+    return [
+      {
+        /*
+         * Prefixo próprio: o destino da mesma remarcação já usa
+         * `fluxograma:${regra.id}:${nova_data}`, e reaproveitar o prefixo faria
+         * as duas linhas colidirem quando origem e destino aparecem juntas no
+         * intervalo visível.
+         */
+        id: `remarcado-origem:${regra.id}:${excecao.data}`,
+        origemId: regra.id,
+        titulo: nome,
+        inicio: comHorario(excecao.data, regra.horario_inicio),
+        fim: comHorario(excecao.data, regra.horario_fim),
+        diaInteiro: false,
+        camada,
+        tipo,
+        estado: 'remarcado' as const,
+        remarcadoPara: excecao.nova_data,
         ...(cor ? { cor } : {}),
       },
     ]
@@ -650,16 +728,10 @@ export function eventosLivres(
   })
 }
 
-/**
- * Junta todas as camadas em uma única lista de eventos.
- *
- * `hoje` entra como parâmetro (plano §9): é o que separa dia que já chegou de dia
- * futuro para decidir se um cancelamento aparece.
- */
+/** Junta todas as camadas em uma única lista de eventos. */
 export function construirEventos(
   fontes: FontesCalendario,
   intervalo: Intervalo,
-  hoje: string,
 ): EventoCalendario[] {
   const feitos = eventosExecucoesTreino(
     fontes.execucoesTreino,
@@ -706,7 +778,14 @@ export function construirEventos(
       fontes.fluxograma,
       fontes.excecoes,
       intervalo,
-      hoje,
+      fontes.nomePorMateria,
+      fontes.nomePorTreino,
+      fontes.corPorMateria,
+    ),
+    ...eventosRemarcadosNaOrigem(
+      fontes.fluxograma,
+      fontes.excecoes,
+      intervalo,
       fontes.nomePorMateria,
       fontes.nomePorTreino,
       fontes.corPorMateria,
