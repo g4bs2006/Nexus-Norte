@@ -1,13 +1,21 @@
+import { format, isYesterday } from 'date-fns'
 import { Link } from 'react-router-dom'
-import { Dumbbell } from 'lucide-react'
+import { Check, Dumbbell } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
-import { useDescartarExecucao, useExecucaoAberta } from '../hooks'
+import { deISO } from '@/lib/datas'
+import {
+  useDescartarExecucao,
+  useExecucaoAberta,
+  useFinalizarExecucao,
+} from '../hooks'
 
 interface AvisoTreinoAbertoProps {
   /** Nome do treino por id — a Home já carrega a lista. */
   nomePorTreino: ReadonlyMap<string, string>
+  /** Hoje em ISO. Quem sabe a data é a página (plano, seção 9). */
+  hojeISO: string
 }
 
 /**
@@ -23,15 +31,27 @@ interface AvisoTreinoAbertoProps {
  * Não renderiza nada quando não há sessão aberta: um card permanente dizendo
  * "nenhum treino em andamento" só ocuparia espaço na tela mais disputada do app.
  */
-export function AvisoTreinoAberto({ nomePorTreino }: AvisoTreinoAbertoProps) {
+export function AvisoTreinoAberto({
+  nomePorTreino,
+  hojeISO,
+}: AvisoTreinoAbertoProps) {
   const aberta = useExecucaoAberta()
   const descartar = useDescartarExecucao()
+  const finalizar = useFinalizarExecucao()
 
   const sessao = aberta.data
   if (!sessao) return null
 
   const nome = nomePorTreino.get(sessao.treino_id) ?? 'Treino'
   const salvas = sessao.series.length
+  /*
+   * Sessão de dia que já passou é o caso que motivou o botão de finalizar aqui
+   * (13/08): um Push com 15 séries e a duração informada ficou aberto de um dia
+   * para o outro, ficou fora da frequência da semana e — porque o banco só
+   * admite uma sessão aberta — travou o início de qualquer outro treino.
+   */
+  const deDiaPassado = sessao.data < hojeISO
+  const pendente = finalizar.isPending || descartar.isPending
 
   return (
     <Card className="border-treino/40">
@@ -44,8 +64,9 @@ export function AvisoTreinoAberto({ nomePorTreino }: AvisoTreinoAbertoProps) {
           <div className="min-w-0">
             <p className="text-sm font-medium">{nome} em andamento</p>
             <p className="text-muted-foreground text-xs tabular-nums">
-              {salvas} {salvas === 1 ? 'série salva' : 'séries salvas'} · fecha
-              o treino para contar na frequência
+              {salvas} {salvas === 1 ? 'série salva' : 'séries salvas'}
+              {deDiaPassado && ` · ${rotuloDoDia(sessao.data)}`} · fecha o treino
+              para contar na frequência
             </p>
           </div>
         </div>
@@ -67,11 +88,44 @@ export function AvisoTreinoAberto({ nomePorTreino }: AvisoTreinoAbertoProps) {
             }}
             pendente={descartar.isPending}
           />
-          <Button asChild size="sm">
+          {/*
+            Finalizar direto daqui. Antes o aviso só oferecia Continuar e
+            Descartar — as duas saídas erradas para um treino que já aconteceu e
+            só não foi encerrado. Chegar ao botão certo exigia ir ao pilar, abrir
+            o diálogo e achar "Finalizar treino" no rodapé.
+
+            Zero série desabilita, mesma regra do diálogo: sem nada gravado não há
+            treino a registrar, e a saída é descartar.
+          */}
+          <Button
+            size="sm"
+            variant={deDiaPassado ? 'default' : 'secondary'}
+            disabled={pendente || salvas === 0}
+            title={
+              salvas === 0
+                ? 'Nada foi salvo nesta sessão — descarte em vez de finalizar.'
+                : undefined
+            }
+            onClick={() => void finalizar.mutateAsync(sessao.id)}
+          >
+            <Check className="size-4" />
+            {finalizar.isPending ? 'Finalizando…' : 'Finalizar'}
+          </Button>
+          {/*
+            Continuar deixa de ser a ação primária quando a sessão é de outro dia:
+            ali o provável é encerrar, não voltar a anotar séries.
+          */}
+          <Button asChild size="sm" variant={deDiaPassado ? 'secondary' : 'default'}>
             <Link to="/treino">Continuar</Link>
           </Button>
         </div>
       </CardContent>
     </Card>
   )
+}
+
+/** `"de ontem"` ou `"de 12/08"` — de quando é a sessão que ficou aberta. */
+function rotuloDoDia(data: string): string {
+  const dia = deISO(data)
+  return isYesterday(dia) ? 'de ontem' : `de ${format(dia, 'dd/MM')}`
 }

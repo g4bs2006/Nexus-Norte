@@ -2375,3 +2375,41 @@ ocorrência, e a fatia soma a matéria inteira do dia.
 `COR_CAMADA`. Ali a cor representa a categoria, não o item — o azul de "Aulas e
 provas" não deve virar o vermelho de uma matéria específica, mesmo raciocínio já
 registrado em `corDoEvento`.
+
+### 10.52 Treino concluído ficava "em andamento" para sempre (corrige 10.21) — descoberta em uso
+
+O Push de 12/08 tinha **15 séries gravadas e `duracao_minutos = 90`** — todos os
+sinais de treino concluído — e `finalizado_em` nulo. No dia seguinte a Home ainda
+dizia "Push em andamento".
+
+**Não era bug de dado nem vínculo errado.** O diálogo foi fechado em vez de tocar
+"Finalizar treino", e fechar não encerra de propósito: a sessão nasce na primeira
+série e sobrevive ao fechamento para se poder treinar com o celular no bolso
+(10.21). O rodapé do diálogo até convida — *"Pode fechar e voltar depois"*.
+
+O defeito é o que o estado custa quando ninguém volta:
+
+- a sessão **não conta na frequência da semana**, que só soma finalizadas
+  (10.21) — um treino que aconteceu fica invisível nas métricas;
+- e **trava o início de qualquer outro treino**: o índice
+  `execucoes_treino_uma_aberta` admite uma só, e `DialogExecucao` desabilita o
+  botão com "Há outro treino em andamento. Finalize-o primeiro". Um esquecimento
+  de terça bloqueia o treino de quarta.
+
+E o aviso da Home, que é onde o esquecimento é descoberto, oferecia exatamente as
+**duas saídas erradas**: Continuar e Descartar. Chegar ao botão certo exigia ir ao
+pilar, abrir o diálogo e achar "Finalizar treino" no rodapé.
+
+**Finalizar direto no aviso.** Um toque, e a decisão continua com o usuário —
+nada é gravado sem ele pedir. Zero série desabilita o botão, mesma regra do
+diálogo: sem nada gravado não há treino a registrar, e a saída é descartar.
+
+Quando a sessão é de um dia que já passou, o aviso diz de quando ela é ("de
+ontem", "de 12/08") e **Finalizar vira a ação primária**, com Continuar recuando
+para secundária: ali o provável é encerrar, não voltar a anotar séries.
+
+**Descartado: finalizar sozinho as sessões de dias passados.** Uma sessão
+abandonada no meio (2 de 12 séries) viraria "treino feito" na frequência, que é
+justamente o que a 10.21 evita ao criar `finalizado_em`. E o carimbo receberia um
+horário inventado — o erro que a 10.24 corrigiu. Distinguir "acabei e esqueci de
+fechar" de "desisti no meio" exige a informação que só o usuário tem.

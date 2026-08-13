@@ -481,7 +481,10 @@ export default function HomePage() {
 
       <div className="space-y-6">
         {/* Só aparece se houver treino em andamento (resolução 10.21) */}
-        <AvisoTreinoAberto nomePorTreino={nomePorTreinoHome} />
+        <AvisoTreinoAberto
+          nomePorTreino={nomePorTreinoHome}
+          hojeISO={hojeISO}
+        />
 
         {/*
           O dia — assinatura da Home (Bloco C do brief).
