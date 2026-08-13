@@ -697,3 +697,32 @@ describe('cargaPorDia — fato registrado entra na barra', () => {
     expect(dia?.minutosRotina).toBe(0)
   })
 })
+
+describe('mover e redimensionar (resolução "arrastar eventos")', () => {
+  it('mover um bloco de terça para quinta transfere minutosRotina entre os dois dias', () => {
+    const terca = aula('2026-08-04', '08:00', '09:00')
+    const quinta = {
+      ...terca,
+      inicio: '2026-08-06T08:00:00',
+      fim: '2026-08-06T09:00:00',
+    }
+
+    const antes = cargaPorDia([terca], SEMANA, QUARTA)
+    const depois = cargaPorDia([quinta], SEMANA, QUARTA)
+
+    expect(antes.find((d) => d.data === '2026-08-04')?.minutosRotina).toBe(60)
+    expect(depois.find((d) => d.data === '2026-08-04')?.minutosRotina).toBe(0)
+    expect(depois.find((d) => d.data === '2026-08-06')?.minutosRotina).toBe(60)
+  })
+
+  it('redimensionar altera minutosRotina só do dia do bloco', () => {
+    const curto = aula('2026-08-04', '08:00', '09:00')
+    const longo = { ...curto, fim: '2026-08-04T10:00:00' }
+
+    const antes = cargaPorDia([curto], SEMANA, QUARTA)
+    const depois = cargaPorDia([longo], SEMANA, QUARTA)
+
+    expect(antes.find((d) => d.data === '2026-08-04')?.minutosRotina).toBe(60)
+    expect(depois.find((d) => d.data === '2026-08-04')?.minutosRotina).toBe(120)
+  })
+})
