@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { format, subDays } from 'date-fns'
 import { NotebookPen, Pencil, Plus } from 'lucide-react'
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
@@ -17,7 +17,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { BarraProgresso } from '@/components/BarraProgresso'
 import { ESTILO_TOOLTIP } from '@/components/Grafico'
+import { cn } from '@/lib/utils'
 import { deISO, paraISO } from '@/lib/datas'
+import { comportamentoRolagem } from '@/lib/movimento'
 import { useCriarSessao, useAtualizarSessao, useExcluirSessao } from '../hooks'
 import { frequenciaEstudoSemana } from '../calculos'
 import { DialogNota } from './DialogNota'
@@ -55,6 +57,9 @@ export function AbaSessoes({
   const [duracao, setDuracao] = useState('')
   const [meta, setMeta] = useState('')
   const [idEditando, setIdEditando] = useState<string | null>(null)
+  const formulario = useRef<HTMLDivElement>(null)
+
+  const emEdicao = sessoes.find((sessao) => sessao.id === idEditando)
 
   const frequencia = useMemo(() => {
     const limite = paraISO(subDays(hoje, 6))
@@ -81,6 +86,19 @@ export function AbaSessoes({
     return dias
   }, [sessoes, hoje])
 
+  /*
+   * O lápis da linha não abre diálogo: ele carrega o formulário de registro, que
+   * fica DOIS cards acima da lista (métrica, formulário, gráfico de 14 dias,
+   * lista). Da altura de uma linha da lista, esse formulário está fora da tela —
+   * então clicar no lápis parecia não fazer nada, ainda mais ao lado do lápis de
+   * nota, que abre um modal de verdade.
+   *
+   * Levar a tela até o formulário é o que torna o clique visível. Mesmo recurso
+   * que `focarDia` em `CalendarioPage`: a animação existe para mostrar de onde
+   * para onde a tela andou, e não há foco automático de campo de propósito —
+   * focar um `type="date"` abre o seletor nativo no celular, que seria uma
+   * segunda surpresa em cima da primeira.
+   */
   function iniciarEdicao(sessao: SessaoEstudo) {
     setIdEditando(sessao.id)
     setData(sessao.data)
@@ -89,6 +107,10 @@ export function AbaSessoes({
     setMeta(
       sessao.meta_diaria_minutos ? String(sessao.meta_diaria_minutos) : '',
     )
+    formulario.current?.scrollIntoView({
+      block: 'center',
+      behavior: comportamentoRolagem(),
+    })
   }
 
   function cancelarEdicao() {
@@ -163,8 +185,30 @@ export function AbaSessoes({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card
+        ref={formulario}
+        className={cn(
+          'transition-shadow',
+          // Chegar aqui rolando não basta: o formulário de edição é o MESMO de
+          // registro, e a única diferença era o rótulo do botão. Sem esta marca
+          // dava para achar que se estava criando uma sessão e sobrescrever a
+          // que estava sendo editada.
+          idEditando && 'ring-estudos/50 ring-2',
+        )}
+      >
         <CardContent className="flex flex-wrap items-end gap-2">
+          {emEdicao && (
+            <p className="text-muted-foreground w-full text-xs">
+              Editando a sessão de{' '}
+              <span className="text-foreground font-medium tabular-nums">
+                {format(deISO(emEdicao.data), 'dd/MM/yyyy')}
+                {emEdicao.hora_inicio
+                  ? ` · ${emEdicao.hora_inicio.slice(0, 5)}`
+                  : ' · sem hora'}
+              </span>{' '}
+              · {emEdicao.duracao_minutos} min
+            </p>
+          )}
           <div className="space-y-1.5">
             <Label className="text-xs" htmlFor="sessao-data">
               Data

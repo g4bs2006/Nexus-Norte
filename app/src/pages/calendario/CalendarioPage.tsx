@@ -29,6 +29,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { deISO, formatarDuracao, inicioSemana, paraISO } from '@/lib/datas'
+import { comportamentoRolagem } from '@/lib/movimento'
 import { cn } from '@/lib/utils'
 import {
   COR_CAMADA,
@@ -223,11 +224,9 @@ export default function CalendarioPage() {
     setDiaFocado(data)
     refsDia.current.get(data)?.scrollIntoView({
       block: 'nearest',
-      // A regra de movimento do sistema: sem animação que não comunique estado.
-      // Aqui ela comunica de onde para onde a lista andou.
-      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
-        ? 'auto'
-        : 'smooth',
+      // Aqui a animação comunica de onde para onde a lista andou — é o que a
+      // regra em `lib/movimento.ts` exige para ela existir.
+      behavior: comportamentoRolagem(),
     })
   }
 
