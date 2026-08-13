@@ -115,6 +115,21 @@ export function GradeMes({
         classNames: [
           ...(evento.rota ? ['evento-clicavel'] : []),
           ...(riscado ? ['evento-riscado'] : []),
+          /*
+           * Com o check do dia preenchendo a aula, preenchimento passou a
+           * significar STATUS ("aconteceu") e parou de conseguir dizer o QUE a
+           * coisa é: aula cumprida e sessão de estudo da mesma matéria voltaram
+           * a ser dois blocos idênticos. A textura devolve a identidade num
+           * canal que não é a cor — o sistema já exige isso em outros pontos
+           * ("nenhuma informação passa por cor sozinha").
+           *
+           * Listra só na sessão, e não em todo `estado: 'feito'`: aula com
+           * check e treino executado OCUPAM a vaga da rotina (o treino previsto
+           * é até filtrado quando há execução). A sessão de estudo não tem vaga
+           * nenhuma na grade — ela é esforço além dela, e é isso que a textura
+           * diz. Liso = cumpri o que estava planejado; listrado = fiz a mais.
+           */
+          ...(evento.tipo === 'estudo' ? ['evento-sessao'] : []),
         ],
       }
     })

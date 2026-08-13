@@ -78,9 +78,16 @@ export default function HistoricoPage() {
         hoje,
         fontes.planejamentoSono,
         carga.sonoRealizado,
-        carga.conclusoes,
+        fontes.conclusoes,
       ),
-    [eventosFiltrados, intervalo, hoje, fontes.planejamentoSono, carga],
+    [
+      eventosFiltrados,
+      intervalo,
+      hoje,
+      fontes.planejamentoSono,
+      fontes.conclusoes,
+      carga.sonoRealizado,
+    ],
   )
 
   const horasDormidasPorDia = useMemo(() => {

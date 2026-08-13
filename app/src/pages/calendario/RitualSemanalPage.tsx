@@ -299,9 +299,15 @@ function PassoRotina({ intervalo, hojeISO }: PassoRotinaProps) {
         deISO(intervalo.de),
         fontes.planejamentoSono,
         carga.sonoRealizado,
-        carga.conclusoes,
+        fontes.conclusoes,
       ),
-    [eventos, intervalo, fontes.planejamentoSono, carga],
+    [
+      eventos,
+      intervalo,
+      fontes.planejamentoSono,
+      fontes.conclusoes,
+      carga.sonoRealizado,
+    ],
   )
   const sobrecarga = useMemo(() => detectarSobrecarga(dias), [dias])
 
@@ -458,9 +464,15 @@ function PassoEstudoTreino({
         deISO(intervalo.de),
         fontes.planejamentoSono,
         carga.sonoRealizado,
-        carga.conclusoes,
+        fontes.conclusoes,
       ),
-    [eventos, intervalo, fontes.planejamentoSono, carga],
+    [
+      eventos,
+      intervalo,
+      fontes.planejamentoSono,
+      fontes.conclusoes,
+      carga.sonoRealizado,
+    ],
   )
 
   const metas = useMetas()

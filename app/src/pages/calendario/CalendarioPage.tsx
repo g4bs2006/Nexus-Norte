@@ -148,9 +148,16 @@ export default function CalendarioPage() {
         hoje,
         fontes.planejamentoSono,
         carga.sonoRealizado,
-        carga.conclusoes,
+        fontes.conclusoes,
       ),
-    [visiveisFiltrados, intervalo, hoje, fontes.planejamentoSono, carga],
+    [
+      visiveisFiltrados,
+      intervalo,
+      hoje,
+      fontes.planejamentoSono,
+      fontes.conclusoes,
+      carga.sonoRealizado,
+    ],
   )
 
   const sobrecarga = useMemo(
@@ -166,10 +173,10 @@ export default function CalendarioPage() {
   const [descartadas, setDescartadas] = useState<Set<string>>(() => new Set())
   const falhas = useMemo(
     () =>
-      detectarFalhas(eventos, new Set(carga.conclusoes), hojeISO).filter(
+      detectarFalhas(eventos, new Set(fontes.conclusoes), hojeISO).filter(
         (falha) => !descartadas.has(`${falha.fluxogramaId}@${falha.data}`),
       ),
-    [eventos, carga.conclusoes, hojeISO, descartadas],
+    [eventos, fontes.conclusoes, hojeISO, descartadas],
   )
   const sugestoesRealocacao = useMemo(
     () => sugerirRealocacao(falhas, dias.filter((dia) => !dia.ehPassado)),

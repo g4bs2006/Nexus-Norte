@@ -506,6 +506,32 @@
     text-decoration: line-through;
 }
 
+/*
+   Sessão de estudo: preenchida como todo fato registrado, mas com textura.
+
+   Desde que o check do dia passou a preencher a aula, o preenchimento carrega
+   STATUS ("aconteceu") e não consegue mais carregar IDENTIDADE ("o que é") —
+   aula cumprida e sessão de estudo da mesma matéria ficariam idênticas. A
+   listra é o segundo canal, e de propósito não é cor: a cor já está ocupada
+   pela matéria, e o sistema não deixa informação passar só por ela.
+
+   O gradiente vai sobre `background-image`, não `background-color`: a cor de
+   fundo vem inline do FullCalendar (`backgroundColor` do evento, que é a cor da
+   matéria) e precisa continuar aparecendo por baixo das faixas transparentes.
+
+   `background-attachment: local` mantém a listra parada em relação ao bloco —
+   sem isso, blocos vizinhos de alturas diferentes mostram fases diferentes da
+   listra e a grade fica visualmente ruidosa.
+*/
+.calendario-nexus .fc .evento-sessao {
+    background-image: repeating-linear-gradient(
+        -45deg,
+        rgb(255 255 255 / 0.22) 0 4px,
+        transparent 4px 9px
+    );
+    background-attachment: local;
+}
+
 .calendario-nexus .fc .fc-timegrid-slot-label-cushion,
 .calendario-nexus .fc .fc-list-day-text {
     color: var(--muted-foreground);

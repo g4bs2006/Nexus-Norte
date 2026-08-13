@@ -110,6 +110,30 @@ export interface EventoCalendario {
    * `corDoEvento` faz isso, e centralizar evita que uma view esqueça.
    */
   cor?: string
+  /**
+   * Duração informada pelo usuário, quando a entidade dona guarda uma.
+   *
+   * Existe porque `fim − início` **não** serve para o que foi realizado, e a
+   * resolução 10.24 já dizia isso sem que houvesse onde guardar a alternativa:
+   * a execução de treino nunca emite `fim` (só `inicio`), e a sessão de estudo
+   * sem hora é de dia inteiro, também sem `fim`. Nos dois casos a subtração dá
+   * zero, e a barra de carga leria "não ocupou nada" um dia inteiro de treino.
+   *
+   * Ausente = a duração sai de `fim − início`, que é o certo para a rotina
+   * prevista: ali o horário É a duração, porque nada foi medido ainda.
+   */
+  minutos?: number
+  /**
+   * Se a ocorrência veio de uma regra do fluxograma — a rotina prevista.
+   *
+   * Antes dava para inferir por `estado === undefined`, e a carga fazia
+   * exatamente isso. Deixou de valer quando o check do dia passou a marcar a
+   * aula como `feito`: sem esta bandeira, a barra não distingue mais "aula da
+   * grade que aconteceu" de "sessão de estudo registrada", e cobraria check de
+   * uma sessão que nunca teve um (o `origemId` dela é a matéria, que jamais
+   * casa com `conclusoes_fluxograma`) — o mesmo bug que a 10.31 corrigiu.
+   */
+  rotina?: boolean
 }
 
 export interface Intervalo {
@@ -273,6 +297,14 @@ export interface FontesCalendario {
   corPorMateria?: ReadonlyMap<string, string | null>
   /** Opcional: sem ela, aula de fluxograma nunca é limitada por período. */
   periodoPorMateria?: ReadonlyMap<string, PeriodoMateria>
+  /**
+   * Checks do dia, como `fluxogramaId@data` (resolução 10.15).
+   *
+   * Opcional: sem elas a rotina inteira sai como prevista, que era o
+   * comportamento até o check passar a preencher o bloco. Quem só quer prazos —
+   * a Home, via `eventosComPrazo` — não precisa buscar esta consulta.
+   */
+  conclusoes?: readonly string[]
 }
 
 // --- Construtores por camada ------------------------------------------------
@@ -344,6 +376,18 @@ export function eventosFluxograma(
   periodoPorMateria: ReadonlyMap<string, PeriodoMateria> = new Map(),
   /** Cor própria por matéria; ausente cai na cor da camada. */
   corPorMateria: ReadonlyMap<string, string | null> = new Map(),
+  /**
+   * Chaves `fluxogramaId@data` que já têm check do dia.
+   *
+   * É o que transforma "marquei que fui à aula" em `estado: 'feito'` no evento,
+   * e daí em bloco preenchido nas grades. Antes desta ligação o check só existia
+   * para a barra de carga decidir o anel de "rotina sem check": a aula que você
+   * assistiu e marcou ficava, no calendário, idêntica àquela em que faltou.
+   *
+   * Vazio por padrão — quem não passa conclusões vê a rotina toda como prevista,
+   * que é o comportamento anterior.
+   */
+  feitosFluxograma: ReadonlySet<string> = new Set(),
 ): EventoCalendario[] {
   return expandirRecorrencia(fluxograma, intervalo, excecoes)
     .filter(
@@ -385,6 +429,12 @@ export function eventosFluxograma(
         camada,
         tipo,
         rota,
+        rotina: true,
+        // Mesma chave que a barra de carga já usava para o anel de "sem check",
+        // agora lida também aqui — uma origem só para "isto aconteceu".
+        ...(feitosFluxograma.has(`${regra.id}@${data}`)
+          ? { estado: 'feito' as const }
+          : {}),
         ...(cor ? { cor } : {}),
       }
     })
@@ -474,6 +524,10 @@ export function eventosExecucoesTreino(
         tipo: 'treino' as const,
         estado: 'feito' as const,
         rota: '/treino',
+        // Este evento nunca emite `fim`; sem isto a carga o leria como 0 min
+        ...(execucao.duracao_minutos !== null
+          ? { minutos: execucao.duracao_minutos }
+          : {}),
       },
     ]
   })
@@ -527,6 +581,9 @@ export function eventosSessoesEstudo(
         camada: 'estudos' as const,
         tipo: 'estudo' as const,
         estado: 'feito' as const,
+        // Vale nos dois casos: sem hora nao ha `fim` de onde subtrair, e com
+        // hora o `fim` foi derivado justamente deste numero
+        minutos: sessao.duracao_minutos,
         rota: `/estudos/${sessao.materia_id}`,
         ...(cor ? { cor } : {}),
       },
@@ -600,6 +657,7 @@ export function eventosCancelados(
     return [
       {
         id: `cancelado:${regra.id}:${excecao.data}`,
+        rotina: true,
         origemId: regra.id,
         titulo: nome,
         inicio: comHorario(excecao.data, regra.horario_inicio),
@@ -665,6 +723,7 @@ export function eventosRemarcadosNaOrigem(
          * intervalo visível.
          */
         id: `remarcado-origem:${regra.id}:${excecao.data}`,
+        rotina: true,
         origemId: regra.id,
         titulo: nome,
         inicio: comHorario(excecao.data, regra.horario_inicio),
@@ -838,6 +897,7 @@ export function construirEventos(
       treinosFeitos,
       fontes.periodoPorMateria,
       fontes.corPorMateria,
+      new Set(fontes.conclusoes ?? []),
     ),
     ...feitos,
     ...eventosSessoesEstudo(

@@ -188,23 +188,31 @@ export function cargaPorDia(
       if (evento.tipo === 'sono') continue
 
       /*
-       * A barra mede tempo que a ROTINA compromete — projeção do fluxograma.
-       * Evento com `estado` é desfecho, não previsão, e contá-lo aqui produzia
-       * dois erros observados na tela (resolução 10.31):
+       * O que **não aconteceu ali** não ocupa tempo: `cancelado` carrega o
+       * horário do padrão e somava 1h de "comprometido" num dia em que
+       * justamente nada foi; `remarcado` na origem é ponteiro, e o tempo real
+       * está na data de destino, onde a ocorrência aparece de novo.
        *
-       * - `cancelado` carrega o horário do padrão, então somava 1h de "tempo
-       *   comprometido" num dia em que justamente nada foi comprometido;
-       * - `feito` ligava `temRotina` e, como o `origemId` dele é o `treino_id` e
-       *   não o id da regra, nunca casava com `conclusoes` — o dia em que o
-       *   treino ACONTECEU ganhava o anel de "rotina sem check".
-       *
-       * A duração do realizado também não sairia daqui: ela é `duracao_minutos`,
-       * informada pelo usuário, e não a diferença entre início e fim (10.24).
+       * O que aconteceu, conta. Até a resolução 10.31 a barra media só a rotina
+       * PREVISTA e descartava todo evento com `estado` — o que fazia o dia de 3h
+       * de estudo registrado parecer tão livre quanto um dia vazio. A barra
+       * responde "quanto do dia já foi", e para isso o fato pesa mais que o
+       * plano: é ele que de fato consumiu as horas.
        */
-      if (evento.estado !== undefined) continue
+      if (evento.estado === 'cancelado' || evento.estado === 'remarcado') {
+        continue
+      }
 
-      temRotina = true
-      const minutos = duracaoMinutos(evento.inicio, evento.fim)
+      // Só a rotina prevista pelo fluxograma alimenta o sinal de check pendente
+      if (evento.rotina) temRotina = true
+
+      /*
+       * `minutos` informado ganha de `fim − início`, e para o realizado é a
+       * única fonte que existe: execução de treino nunca emite `fim`, e sessão
+       * sem hora é de dia inteiro. A subtração daria zero nos dois casos (10.24).
+       */
+      const minutos =
+        evento.minutos ?? duracaoMinutos(evento.inicio, evento.fim)
       const chave = `${evento.camada}|${evento.cor ?? ''}`
       const grupo = porCamadaECor.get(chave)
       if (grupo) {
@@ -220,12 +228,19 @@ export function cargaPorDia(
       }
 
       /*
-       * Trabalho não tem entidade nem check (resolução 10.48.0): não entra
-       * em `conclusoes_fluxograma`, e cobrar "marquei que trabalhei?" seria
-       * ruído puro — por isso a camada fica de fora deste sinal, mesmo
-       * contando normalmente para `minutosRotina` acima.
+       * O anel de "rotina sem check" só faz sentido para o que TEM check, e
+       * isso é a rotina do fluxograma. Sem o guarda de `rotina`, a sessão de
+       * estudo — que agora chega até aqui — cobraria um check que ela nunca
+       * teve: o `origemId` dela é a matéria, que jamais casa com
+       * `conclusoes_fluxograma`. É o mesmo bug que a 10.31 corrigiu para o
+       * treino executado, e ele voltaria pela porta que esta mudança abriu.
+       *
+       * Trabalho não tem entidade nem check (resolução 10.48.0): não entra em
+       * `conclusoes_fluxograma`, e cobrar "marquei que trabalhei?" seria ruído
+       * puro — fica de fora do sinal, mesmo contando para `minutosRotina`.
        */
       if (
+        evento.rotina &&
         evento.camada !== 'trabalho' &&
         evento.origemId &&
         !feitos.has(`${evento.origemId}@${data}`)

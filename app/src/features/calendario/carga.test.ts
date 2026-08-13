@@ -16,6 +16,9 @@ function aula(data: string, inicio: string, fim: string): EventoCalendario {
     diaInteiro: false,
     camada: 'estudos',
     tipo: 'aula',
+    // Como as ocorrencias reais de `eventosFluxograma`: e o que separa
+    // rotina prevista de fato registrado na barra de carga.
+    rotina: true,
   }
 }
 
@@ -29,6 +32,39 @@ function treino(data: string, inicio: string, fim: string): EventoCalendario {
     diaInteiro: false,
     camada: 'treino',
     tipo: 'treino',
+    // Como as ocorrencias reais de `eventosFluxograma`: e o que separa
+    // rotina prevista de fato registrado na barra de carga.
+    rotina: true,
+  }
+}
+
+/** Sessao registrada: sem hora, dia inteiro, duracao so em `minutos`. */
+function sessaoEstudo(data: string, minutos: number): EventoCalendario {
+  return {
+    id: `sessao-estudo:s1:${data}`,
+    origemId: 'materia-1',
+    titulo: `Calculo II · ${minutos} min`,
+    inicio: data,
+    diaInteiro: true,
+    camada: 'estudos',
+    tipo: 'estudo',
+    estado: 'feito',
+    minutos,
+  }
+}
+
+/** Execucao de treino: nunca emite `fim`, so `minutos`. */
+function treinoFeito(data: string, minutos: number): EventoCalendario {
+  return {
+    id: `execucao:e1`,
+    origemId: 'treino-1',
+    titulo: 'Treino B',
+    inicio: `${data}T19:00:00`,
+    diaInteiro: false,
+    camada: 'treino',
+    tipo: 'treino',
+    estado: 'feito',
+    minutos,
   }
 }
 
@@ -53,6 +89,9 @@ function trabalho(data: string, inicio: string, fim: string): EventoCalendario {
     diaInteiro: false,
     camada: 'trabalho',
     tipo: 'trabalho',
+    // Como as ocorrencias reais de `eventosFluxograma`: e o que separa
+    // rotina prevista de fato registrado na barra de carga.
+    rotina: true,
   }
 }
 
@@ -588,5 +627,73 @@ describe('eventos com estado ficam fora da barra de carga', () => {
 
     // 90 min da rotina prevista, zero do cancelado
     expect(quarta?.minutosRotina).toBe(90)
+  })
+})
+
+describe('cargaPorDia — fato registrado entra na barra', () => {
+  it('conta a sessao de estudo sem hora, usando `minutos`', () => {
+    const [dia] = cargaPorDia([sessaoEstudo('2026-08-03', 90)], SEMANA, QUARTA)
+    // Dia inteiro nao tem `fim`: sem `minutos` a subtracao daria 0 e a barra
+    // leria 3h de estudo como dia vazio.
+    expect(dia?.minutosRotina).toBe(90)
+  })
+
+  it('conta a execucao de treino, que tambem nunca emite fim', () => {
+    const [dia] = cargaPorDia([treinoFeito('2026-08-03', 55)], SEMANA, QUARTA)
+    expect(dia?.minutosRotina).toBe(55)
+  })
+
+  it('a sessao registrada reduz o tempo livre do dia', () => {
+    const vazio = cargaPorDia([], SEMANA, QUARTA)[0]
+    const comSessao = cargaPorDia(
+      [sessaoEstudo('2026-08-03', 90)],
+      SEMANA,
+      QUARTA,
+    )[0]
+
+    expect((vazio?.minutosLivres ?? 0) - (comSessao?.minutosLivres ?? 0)).toBe(
+      90,
+    )
+  })
+
+  it('aula com check continua contando: fazer nao esvazia o dia', () => {
+    const semCheck = cargaPorDia(
+      [aula('2026-08-03', '08:00', '10:00')],
+      SEMANA,
+      QUARTA,
+    )[0]
+    const comCheck = cargaPorDia(
+      [{ ...aula('2026-08-03', '08:00', '10:00'), estado: 'feito' as const }],
+      SEMANA,
+      QUARTA,
+      [],
+      [],
+      ['regra-aula@2026-08-03'],
+    )[0]
+
+    expect(semCheck?.minutosRotina).toBe(120)
+    expect(comCheck?.minutosRotina).toBe(120)
+  })
+
+  it('a sessao nao cobra check que ela nunca teve', () => {
+    // `origemId` da sessao e a materia, que jamais casa com
+    // `conclusoes_fluxograma` — sem o guarda de `rotina` isto voltaria true e
+    // o dia em que se estudou ganharia o anel de "rotina sem check" (10.31).
+    const [dia] = cargaPorDia([sessaoEstudo('2026-08-03', 90)], SEMANA, QUARTA)
+    expect(dia?.checkPendente).toBe(false)
+  })
+
+  it('cancelado e remarcado seguem fora: nao aconteceram ali', () => {
+    const cancelada = {
+      ...aula('2026-08-03', '08:00', '10:00'),
+      estado: 'cancelado' as const,
+    }
+    const remarcada = {
+      ...aula('2026-08-03', '10:00', '12:00'),
+      estado: 'remarcado' as const,
+    }
+
+    const [dia] = cargaPorDia([cancelada, remarcada], SEMANA, QUARTA)
+    expect(dia?.minutosRotina).toBe(0)
   })
 })

@@ -100,6 +100,50 @@ describe('eventosFluxograma', () => {
     rotulo: 'Escritório',
   }
 
+  it('marca rotina: true — e o que separa previsto de registrado na carga', () => {
+    const [evento] = eventosFluxograma([aula], [], SEMANA, MATERIAS, TREINOS)
+    expect(evento?.rotina).toBe(true)
+  })
+
+  it('sem conclusoes, a rotina toda sai como prevista', () => {
+    const [evento] = eventosFluxograma([aula], [], SEMANA, MATERIAS, TREINOS)
+    expect(evento?.estado).toBeUndefined()
+  })
+
+  it('check do dia vira estado feito — e o que preenche o bloco na grade', () => {
+    const [evento] = eventosFluxograma(
+      [aula],
+      [],
+      SEMANA,
+      MATERIAS,
+      TREINOS,
+      new Set(),
+      new Map(),
+      new Map(),
+      new Set(['f1@2026-08-03']),
+    )
+
+    expect(evento?.inicio.slice(0, 10)).toBe('2026-08-03')
+    expect(evento?.estado).toBe('feito')
+    expect(ehBlocoCheio(evento as EventoCalendario)).toBe(true)
+  })
+
+  it('check de outro dia nao marca a ocorrencia deste', () => {
+    const [evento] = eventosFluxograma(
+      [aula],
+      [],
+      SEMANA,
+      MATERIAS,
+      TREINOS,
+      new Set(),
+      new Map(),
+      new Map(),
+      new Set(['f1@2026-08-10']),
+    )
+
+    expect(evento?.estado).toBeUndefined()
+  })
+
   it('classifica a camada pela FK preenchida', () => {
     const eventos = eventosFluxograma(
       [aula, treino],

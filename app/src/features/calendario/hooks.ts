@@ -163,14 +163,25 @@ export function useFontesCalendario(
       corPorMateria: mapasMateria.corPorMateria,
       nomePorTreino: treinos.data ?? new Map<string, string>(),
       periodoPorMateria: mapasMateria.periodoPorMateria,
+      /*
+       * Entrou em `fontes` quando o check do dia passou a marcar a aula como
+       * `feito` no evento: `construirEventos` agora usa. Antes vivia só em
+       * `carga`, com o comentário de que virar fonte faria parecer que check
+       * vira evento -- e é exatamente o que ele virou.
+       *
+       * Só é buscado com `comCarga`. Quem não pede (a Home) vê a rotina toda
+       * como prevista, o que não a afeta: ela lê só prazos.
+       */
+      conclusoes: conclusoes.data ?? [],
     },
     /*
-     * Fora de `fontes` de propósito: `construirEventos` não usa nenhum dos dois.
-     * Só a faixa de carga usa, e misturar aqui faria parecer que viram evento.
+     * Fora de `fontes`: `construirEventos` não usa sono realizado, só a faixa
+     * de carga usa. `conclusoes` morava aqui pela mesma razão e mudou de lado
+     * quando o check passou a virar `estado` no evento — está em `fontes`, e
+     * quem calcula carga lê de lá. Um dado, um lugar.
      */
     carga: {
       sonoRealizado: sonoFeito.data ?? [],
-      conclusoes: conclusoes.data ?? [],
     },
     carregando: consultas.some((consulta) => consulta.isPending),
     erro: consultas.find((consulta) => consulta.isError)?.error ?? null,

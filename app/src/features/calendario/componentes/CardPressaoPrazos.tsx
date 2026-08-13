@@ -47,7 +47,7 @@ export function CardPressaoPrazos({ hoje }: { hoje: string }) {
       new Date(hoje),
       fontes.planejamentoSono,
       carga.sonoRealizado,
-      carga.conclusoes,
+      fontes.conclusoes,
     )
 
     const metaPorMateria = new Map<string, number>()
