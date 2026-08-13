@@ -50,7 +50,12 @@ export const schemaMateria = z
     data_inicio: z.string(),
     data_fim: z.string(),
     local: z.string(),
-    notas_estudo: z.string(),
+    /*
+     * Particularidades continua no cadastro: é referência estável (email do
+     * professor, política de faltas) e pertence à ficha da matéria. As notas de
+     * estudo saíram daqui em 13/08 — viraram entidade, `notas_estudo`, porque
+     * anotar não pode significar editar o cadastro.
+     */
     notas_particularidades: z.string(),
     // Restrita à paleta do design system, igual a categorias.cor — o campo é
     // um seletor de swatches, não entrada livre. `''` = sem cor (cai na cor
@@ -91,6 +96,14 @@ export const schemaFalta = z.object({
 })
 
 export type FormularioFalta = z.infer<typeof schemaFalta>
+
+export const schemaNota = z.object({
+  titulo: z.string().trim().min(1, 'Informe um título'),
+  /** Pode nascer vazio: criar a nota e escrever depois é fluxo válido. */
+  conteudo: z.string(),
+})
+
+export type FormularioNota = z.infer<typeof schemaNota>
 
 export const schemaSessao = z.object({
   data: z.string().min(1, 'Informe a data'),

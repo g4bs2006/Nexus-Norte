@@ -780,7 +780,6 @@ export type Database = {
           local: string | null
           media_atual: number | null
           nome: string
-          notas_estudo: string | null
           notas_particularidades: string | null
           professor: string | null
           semestre: string | null
@@ -796,7 +795,6 @@ export type Database = {
           local?: string | null
           media_atual?: number | null
           nome: string
-          notas_estudo?: string | null
           notas_particularidades?: string | null
           professor?: string | null
           semestre?: string | null
@@ -812,7 +810,6 @@ export type Database = {
           local?: string | null
           media_atual?: number | null
           nome?: string
-          notas_estudo?: string | null
           notas_particularidades?: string | null
           professor?: string | null
           semestre?: string | null
@@ -939,6 +936,54 @@ export type Database = {
             columns: ["meta_id"]
             isOneToOne: false
             referencedRelation: "metas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notas_estudo: {
+        Row: {
+          atualizada_em: string
+          conteudo: string
+          created_at: string
+          fixada: boolean
+          id: string
+          materia_id: string
+          sessao_id: string | null
+          titulo: string
+        }
+        Insert: {
+          atualizada_em?: string
+          conteudo?: string
+          created_at?: string
+          fixada?: boolean
+          id?: string
+          materia_id: string
+          sessao_id?: string | null
+          titulo: string
+        }
+        Update: {
+          atualizada_em?: string
+          conteudo?: string
+          created_at?: string
+          fixada?: boolean
+          id?: string
+          materia_id?: string
+          sessao_id?: string | null
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notas_estudo_materia_id_fkey"
+            columns: ["materia_id"]
+            isOneToOne: false
+            referencedRelation: "materias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_estudo_sessao_id_fkey"
+            columns: ["sessao_id"]
+            isOneToOne: false
+            referencedRelation: "sessoes_estudo"
             referencedColumns: ["id"]
           },
         ]
@@ -1263,6 +1308,7 @@ export type Database = {
           created_at: string
           data: string
           duracao_minutos: number
+          hora_inicio: string | null
           id: string
           materia_id: string
           meta_diaria_minutos: number | null
@@ -1271,6 +1317,7 @@ export type Database = {
           created_at?: string
           data: string
           duracao_minutos: number
+          hora_inicio?: string | null
           id?: string
           materia_id: string
           meta_diaria_minutos?: number | null
@@ -1279,6 +1326,7 @@ export type Database = {
           created_at?: string
           data?: string
           duracao_minutos?: number
+          hora_inicio?: string | null
           id?: string
           materia_id?: string
           meta_diaria_minutos?: number | null

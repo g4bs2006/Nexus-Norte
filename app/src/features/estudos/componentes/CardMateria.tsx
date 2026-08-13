@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom'
-import { CalendarClock } from 'lucide-react'
+import { CalendarClock, NotebookPen } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { DialogNota } from './DialogNota'
 import type { Status } from '../types'
 
 const ROTULO_STATUS: Record<Status, string> = {
@@ -76,19 +78,39 @@ export function CardMateria({
               </p>
             )}
           </div>
-          <Badge
-            variant="secondary"
-            className={cn(
-              'shrink-0 gap-1.5 font-normal',
-              CLASSE_STATUS[status],
-            )}
-          >
-            <span
-              aria-hidden
-              className={cn('size-1.5 rounded-full', CLASSE_PONTO[status])}
+          <div className="flex shrink-0 items-center gap-1">
+            {/*
+              Anotar sem abrir a matéria. A ideia de nota costuma chegar no
+              meio da listagem — "preciso revisar isso" — e obrigar a navegar
+              até o detalhe é onde ela se perde.
+            */}
+            <DialogNota
+              materiaId={id}
+              trigger={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-muted-foreground hover:text-foreground size-11 sm:size-7"
+                  aria-label={`Nova nota em ${nome}`}
+                >
+                  <NotebookPen className="size-3.5" />
+                </Button>
+              }
             />
-            {ROTULO_STATUS[status]}
-          </Badge>
+            <Badge
+              variant="secondary"
+              className={cn(
+                'shrink-0 gap-1.5 font-normal',
+                CLASSE_STATUS[status],
+              )}
+            >
+              <span
+                aria-hidden
+                className={cn('size-1.5 rounded-full', CLASSE_PONTO[status])}
+              />
+              {ROTULO_STATUS[status]}
+            </Badge>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">

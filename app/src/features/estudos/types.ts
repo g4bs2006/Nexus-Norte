@@ -19,6 +19,14 @@ export type Falta = Tables<'faltas'>
 export type Avaliacao = Tables<'avaliacoes'>
 export type RegistroLista = Tables<'registro_listas'>
 export type SessaoEstudo = Tables<'sessoes_estudo'>
+
+/**
+ * Nota de estudo — documento vivo, não entrada datada.
+ *
+ * Entidade própria desde 13/08. Antes era a coluna `materias.notas_estudo`, e
+ * anotar significava editar o cadastro da matéria.
+ */
+export type NotaEstudo = Tables<'notas_estudo'>
 export type FluxogramaSemanal = Tables<'fluxograma_semanal'>
 
 /**

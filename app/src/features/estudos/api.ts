@@ -7,6 +7,7 @@ import type {
   Falta,
   FluxogramaAula,
   Materia,
+  NotaEstudo,
   RegistroLista,
   SessaoEstudo,
 } from './types'
@@ -226,6 +227,54 @@ export async function atualizarRegistroLista(
 
 export async function excluirRegistroLista(id: string): Promise<void> {
   const { error } = await supabase.from('registro_listas').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+// --- Notas de estudo --------------------------------------------------------
+
+/**
+ * Notas da matéria, fixadas primeiro.
+ *
+ * A ordem é a mesma do índice: `fixada desc, atualizada_em desc`. Quem fixou uma
+ * nota quer ela no topo mesmo depois de mexer em outras cinco; entre as não
+ * fixadas, a que mudou por último é a que está em uso.
+ */
+export async function listarNotas(materiaId: string): Promise<NotaEstudo[]> {
+  return lancarSeErro(
+    await supabase
+      .from('notas_estudo')
+      .select('*')
+      .eq('materia_id', materiaId)
+      .order('fixada', { ascending: false })
+      .order('atualizada_em', { ascending: false }),
+  )
+}
+
+export async function criarNota(
+  dados: TablesInsert<'notas_estudo'>,
+): Promise<void> {
+  const { error } = await supabase.from('notas_estudo').insert(dados)
+  if (error) throw new Error(error.message)
+}
+
+/**
+ * `atualizada_em` não entra aqui de propósito: quem carimba é o trigger
+ * `notas_estudo_atualizada_em`. Mandar do cliente permitiria um update sem
+ * carimbo — e a lista ordena por esse campo.
+ */
+export async function atualizarNota(
+  id: string,
+  dados: TablesUpdate<'notas_estudo'>,
+): Promise<void> {
+  const { error } = await supabase
+    .from('notas_estudo')
+    .update(dados)
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+export async function excluirNota(id: string): Promise<void> {
+  const { error } = await supabase.from('notas_estudo').delete().eq('id', id)
   if (error) throw new Error(error.message)
 }
 

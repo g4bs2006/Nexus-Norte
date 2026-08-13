@@ -822,6 +822,63 @@ describe('eventosSessoesEstudo', () => {
     expect(evento?.camada).toBe('estudos')
     expect(evento?.rota).toBe('/estudos/m1')
   })
+
+  it('com hora informada, ocupa o horário e o fim sai da duração', () => {
+    const [evento] = eventosSessoesEstudo(
+      [
+        {
+          id: 's1',
+          materia_id: 'm1',
+          data: '2026-08-04',
+          hora_inicio: '14:30:00',
+          duracao_minutos: 90,
+        },
+      ],
+      SEMANA,
+      MATERIAS,
+    )
+
+    expect(evento?.diaInteiro).toBe(false)
+    expect(evento?.inicio).toBe('2026-08-04T14:30:00')
+    expect(evento?.fim).toBe('2026-08-04T16:00:00')
+  })
+
+  it('sessão que atravessa a meia-noite termina no dia seguinte', () => {
+    const [evento] = eventosSessoesEstudo(
+      [
+        {
+          id: 's1',
+          materia_id: 'm1',
+          data: '2026-08-04',
+          hora_inicio: '23:30:00',
+          duracao_minutos: 60,
+        },
+      ],
+      SEMANA,
+      MATERIAS,
+    )
+
+    expect(evento?.fim).toBe('2026-08-05T00:30:00')
+  })
+
+  it('hora nula segue dia inteiro — nada é derivado de created_at', () => {
+    const [evento] = eventosSessoesEstudo(
+      [
+        {
+          id: 's1',
+          materia_id: 'm1',
+          data: '2026-08-04',
+          hora_inicio: null,
+          duracao_minutos: 45,
+        },
+      ],
+      SEMANA,
+      MATERIAS,
+    )
+
+    expect(evento?.diaInteiro).toBe(true)
+    expect(evento?.fim).toBeUndefined()
+  })
 })
 
 describe('eventosCancelados', () => {

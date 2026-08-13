@@ -2250,3 +2250,82 @@ ramos, que é o certo: não é falha, é mudança de dia.
 **Consequência aceita:** feito continua sem o **✓** nas vistas de Mês e Horas —
 lá o bloco é pequeno demais para ícone, e a agenda segue sendo a superfície que
 conta o desfecho por inteiro.
+
+### 10.50 Notas de estudo eram campo de cadastro, não caderno (corrige a feature de 12/08) — descoberta em uso
+
+A feature de 12/08 entregou as anotações como **colunas de `materias`**:
+`notas_estudo` e `notas_particularidades`. A aba Notas da matéria era só
+leitura e dizia, literalmente, *"Nada anotado ainda — edite a matéria para
+adicionar"*.
+
+**O defeito é de modelagem, não de tela.** Anotar durante o estudo exigia abrir
+o diálogo de **cadastro** da matéria, escrever num `textarea` de 3 linhas e
+salvar o registro da matéria. Consequências, todas do mesmo erro:
+
+- **uma** nota por matéria — o segundo assunto sobrescrevia o primeiro;
+- sem título, então nada distinguia "fórmulas da P2" de "dúvidas da aula 4";
+- escrever mexia na linha de `materias`, junto de carga horária e limite de
+  faltas — dado de identidade sendo reescrito por causa de um resumo;
+- nenhum histórico: `updated_at` não existia em tabela nenhuma do schema.
+
+Nota virou **entidade**: `notas_estudo` com FK para a matéria, mesmo padrão de
+`documentos` e `sessoes_estudo`, que o pilar já usava. Várias notas por
+matéria, cada uma com título, e escrever não toca `materias`.
+
+**Documento vivo, não entrada datada.** A nota é título + conteúdo editado ao
+longo do período ("Resumo da P2", "Fórmulas"), e a lista mostra `atualizada_em`
+— numa nota o que importa é quando ela mudou. `fixada` sobe a nota ao topo
+independente disso. A alternativa considerada era um diário (uma nota por
+data), descartada porque o caso real é revisitar o mesmo resumo, não empilhar
+registros do dia.
+
+**`notas_particularidades` continua coluna, de propósito.** Email do professor
+e política de faltas são referência estável, pertencem à ficha da matéria, e
+editar pelo cadastro é o comportamento certo para elas. A distinção que a
+migration de 12/08 descreveu estava certa; o erro foi tratar os dois lados como
+o mesmo tipo de dado. A aba Notas mostra particularidades num card à parte,
+visualmente mais fraco, com a dica de que se edita pela matéria.
+
+**`atualizada_em` por trigger** (`notas_estudo_atualizada_em`) — primeira tabela
+do schema com carimbo de atualização. Fica no banco pela mesma razão de todo
+campo-resumo aqui (10.9): quem escreve não pode escolher não carimbar. A API
+nunca manda esse campo.
+
+**Três pontos de entrada**, porque a ideia de nota não chega sempre no mesmo
+lugar:
+
+- aba Notas da matéria — o mínimo, onde a nota tem contexto;
+- ícone no card da matéria em `/estudos` — anotar sem navegar até o detalhe;
+- linha da sessão de estudo — anota o que foi estudado naquela sessão, e a nota
+  nasce com `sessao_id`. Com nota, o botão edita a que está lá; sem nota, cria.
+  Empilhar notas silenciosamente numa linha de lista seria fácil de acionar por
+  engano e difícil de perceber.
+
+`sessao_id` é `on delete set null`, não `cascade`: apagar a sessão não pode
+apagar o que foi anotado nela.
+
+**Migração sem perda:** cada matéria com `notas_estudo` preenchido virou uma
+nota "Notas de estudo" com o mesmo conteúdo, antes de a coluna cair. O bloco é
+condicional (`information_schema`) porque a migration foi aplicada à mão no
+editor SQL e não entrou no histórico da CLI — um `db push` futuro a reexecuta, e
+sem o guarda ela duplicaria as notas migradas.
+
+#### 10.50.1 Sessão de estudo ganha hora (completa 10.31)
+
+Saiu da mesma conversa. `sessoes_estudo` guardava data e duração, sem hora
+nenhuma, então `eventosSessoesEstudo` **sempre** emitia evento de dia inteiro: a
+sessão registrada ficava no topo do dia no calendário, sem lugar na linha do
+tempo — ao contrário do treino, que informa `hora_inicio` desde a 10.23.
+
+`hora_inicio time` opcional. Com hora, a sessão ocupa o horário e o fim sai de
+`início + duracao_minutos` — a duração é obrigatória, então o fim é sempre
+derivável, e guardar as duas coisas abriria espaço para discordarem. Sessão que
+atravessa a meia-noite termina no dia seguinte, mesmo tratamento que
+`eventosSono` já dava ao sono.
+
+Sem hora continua dia inteiro. Derivar hora de `created_at` mediria quando o
+**registro** foi feito, que é exatamente o erro que a 10.24 corrigiu no treino.
+
+A duração segue no título nos dois casos: no bloco com horário ela é redundante
+com a altura na grade de horas, mas a agenda e a vista de mês não têm escala, e
+ler "90 min" é mais rápido que comparar alturas.

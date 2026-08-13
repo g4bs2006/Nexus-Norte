@@ -23,6 +23,7 @@ import {
   useExcluirMateria,
   useFaltas,
   useMaterias,
+  useNotas,
   useRegistroListas,
   useSessoes,
 } from '@/features/estudos/hooks'
@@ -30,9 +31,10 @@ import { AbaAvaliacoes } from '@/features/estudos/componentes/AbaAvaliacoes'
 import { AbaDocumentos } from '@/features/estudos/componentes/AbaDocumentos'
 import { AbaFaltas } from '@/features/estudos/componentes/AbaFaltas'
 import { AbaListas } from '@/features/estudos/componentes/AbaListas'
+import { AbaNotas } from '@/features/estudos/componentes/AbaNotas'
 import { AbaSessoes } from '@/features/estudos/componentes/AbaSessoes'
 import { DialogMateria } from '@/features/estudos/componentes/DialogMateria'
-import type { Status } from '@/features/estudos/types'
+import type { NotaEstudo, Status } from '@/features/estudos/types'
 
 const ROTULO_STATUS: Record<Status, string> = {
   ok: 'Tranquilo',
@@ -58,6 +60,7 @@ export default function MateriaDetalhePage() {
   const config = useConfigMedia(materiaId)
   const documentos = useDocumentos(materiaId)
   const registros = useRegistroListas(materiaId)
+  const notas = useNotas(materiaId)
   const excluirMateria = useExcluirMateria()
 
   const materia = materias.data?.find((item) => item.id === materiaId)
@@ -80,6 +83,27 @@ export default function MateriaDetalhePage() {
       (sessoes.data ?? []).filter((sessao) => sessao.materia_id === materiaId),
     [sessoes.data, materiaId],
   )
+
+  /** Data por sessão, para a nota vinculada dizer de qual sessão ela é. */
+  const dataPorSessao = useMemo(
+    () => new Map(sessoesDaMateria.map((sessao) => [sessao.id, sessao.data])),
+    [sessoesDaMateria],
+  )
+
+  /*
+   * Primeira nota de cada sessão. As notas já vêm ordenadas por
+   * `fixada desc, atualizada_em desc`, então "a primeira" é a mais relevante —
+   * e é a que a linha da sessão abre para editar.
+   */
+  const notaPorSessao = useMemo(() => {
+    const mapa = new Map<string, NotaEstudo>()
+    for (const nota of notas.data ?? []) {
+      if (nota.sessao_id && !mapa.has(nota.sessao_id)) {
+        mapa.set(nota.sessao_id, nota)
+      }
+    }
+    return mapa
+  }, [notas.data])
 
   if (materias.isPending) {
     return (
@@ -225,6 +249,7 @@ export default function MateriaDetalhePage() {
               materiaId={materiaId}
               sessoes={sessoesDaMateria}
               hoje={hoje}
+              notaPorSessao={notaPorSessao}
             />
           </TabsContent>
 
@@ -243,36 +268,13 @@ export default function MateriaDetalhePage() {
             />
           </TabsContent>
 
-          <TabsContent value="notas" className="mt-5 space-y-4">
-            <Card>
-              <CardContent className="space-y-1.5">
-                <p className="text-sm font-medium">Notas de estudo</p>
-                {materia.notas_estudo ? (
-                  <p className="text-muted-foreground text-sm whitespace-pre-wrap">
-                    {materia.notas_estudo}
-                  </p>
-                ) : (
-                  <p className="text-muted-foreground text-sm">
-                    Nada anotado ainda — edite a matéria para adicionar.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="space-y-1.5">
-                <p className="text-sm font-medium">Particularidades</p>
-                {materia.notas_particularidades ? (
-                  <p className="text-muted-foreground text-sm whitespace-pre-wrap">
-                    {materia.notas_particularidades}
-                  </p>
-                ) : (
-                  <p className="text-muted-foreground text-sm">
-                    Nada anotado ainda — edite a matéria para adicionar.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+          <TabsContent value="notas" className="mt-5">
+            <AbaNotas
+              materiaId={materiaId}
+              notas={notas.data ?? []}
+              particularidades={materia.notas_particularidades}
+              dataPorSessao={dataPorSessao}
+            />
           </TabsContent>
         </Tabs>
       </div>

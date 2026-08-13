@@ -168,7 +168,7 @@ export async function sessoesEstudoNoIntervalo(
 ): Promise<FonteSessaoEstudo[]> {
   const { data, error } = await supabase
     .from('sessoes_estudo')
-    .select('id, materia_id, data, duracao_minutos')
+    .select('id, materia_id, data, hora_inicio, duracao_minutos')
     .gte('data', de)
     .lte('data', ate)
   if (error) throw new Error(error.message)

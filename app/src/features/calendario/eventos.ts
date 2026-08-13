@@ -213,11 +213,18 @@ export interface FonteExecucaoTreino {
   duracao_minutos: number | null
 }
 
-/** Sessão de estudo registrada. Não tem hora — só data e duração. */
+/**
+ * Sessão de estudo registrada.
+ *
+ * `hora_inicio` é **informada pelo usuário** e opcional (13/08) — mesma regra de
+ * `execucoes_treino`. Nula quando ele só registrou "estudei 90 min hoje", que
+ * era o único caso possível antes da coluna existir.
+ */
 export interface FonteSessaoEstudo {
   id: string
   materia_id: string
   data: string
+  hora_inicio?: string | null
   duracao_minutos: number
 }
 
@@ -450,9 +457,17 @@ export function eventosExecucoesTreino(
 /**
  * Sessões de estudo registradas (resolução 10.31).
  *
- * Sempre dia inteiro: `sessoes_estudo` guarda data e duração, e nenhuma hora —
- * então não há hora para mostrar, e inventar uma seria pior que omitir. A duração
- * vai no título, porque é o dado que a sessão tem a dizer.
+ * Com `hora_inicio` informada, a sessão ocupa o horário e o fim sai de
+ * `inicio + duracao_minutos` — a duração é obrigatória, então o fim é sempre
+ * derivável e guardar as duas coisas abriria espaço para discordarem.
+ *
+ * Sem hora, dia inteiro: era o único comportamento possível antes de a coluna
+ * existir, e continua sendo o certo para "estudei 90 min hoje". Inventar hora a
+ * partir de `created_at` mediria quando o *registro* foi feito (10.24).
+ *
+ * A duração vai no título nos dois casos: no bloco com horário ela é redundante
+ * com o tamanho do bloco na grade de horas, mas a agenda e a vista de mês não
+ * têm escala — e ler "90 min" é mais rápido que comparar alturas.
  */
 export function eventosSessoesEstudo(
   sessoes: readonly FonteSessaoEstudo[],
@@ -465,14 +480,25 @@ export function eventosSessoesEstudo(
 
     const nome = nomePorMateria.get(sessao.materia_id) ?? 'Estudo'
     const cor = corPorMateria.get(sessao.materia_id)
+    const comHora = Boolean(sessao.hora_inicio)
 
     return [
       {
         id: `sessao-estudo:${sessao.id}`,
         origemId: sessao.materia_id,
         titulo: `${nome} · ${sessao.duracao_minutos} min`,
-        inicio: sessao.data,
-        diaInteiro: true,
+        inicio: comHora
+          ? comHorario(sessao.data, sessao.hora_inicio as string)
+          : sessao.data,
+        ...(comHora
+          ? {
+              fim: somarMinutos(
+                comHorario(sessao.data, sessao.hora_inicio as string),
+                sessao.duracao_minutos,
+              ),
+            }
+          : {}),
+        diaInteiro: !comHora,
         camada: 'estudos' as const,
         tipo: 'estudo' as const,
         estado: 'feito' as const,
@@ -481,6 +507,27 @@ export function eventosSessoesEstudo(
       },
     ]
   })
+}
+
+/**
+ * Avança minutos sobre um ISO datetime local, atravessando a meia-noite.
+ *
+ * Sessão que começa 23:30 e dura 60 min termina 00:30 do dia seguinte — o
+ * mesmo caso que `eventosSono` já trata para o sono. Sem isto o fim sairia
+ * como `23:90`, que nenhuma vista sabe desenhar.
+ */
+function somarMinutos(iso: string, minutos: number): string {
+  const [data, hora] = [iso.slice(0, 10), iso.slice(11, 16)]
+  const [h, m] = hora.split(':').map(Number)
+  const total = (h as number) * 60 + (m as number) + minutos
+  const diasAdiante = Math.floor(total / 1440)
+  const doDia = ((total % 1440) + 1440) % 1440
+
+  const dataFim =
+    diasAdiante === 0 ? data : paraISO(addDays(deISO(data), diasAdiante))
+  const hh = String(Math.floor(doDia / 60)).padStart(2, '0')
+  const mm = String(doDia % 60).padStart(2, '0')
+  return `${dataFim}T${hh}:${mm}:00`
 }
 
 /**

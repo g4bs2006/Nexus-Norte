@@ -42,7 +42,6 @@ const VAZIO: FormularioMateria = {
   data_inicio: '',
   data_fim: '',
   local: '',
-  notas_estudo: '',
   notas_particularidades: '',
   cor: '',
 }
@@ -74,7 +73,6 @@ export function DialogMateria({ materia }: DialogMateriaProps = {}) {
         data_inicio: materia.data_inicio ?? '',
         data_fim: materia.data_fim ?? '',
         local: materia.local ?? '',
-        notas_estudo: materia.notas_estudo ?? '',
         notas_particularidades: materia.notas_particularidades ?? '',
         cor: materia.cor ?? '',
       })
@@ -95,7 +93,6 @@ export function DialogMateria({ materia }: DialogMateriaProps = {}) {
       data_inicio: valores.data_inicio === '' ? null : valores.data_inicio,
       data_fim: valores.data_fim === '' ? null : valores.data_fim,
       local: textoOuNulo(valores.local),
-      notas_estudo: textoOuNulo(valores.notas_estudo),
       notas_particularidades: textoOuNulo(valores.notas_particularidades),
       cor: textoOuNulo(valores.cor),
     }
@@ -292,24 +289,11 @@ export function DialogMateria({ materia }: DialogMateriaProps = {}) {
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="notas_estudo"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notas de estudo</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      rows={3}
-                      placeholder="Resumos, o que revisar…"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
+            {/*
+              As notas de estudo saíram deste formulário em 13/08: viraram
+              entidade própria, editada na aba Notas da matéria. Aqui ficou só
+              particularidades, que é referência estável e pertence à ficha.
+            */}
             <FormField
               control={form.control}
               name="notas_particularidades"

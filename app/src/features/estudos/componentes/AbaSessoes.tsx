@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { format, subDays } from 'date-fns'
-import { Pencil, Plus } from 'lucide-react'
+import { NotebookPen, Pencil, Plus } from 'lucide-react'
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import {
   Bar,
@@ -20,7 +20,8 @@ import { ESTILO_TOOLTIP } from '@/components/grafico'
 import { deISO, paraISO } from '@/lib/datas'
 import { useCriarSessao, useAtualizarSessao, useExcluirSessao } from '../hooks'
 import { frequenciaEstudoSemana } from '../calculos'
-import type { SessaoEstudo } from '../types'
+import { DialogNota } from './DialogNota'
+import type { NotaEstudo, SessaoEstudo } from '../types'
 
 const DIAS_GRAFICO = 14
 
@@ -28,14 +29,29 @@ interface AbaSessoesProps {
   materiaId: string
   sessoes: readonly SessaoEstudo[]
   hoje: Date
+  /**
+   * Primeira nota de cada sessão, quando existe.
+   *
+   * O modelo permite várias notas por sessão, mas a linha da sessão oferece
+   * uma: com nota, o botão edita a que está lá; sem nota, cria. Um botão que
+   * empilha notas silenciosamente numa linha de lista seria fácil de acionar
+   * por engano e difícil de perceber.
+   */
+  notaPorSessao?: ReadonlyMap<string, NotaEstudo>
 }
 
-export function AbaSessoes({ materiaId, sessoes, hoje }: AbaSessoesProps) {
+export function AbaSessoes({
+  materiaId,
+  sessoes,
+  hoje,
+  notaPorSessao,
+}: AbaSessoesProps) {
   const criar = useCriarSessao()
   const atualizar = useAtualizarSessao()
   const excluir = useExcluirSessao()
 
   const [data, setData] = useState(paraISO(hoje))
+  const [hora, setHora] = useState('')
   const [duracao, setDuracao] = useState('')
   const [meta, setMeta] = useState('')
   const [idEditando, setIdEditando] = useState<string | null>(null)
@@ -68,6 +84,7 @@ export function AbaSessoes({ materiaId, sessoes, hoje }: AbaSessoesProps) {
   function iniciarEdicao(sessao: SessaoEstudo) {
     setIdEditando(sessao.id)
     setData(sessao.data)
+    setHora(sessao.hora_inicio ? sessao.hora_inicio.slice(0, 5) : '')
     setDuracao(String(sessao.duracao_minutos))
     setMeta(
       sessao.meta_diaria_minutos ? String(sessao.meta_diaria_minutos) : '',
@@ -77,6 +94,7 @@ export function AbaSessoes({ materiaId, sessoes, hoje }: AbaSessoesProps) {
   function cancelarEdicao() {
     setIdEditando(null)
     setData(paraISO(hoje))
+    setHora('')
     setDuracao('')
     setMeta('')
   }
@@ -87,6 +105,9 @@ export function AbaSessoes({ materiaId, sessoes, hoje }: AbaSessoesProps) {
     const metaNumero = Number(meta)
     const dados = {
       data,
+      // Vazio grava nulo: sessão sem hora vira evento de dia inteiro no
+      // calendário, e é melhor que uma hora inventada (resolução 10.24).
+      hora_inicio: hora === '' ? null : `${hora}:00`,
       duracao_minutos: minutos,
       meta_diaria_minutos:
         Number.isInteger(metaNumero) && metaNumero > 0 ? metaNumero : null,
@@ -101,6 +122,7 @@ export function AbaSessoes({ materiaId, sessoes, hoje }: AbaSessoesProps) {
         ...dados,
       })
       setDuracao('')
+      setHora('')
     }
   }
 
@@ -153,6 +175,18 @@ export function AbaSessoes({ materiaId, sessoes, hoje }: AbaSessoesProps) {
               className="h-8"
               value={data}
               onChange={(evento) => setData(evento.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs" htmlFor="sessao-hora">
+              Hora
+            </Label>
+            <Input
+              id="sessao-hora"
+              type="time"
+              className="h-8 tabular-nums"
+              value={hora}
+              onChange={(evento) => setHora(evento.target.value)}
             />
           </div>
           <div className="space-y-1.5">
@@ -248,18 +282,53 @@ export function AbaSessoes({ materiaId, sessoes, hoje }: AbaSessoesProps) {
                   key={sessao.id}
                   className="flex items-center justify-between gap-3 px-4 py-2.5"
                 >
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm tabular-nums">
-                      {format(deISO(sessao.data), 'dd/MM/yyyy')} ·{' '}
-                      {sessao.duracao_minutos} min
+                      {format(deISO(sessao.data), 'dd/MM/yyyy')}
+                      {sessao.hora_inicio && (
+                        <> · {sessao.hora_inicio.slice(0, 5)}</>
+                      )}{' '}
+                      · {sessao.duracao_minutos} min
                     </p>
                     {sessao.meta_diaria_minutos !== null && (
                       <p className="text-muted-foreground text-xs">
                         meta do dia: {sessao.meta_diaria_minutos} min
                       </p>
                     )}
+                    {notaPorSessao?.get(sessao.id) && (
+                      <p className="text-muted-foreground truncate text-xs">
+                        nota: {notaPorSessao.get(sessao.id)?.titulo}
+                      </p>
+                    )}
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
+                    {/*
+                      Anotar o que foi estudado na sessão sem sair da aba. Com
+                      nota, edita a existente; sem nota, cria já vinculada.
+                    */}
+                    <DialogNota
+                      materiaId={materiaId}
+                      {...(notaPorSessao?.get(sessao.id)
+                        ? { nota: notaPorSessao.get(sessao.id) as NotaEstudo }
+                        : {
+                            sessaoId: sessao.id,
+                            tituloInicial: `Sessão de ${format(deISO(sessao.data), 'dd/MM')}`,
+                          })}
+                      trigger={
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-foreground size-11 shrink-0 sm:size-7"
+                          aria-label={
+                            notaPorSessao?.get(sessao.id)
+                              ? 'Editar nota da sessão'
+                              : 'Anotar esta sessão'
+                          }
+                        >
+                          <NotebookPen className="size-3.5" />
+                        </Button>
+                      }
+                    />
                     <Button
                       variant="ghost"
                       size="icon"
