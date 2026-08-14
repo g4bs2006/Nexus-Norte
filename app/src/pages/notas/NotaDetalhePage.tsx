@@ -15,6 +15,7 @@ import {
   useNotas,
   useSalvarNota,
 } from '@/features/notas/hooks'
+import { useUIStore } from '@/stores/ui'
 import { useAutosave } from '@/features/notas/useAutosave'
 import { IndicadorSalvamento } from '@/features/notas/componentes/IndicadorSalvamento'
 import { BlocoPropriedades } from '@/features/notas/componentes/BlocoPropriedades'
@@ -46,6 +47,7 @@ export default function NotaDetalhePage() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
   const desktop = useMediaQuery('(min-width: 768px)')
+  const trilhoAberto = useUIStore((estado) => estado.trilhoNotaAberto)
 
   const nota = useNota(slug)
   const todas = useNotas()
@@ -199,7 +201,17 @@ export default function NotaDetalhePage() {
         </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
+      {/*
+        A coluna do trilho encolhe para o botão quando ele está fechado, em vez
+        de sumir: sem uma alça visível, reabrir viraria caça ao atalho.
+      */}
+      <div
+        className={
+          trilhoAberto
+            ? 'grid gap-10 lg:grid-cols-[minmax(0,1fr)_280px]'
+            : 'grid gap-4 lg:grid-cols-[minmax(0,1fr)_2.5rem]'
+        }
+      >
         <article className="documento-nota min-w-0">
           {desktop ? (
             <>
@@ -263,7 +275,15 @@ export default function NotaDetalhePage() {
           )}
         </article>
 
-        <PainelConhecimento notaId={atual.id} topicos={atual.topicos} />
+        {desktop ? (
+          <PainelConhecimento notaId={atual.id} topicos={atual.topicos} />
+        ) : (
+          <PainelConhecimento
+            notaId={atual.id}
+            topicos={atual.topicos}
+            comoRodape
+          />
+        )}
       </div>
     </div>
   )
