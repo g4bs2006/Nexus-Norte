@@ -23,7 +23,20 @@ export const fonteSimbolos = {
   montar: (item: { chave: string }, emMatematica: boolean) => {
     const simbolo = simboloPorGatilho(item.chave)
     if (!simbolo) return { tipo: 'acao' as const }
-    const { texto, buracos } = montarInsercao(simbolo, emMatematica)
-    return { tipo: 'inserir' as const, texto, buracos }
+
+    /*
+     * Dentro de uma fórmula, o LaTeX entra como texto: já se está no nó, e
+     * aninhar fórmula em fórmula não existe.
+     *
+     * Fora dela, vira NÓ — e não `$...$` em texto. Texto cru não renderiza,
+     * porque as input rules do plugin-math só disparam em digitação real e
+     * `insertText` não conta. Era isto que fazia `//int` deixar a integral
+     * escrita em vez de desenhada.
+     */
+    if (emMatematica) {
+      const { texto, buracos } = montarInsercao(simbolo, true)
+      return { tipo: 'inserir' as const, texto, buracos }
+    }
+    return { tipo: 'formula' as const, latex: simbolo.latex }
   },
 }

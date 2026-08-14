@@ -19,6 +19,7 @@ import {
 } from './editor/dialeto'
 import { MenuSimbolos } from './editor/MenuSimbolos'
 import { navegarBuracos } from './editor/buracos'
+import { viewMatematica } from './editor/viewMatematica'
 import { useAlcaArrasto } from './editor/useAlcaArrasto'
 import { useGatilho, type FonteItens } from './editor/useGatilho'
 import {
@@ -191,6 +192,7 @@ function Interno({
       .use(desenhoSchema)
       .use(views.current.cerca)
       .use(views.current.wikilink)
+      .use(viewMatematica)
       .use(views.current.desenho)
       .use(gatilhoSimbolos.plugin)
       .use(gatilhoBlocos.plugin)

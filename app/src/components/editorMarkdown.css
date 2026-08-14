@@ -242,3 +242,55 @@
     background-size: 0.3rem 0.235rem;
     opacity: 0.6;
 }
+
+/* ---------------------------------------------------------------------------
+   Fórmula viva: renderizada enquanto se escreve, editável ao clicar.
+
+   Dois estados sobre o mesmo nó — o render, que é o que se lê, e a fonte, que
+   é o que se corrige. Só um aparece por vez.
+--------------------------------------------------------------------------- */
+
+.editor-markdown .formula-viva {
+    display: inline-flex;
+    align-items: center;
+    border-radius: var(--radius-sm);
+    padding: 0 0.15em;
+    cursor: pointer;
+}
+
+.editor-markdown .formula-viva:hover {
+    background: var(--muted);
+}
+
+/* Fórmula vazia precisa de alvo clicável, senão não há como voltar a editá-la. */
+.editor-markdown .formula-viva[data-vazia='sim'] .formula-viva-render::after {
+    content: 'fórmula';
+    color: var(--muted-foreground);
+    font-size: 0.75rem;
+}
+
+.editor-markdown .formula-viva-fonte {
+    display: none;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--estudos);
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    /* Acompanha o que se digita; sem largura mínima some ao esvaziar. */
+    min-width: 6ch;
+    field-sizing: content;
+}
+
+.editor-markdown .formula-viva[data-editando='sim'] {
+    background: var(--muted);
+    cursor: text;
+}
+
+.editor-markdown .formula-viva[data-editando='sim'] .formula-viva-render {
+    display: none;
+}
+
+.editor-markdown .formula-viva[data-editando='sim'] .formula-viva-fonte {
+    display: inline-block;
+}

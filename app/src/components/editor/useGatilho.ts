@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import type { Editor } from '@milkdown/kit/core'
 import { editorViewCtx } from '@milkdown/kit/core'
-import { TextSelection } from '@milkdown/kit/prose/state'
+import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state'
 import { criarGatilhoMenu, type EstadoGatilho } from './gatilhoMenu'
 import type { ItemMenu } from './MenuSimbolos'
 
@@ -28,6 +28,14 @@ export interface FonteItens {
  */
 export type ResultadoEscolha =
   | { tipo: 'inserir'; texto: string; buracos: number[] }
+  /**
+   * Vira um nó de fórmula, já renderizado.
+   *
+   * Existe porque texto cru NÃO renderiza: as input rules do `plugin-math` só
+   * disparam em digitação real, e `insertText` não é digitação. Inserir o nó é
+   * o que faz `//int` mostrar a integral desenhada na hora — que é o ponto.
+   */
+  | { tipo: 'formula'; latex: string }
   | { tipo: 'acao' }
 
 /**
@@ -84,6 +92,34 @@ export function useGatilho(
         // Ação: o gatilho digitado sai, e o efeito é de quem forneceu a fonte.
         if (resultado.tipo === 'acao') {
           view.dispatch(view.state.tr.delete(posicao.de, posicao.ate))
+          view.focus()
+          return
+        }
+
+        if (resultado.tipo === 'formula') {
+          const tipoNo = view.state.schema.nodes.math_inline
+          if (!tipoNo) return
+
+          const no = tipoNo.create(
+            null,
+            resultado.latex === ''
+              ? undefined
+              : view.state.schema.text(resultado.latex),
+          )
+          const transacao = view.state.tr.replaceWith(
+            posicao.de,
+            posicao.ate,
+            no,
+          )
+          /*
+           * Seleciona o nó recém-criado: a node view abre em edição ao ser
+           * selecionada, e o cursor cai no primeiro buraco. É o que continua a
+           * frase em vez de largar a fórmula pronta e vazia.
+           */
+          transacao.setSelection(
+            NodeSelection.create(transacao.doc, posicao.de),
+          )
+          view.dispatch(transacao)
           view.focus()
           return
         }
