@@ -371,6 +371,36 @@ export type EntradaNota = {
  * uma — o preço, numa base de uma pessoa, é um grafo momentaneamente
  * desatualizado, que a próxima gravação conserta.
  */
+/**
+ * Grava SÓ o conteúdo. Uma consulta, sem tocar no grafo.
+ *
+ * É o que o autosave chama a cada pausa de digitação. `salvarNota` faz ~6 idas
+ * ao servidor — carrega slugs, grava, apaga e reinsere arestas, apaga e
+ * reinsere tópicos, resolve pendentes — e chamar aquilo a cada 2 segundos seria
+ * insustentável.
+ *
+ * **Só é seguro porque quem chama pergunta antes.** `grafoMudou` (puro,
+ * testado) diz se o conjunto de links ou tópicos mudou; mudou, vai pelo
+ * caminho completo. A invariante do spec continua de pé: o grafo é re-derivado
+ * sempre que o conjunto muda. O que não acontece mais é re-derivar quando nada
+ * mudou.
+ *
+ * O título fica de fora de propósito: renomear muda o slug e propaga escrita
+ * em outras notas, e isso nunca deve acontecer a cada tecla.
+ */
+export async function salvarConteudo(
+  id: string,
+  conteudo: string,
+): Promise<void> {
+  lancar(
+    await supabase
+      .from('notas_estudo')
+      // `atualizada_em` fica de fora: o trigger carimba (resolução 10.9).
+      .update({ conteudo, conteudo_busca: removerMatematica(conteudo) })
+      .eq('id', id),
+  )
+}
+
 export async function salvarNota(entrada: EntradaNota): Promise<Nota> {
   const notas = lancarSeErro(
     await supabase.from('notas_estudo').select('id, slug, conteudo'),

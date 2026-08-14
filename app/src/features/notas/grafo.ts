@@ -62,6 +62,41 @@ export function planejarTopicos(conteudo: string): TopicoCitado[] {
 }
 
 /**
+ * O grafo mudaria, se este conteúdo substituísse aquele?
+ *
+ * É a pergunta que torna o autosave viável. `salvarNota` faz ~6 idas ao
+ * servidor: carrega slugs, grava, apaga arestas, insere arestas, apaga
+ * tópicos, insere tópicos. A cada 2 segundos de digitação isso é
+ * insustentável — e desnecessário, porque digitar dentro de um parágrafo não
+ * mexe em aresta nenhuma.
+ *
+ * Comparar conjuntos é barato: `extrairLinks` e `extrairTopicos` já rodam sem
+ * DOM e sem rede. Escrever `[[` muda o conjunto e paga a re-derivação;
+ * escrever "bom dia" não.
+ *
+ * **Ordem não conta.** Mover um link de lugar no texto não muda quem cita
+ * quem, e `links_nota` não guarda posição — re-derivar aí seria trabalho para
+ * gravar exatamente as mesmas linhas.
+ */
+export function grafoMudou(antes: string, depois: string): boolean {
+  if (antes === depois) return false
+
+  return (
+    !mesmoConjunto(extrairLinks(antes), extrairLinks(depois)) ||
+    !mesmoConjunto(
+      extrairTopicos(antes).map((topico) => topico.slug),
+      extrairTopicos(depois).map((topico) => topico.slug),
+    )
+  )
+}
+
+function mesmoConjunto(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false
+  const conjunto = new Set(a)
+  return b.every((item) => conjunto.has(item))
+}
+
+/**
  * Reescrita das notas que citam um slug que mudou (seção 3).
  *
  * O wikilink é persistido por slug — id sobreviveria a renomeação de graça, mas

@@ -112,6 +112,25 @@ export function useSalvarNota() {
   return useMutationNotas(api.salvarNota, 'Nota salva')
 }
 
+/**
+ * Grava só o conteúdo, em silêncio.
+ *
+ * Sem toast e sem invalidação de cache, ao contrário de todas as outras
+ * mutations daqui — e as duas ausências são deliberadas. Toast a cada pausa de
+ * digitação viraria um enxame; invalidar refetcharia a nota e o React Query
+ * devolveria o texto do servidor por cima do que se está escrevendo.
+ *
+ * Quem informa o estado é o indicador da página, e é o suficiente: "salvando"
+ * e "salvo" no canto respondem a mesma pergunta sem interromper.
+ */
+export function useSalvarConteudo() {
+  return useMutation({
+    mutationFn: ({ id, conteudo }: { id: string; conteudo: string }) =>
+      api.salvarConteudo(id, conteudo),
+    onError: (erro: Error) => toast.error(erro.message),
+  })
+}
+
 export function useFixarNota() {
   return useMutationNotas(
     ({ id, fixada }: { id: string; fixada: boolean }) =>

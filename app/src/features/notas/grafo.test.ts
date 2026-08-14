@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { planejarArestas, planejarPropagacao, planejarTopicos } from './grafo'
+import {
+  grafoMudou,
+  planejarArestas,
+  planejarPropagacao,
+  planejarTopicos,
+} from './grafo'
 
 /** Notas que já existem, no formato que `planejarArestas` consulta. */
 function resolver(...slugs: string[]): ReadonlyMap<string, string> {
@@ -59,6 +64,51 @@ describe('planejarTopicos', () => {
     expect(planejarTopicos('#taylor')).toEqual([
       { slug: 'taylor', nome: 'taylor' },
     ])
+  })
+})
+
+describe('grafoMudou', () => {
+  it('não muda quando o texto é o mesmo', () => {
+    expect(grafoMudou('[[a]] e #b', '[[a]] e #b')).toBe(false)
+  })
+
+  it('NÃO muda ao digitar texto comum — o caso que torna o autosave viável', () => {
+    expect(grafoMudou('ver [[limites]]', 'ver [[limites]] hoje de manhã')).toBe(
+      false,
+    )
+  })
+
+  it('muda quando um link entra', () => {
+    expect(grafoMudou('nada', 'ver [[limites]]')).toBe(true)
+  })
+
+  it('muda quando um link sai', () => {
+    expect(grafoMudou('ver [[limites]]', 'nada')).toBe(true)
+  })
+
+  it('muda quando o link troca de alvo', () => {
+    expect(grafoMudou('[[limites]]', '[[derivadas]]')).toBe(true)
+  })
+
+  it('não muda quando o link só troca de lugar no texto', () => {
+    expect(grafoMudou('antes [[a]] fim', '[[a]] antes fim')).toBe(false)
+  })
+
+  it('não muda quando só o texto exibido do link muda', () => {
+    expect(grafoMudou('[[a]]', '[[a|outro rótulo]]')).toBe(false)
+  })
+
+  it('muda quando um tópico entra ou sai', () => {
+    expect(grafoMudou('texto', 'texto #taylor')).toBe(true)
+    expect(grafoMudou('texto #taylor', 'texto')).toBe(true)
+  })
+
+  it('não muda ao repetir um tópico que já estava lá', () => {
+    expect(grafoMudou('#taylor', '#taylor e de novo #taylor')).toBe(false)
+  })
+
+  it('não muda ao escrever link dentro de código', () => {
+    expect(grafoMudou('texto', 'texto `[[limites]]`')).toBe(false)
   })
 })
 

@@ -15,6 +15,8 @@ import {
   useNotas,
   useSalvarNota,
 } from '@/features/notas/hooks'
+import { useAutosave } from '@/features/notas/useAutosave'
+import { IndicadorSalvamento } from '@/features/notas/componentes/IndicadorSalvamento'
 import { BlocoPropriedades } from '@/features/notas/componentes/BlocoPropriedades'
 import { ConteudoNota } from '@/features/notas/componentes/ConteudoNota'
 import { PainelConhecimento } from '@/features/notas/componentes/PainelConhecimento'
@@ -95,8 +97,17 @@ export default function NotaDetalhePage() {
     )
   }, [atual, materias.data, semestres.data])
 
-  const sujo =
-    atual !== null && (titulo !== atual.titulo || conteudo !== atual.conteudo)
+  /*
+   * O autosave cuida do CONTEÚDO. O título fica de fora de propósito: renomear
+   * muda o slug e reescreve o texto de quem cita esta nota — caro demais para
+   * acontecer a cada tecla. Ele grava no blur, logo abaixo.
+   */
+  const estado = useAutosave(
+    atual?.id,
+    atual?.materia_id,
+    atual?.titulo,
+    conteudo,
+  )
 
   if (nota.isPending) {
     return (
@@ -148,8 +159,15 @@ export default function NotaDetalhePage() {
     )
   }
 
-  async function gravar() {
-    if (!atual) return
+  /**
+   * Renomeia, e só quando o campo perde o foco.
+   *
+   * Passa por `salvarNota` inteiro porque renomear é o caso caro: muda o slug,
+   * reescreve os links de quem aponta para cá e religa arestas pendentes. Fazer
+   * isso a cada tecla escreveria em outras notas dezenas de vezes por frase.
+   */
+  async function renomear() {
+    if (!atual || titulo.trim() === '' || titulo === atual.titulo) return
     await salvar.mutateAsync({
       id: atual.id,
       materiaId: atual.materia_id,
@@ -168,16 +186,7 @@ export default function NotaDetalhePage() {
         <span className="text-foreground">{atual.titulo}</span>
 
         <div className="ml-auto flex items-center gap-1">
-          {desktop && (
-            <Button
-              type="button"
-              size="sm"
-              disabled={!sujo || salvar.isPending}
-              onClick={() => void gravar()}
-            >
-              {salvar.isPending ? 'Salvando…' : sujo ? 'Salvar' : 'Salvo'}
-            </Button>
-          )}
+          {desktop && <IndicadorSalvamento estado={estado} />}
           <DialogConfirmarExclusao
             titulo="Excluir nota"
             mensagem={`"${atual.titulo}" será apagada. Quem aponta para ela fica com um link quebrado, e o texto do link continua lá.`}
@@ -202,6 +211,7 @@ export default function NotaDetalhePage() {
               <input
                 value={titulo}
                 onChange={(evento) => setTitulo(evento.target.value)}
+                onBlur={() => void renomear()}
                 aria-label="Título da nota"
                 placeholder="Sem título"
                 className="documento-titulo"
