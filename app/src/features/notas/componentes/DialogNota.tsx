@@ -24,6 +24,7 @@ import {
 import { EditorMarkdown } from '@/components/EditorMarkdown'
 import { Input } from '@/components/ui/input'
 import { buscarReferencias, salvarDesenho } from '../api'
+import { renderizarBloco, renderizarDesenho } from './renderizadores'
 import { useSalvarNota } from '../hooks'
 import type { Json } from '@/types/database'
 import { schemaNota, type FormularioNota } from '../schemas'
@@ -164,6 +165,8 @@ export function DialogNota({
                       onChange={field.onChange}
                       placeholder="Escreva aqui…"
                       buscarReferencias={buscarReferencias}
+                      renderizarBloco={renderizarBloco}
+                      renderizarDesenho={renderizarDesenho}
                       {...(nota
                         ? {
                             onSalvarDesenho: (cena, svg) =>

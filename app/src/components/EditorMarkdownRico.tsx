@@ -11,6 +11,18 @@ import { history } from '@milkdown/kit/plugin/history'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
 import { insert } from '@milkdown/kit/utils'
 import { math } from '@milkdown/plugin-math'
+import {
+  desenhoSchema,
+  dialetoRemark,
+  wikilinkSchema,
+} from './editor/dialeto'
+import {
+  criarViewCerca,
+  criarViewDesenho,
+  viewWikilink,
+  type RenderizarBloco,
+  type RenderizarDesenho,
+} from './editor/views'
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react'
 import '@milkdown/kit/prose/view/style/prosemirror.css'
 import 'katex/dist/katex.min.css'
@@ -23,6 +35,14 @@ interface EditorRicoProps {
   placeholder?: string
   /** Preenchida com o jeito deste editor de inserir Markdown no cursor. */
   inserirRef: RefObject<Inserir | null>
+  /**
+   * O que cada cerca vira, e como desenhar um desenho.
+   *
+   * Injetados porque o kernel não conhece nota. A feature passa os MESMOS
+   * componentes que a leitura usa, então não há duas versões da mesma regra.
+   */
+  renderizarBloco: RenderizarBloco
+  renderizarDesenho: RenderizarDesenho
 }
 
 /**
@@ -50,7 +70,22 @@ export default function EditorMarkdownRico(props: EditorRicoProps) {
   )
 }
 
-function Interno({ value, onChange, placeholder, inserirRef }: EditorRicoProps) {
+function Interno({
+  value,
+  onChange,
+  placeholder,
+  inserirRef,
+  renderizarBloco,
+  renderizarDesenho,
+}: EditorRicoProps) {
+  /*
+   * As views entram na configuração do editor, então precisam ser estáveis:
+   * recriá-las a cada render remontaria o editor inteiro e apagaria o undo.
+   */
+  const views = useRef({
+    cerca: criarViewCerca(renderizarBloco),
+    desenho: criarViewDesenho(renderizarDesenho),
+  })
   /*
    * `onChange` por ref, e não na dependência do editor.
    *
@@ -90,7 +125,15 @@ function Interno({ value, onChange, placeholder, inserirRef }: EditorRicoProps) 
       .use(gfm)
       .use(math)
       .use(history)
-      .use(listener),
+      .use(listener)
+      // O dialeto vem depois dos presets: ele reescreve nós de texto que o
+      // commonmark já produziu.
+      .use(dialetoRemark)
+      .use(wikilinkSchema)
+      .use(desenhoSchema)
+      .use(views.current.cerca)
+      .use(viewWikilink)
+      .use(views.current.desenho),
   )
 
   useEffect(() => {

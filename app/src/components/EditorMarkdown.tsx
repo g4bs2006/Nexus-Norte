@@ -13,6 +13,7 @@ import { resolverTema, useUIStore } from '@/stores/ui'
 import { DialogFormula } from './DialogFormula'
 import { SeletorReferencia, type Referencia } from './SeletorReferencia'
 import type { CenaDesenho } from './EditorDesenho'
+import type { RenderizarBloco, RenderizarDesenho } from './editor/views'
 
 const EditorRico = lazy(() => import('./EditorMarkdownRico'))
 const EditorDesenho = lazy(() => import('./EditorDesenho'))
@@ -49,6 +50,14 @@ export interface EditorMarkdownProps {
    * ainda não foi salva não tem id para ser dona de nada.
    */
   onSalvarDesenho?: (cena: CenaDesenho, svg: string) => Promise<string>
+  /**
+   * Como desenhar cerca e desenho dentro do editor.
+   *
+   * Injetados porque o kernel não conhece nota. Quem passa usa os mesmos
+   * componentes da leitura, então editar e ler mostram a mesma coisa.
+   */
+  renderizarBloco: RenderizarBloco
+  renderizarDesenho: RenderizarDesenho
 }
 
 /**
@@ -82,6 +91,8 @@ export function EditorMarkdown({
   rows = 12,
   buscarReferencias,
   onSalvarDesenho,
+  renderizarBloco,
+  renderizarDesenho,
 }: EditorMarkdownProps) {
   const desktop = useMediaQuery('(min-width: 768px)')
   const inserir = useRef<Inserir | null>(null)
@@ -250,6 +261,8 @@ export function EditorMarkdown({
             onChange={onChange}
             placeholder={placeholder}
             inserirRef={inserir}
+            renderizarBloco={renderizarBloco}
+            renderizarDesenho={renderizarDesenho}
           />
         </Suspense>
       ) : (

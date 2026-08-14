@@ -127,3 +127,61 @@
   background: var(--muted);
   font-weight: 600;
 }
+
+/* ---------------------------------------------------------------------------
+   Blocos dentro do editor (node views).
+
+   Existem para o editor mostrar o que a leitura mostra. Sem eles, escrever uma
+   nota transformava diagrama e gráfico em cerca de código crua.
+--------------------------------------------------------------------------- */
+
+.editor-markdown .bloco-cerca {
+    margin: 0.6em 0;
+}
+
+/*
+ * Com render, a fonte encolhe e apaga — mas NÃO some. Numa nota de estudo o
+ * texto do mermaid é tão consultado quanto o desenho que ele gera; esconder
+ * obrigaria a clicar para lembrar o que se escreveu.
+ */
+.editor-markdown .bloco-cerca[data-renderizado='sim'] pre {
+    font-size: 0.7rem;
+    opacity: 0.55;
+    padding: 0.4em 0.6em;
+    transition: opacity 140ms ease;
+}
+
+.editor-markdown .bloco-cerca[data-renderizado='sim']:focus-within pre {
+    opacity: 1;
+}
+
+.editor-markdown .bloco-cerca-previa:empty {
+    display: none;
+}
+
+/*
+ * O desenho é nó INLINE no schema — precisa ser, porque nasce dentro de um
+ * parágrafo. A aparência de bloco mora aqui, que é o lugar dela.
+ */
+.editor-markdown .bloco-desenho {
+    display: block;
+    margin: 0.6em 0;
+}
+
+.editor-markdown .bloco-desenho svg {
+    max-width: 100%;
+    height: auto;
+}
+
+.editor-markdown .wikilink {
+    color: var(--estudos);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+}
+
+/* Selecionado pelo ProseMirror: é nó atômico, então some inteiro ou fica. */
+.editor-markdown .wikilink.ProseMirror-selectednode {
+    background: var(--estudos-soft);
+    border-radius: var(--radius-sm);
+}
