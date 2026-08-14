@@ -63,6 +63,15 @@ const OPCOES: { valor: Tipo; rotulo: string }[] = [
   { valor: 'evento', rotulo: 'Evento avulso' },
 ]
 
+/**
+ * Tipos com início e fim de verdade — os únicos que fazem sentido quando o
+ * dialog nasce de um arrasto na grade de Horas (chat 2026-08-14). Sessão de
+ * estudo tem hora opcional sem fim próprio (duração, não intervalo); marco e
+ * avaliação não têm horário nenhum, só data — nenhum dos dois aproveitaria o
+ * intervalo arrastado.
+ */
+const TIPOS_COM_HORARIO: readonly Tipo[] = ['treino', 'trabalho', 'evento']
+
 interface DialogCriarNoDiaProps {
   /** Data clicada, ISO — entra pré-preenchida e editável (10.48.2). */
   data: string
@@ -153,12 +162,22 @@ export function DialogCriarNoDia({
   const criarEvento = useCriarEventoLivre()
   const criarTreinoAgendado = useCriarTreinoAgendado()
 
+  const vemDeArrasto = Boolean(horarioInicial)
+  const opcoes = vemDeArrasto
+    ? OPCOES.filter((opcao) => TIPOS_COM_HORARIO.includes(opcao.valor))
+    : OPCOES
+
   // Preenche data e horário sugeridos a cada abertura — sem isto, reabrir
-  // com um horário arrastado diferente manteria o do arrasto anterior.
+  // com um horário arrastado diferente manteria o do arrasto anterior. Vindo
+  // de arrasto, o tipo também parte de um que tenha horário — "estudo"
+  // (padrão de sempre) nem apareceria na lista filtrada.
   useEffect(() => {
     if (!aberto) return
     setDataEditavel(data)
-    if (horarioInicial) setHorarioInicio(horarioInicial)
+    if (horarioInicial) {
+      setHorarioInicio(horarioInicial)
+      setTipo((atual) => (TIPOS_COM_HORARIO.includes(atual) ? atual : 'evento'))
+    }
     if (horarioFinal) setHorarioFim(horarioFinal)
   }, [aberto, data, horarioInicial, horarioFinal])
 
@@ -251,7 +270,7 @@ export function DialogCriarNoDia({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {OPCOES.map((opcao) => (
+                {opcoes.map((opcao) => (
                   <SelectItem key={opcao.valor} value={opcao.valor}>
                     {opcao.rotulo}
                   </SelectItem>
