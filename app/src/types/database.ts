@@ -292,6 +292,41 @@ export type Database = {
           },
         ]
       }
+      desenhos: {
+        Row: {
+          atualizado_em: string
+          cena: Json
+          id: string
+          nota_id: string
+          svg: string | null
+          titulo: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          cena: Json
+          id?: string
+          nota_id: string
+          svg?: string | null
+          titulo?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          cena?: Json
+          id?: string
+          nota_id?: string
+          svg?: string | null
+          titulo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "desenhos_nota_id_fkey"
+            columns: ["nota_id"]
+            isOneToOne: false
+            referencedRelation: "notas_estudo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documentos: {
         Row: {
           created_at: string
@@ -701,6 +736,39 @@ export type Database = {
           },
         ]
       }
+      links_nota: {
+        Row: {
+          destino_id: string | null
+          destino_slug: string
+          origem_id: string
+        }
+        Insert: {
+          destino_id?: string | null
+          destino_slug: string
+          origem_id: string
+        }
+        Update: {
+          destino_id?: string | null
+          destino_slug?: string
+          origem_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "links_nota_destino_id_fkey"
+            columns: ["destino_id"]
+            isOneToOne: false
+            referencedRelation: "notas_estudo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "links_nota_origem_id_fkey"
+            columns: ["origem_id"]
+            isOneToOne: false
+            referencedRelation: "notas_estudo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       log_progresso: {
         Row: {
           conteudo: string
@@ -783,6 +851,7 @@ export type Database = {
           notas_particularidades: string | null
           professor: string | null
           semestre: string | null
+          semestre_id: string | null
         }
         Insert: {
           carga_horaria_total?: number | null
@@ -798,6 +867,7 @@ export type Database = {
           notas_particularidades?: string | null
           professor?: string | null
           semestre?: string | null
+          semestre_id?: string | null
         }
         Update: {
           carga_horaria_total?: number | null
@@ -813,8 +883,17 @@ export type Database = {
           notas_particularidades?: string | null
           professor?: string | null
           semestre?: string | null
+          semestre_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "materias_semestre_id_fkey"
+            columns: ["semestre_id"]
+            isOneToOne: false
+            referencedRelation: "semestres"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       metas: {
         Row: {
@@ -949,6 +1028,7 @@ export type Database = {
           id: string
           materia_id: string
           sessao_id: string | null
+          slug: string
           titulo: string
         }
         Insert: {
@@ -959,6 +1039,7 @@ export type Database = {
           id?: string
           materia_id: string
           sessao_id?: string | null
+          slug: string
           titulo: string
         }
         Update: {
@@ -969,6 +1050,7 @@ export type Database = {
           id?: string
           materia_id?: string
           sessao_id?: string | null
+          slug?: string
           titulo?: string
         }
         Relationships: [
@@ -984,6 +1066,36 @@ export type Database = {
             columns: ["sessao_id"]
             isOneToOne: false
             referencedRelation: "sessoes_estudo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notas_topicos: {
+        Row: {
+          nota_id: string
+          topico_id: string
+        }
+        Insert: {
+          nota_id: string
+          topico_id: string
+        }
+        Update: {
+          nota_id?: string
+          topico_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notas_topicos_nota_id_fkey"
+            columns: ["nota_id"]
+            isOneToOne: false
+            referencedRelation: "notas_estudo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_topicos_topico_id_fkey"
+            columns: ["topico_id"]
+            isOneToOne: false
+            referencedRelation: "topicos"
             referencedColumns: ["id"]
           },
         ]
@@ -1303,6 +1415,30 @@ export type Database = {
         }
         Relationships: []
       }
+      semestres: {
+        Row: {
+          atual: boolean
+          data_fim: string | null
+          data_inicio: string | null
+          id: string
+          rotulo: string
+        }
+        Insert: {
+          atual?: boolean
+          data_fim?: string | null
+          data_inicio?: string | null
+          id?: string
+          rotulo: string
+        }
+        Update: {
+          atual?: boolean
+          data_fim?: string | null
+          data_inicio?: string | null
+          id?: string
+          rotulo?: string
+        }
+        Relationships: []
+      }
       sessoes_estudo: {
         Row: {
           created_at: string
@@ -1391,6 +1527,24 @@ export type Database = {
           created_at?: string
           id?: string
           nome?: string
+        }
+        Relationships: []
+      }
+      topicos: {
+        Row: {
+          id: string
+          nome: string
+          slug: string
+        }
+        Insert: {
+          id?: string
+          nome: string
+          slug: string
+        }
+        Update: {
+          id?: string
+          nome?: string
+          slug?: string
         }
         Relationships: []
       }
