@@ -7,6 +7,7 @@ import { EditorMarkdown } from '@/components/EditorMarkdown'
 import { PageHeader } from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { useMaterias, useSemestres } from '@/features/estudos/hooks'
 import { buscarReferencias, salvarDesenho } from '@/features/notas/api'
 import {
   useExcluirNota,
@@ -14,6 +15,7 @@ import {
   useNotas,
   useSalvarNota,
 } from '@/features/notas/hooks'
+import { BlocoPropriedades } from '@/features/notas/componentes/BlocoPropriedades'
 import { ConteudoNota } from '@/features/notas/componentes/ConteudoNota'
 import { PainelConhecimento } from '@/features/notas/componentes/PainelConhecimento'
 import {
@@ -21,6 +23,7 @@ import {
   renderizarDesenho,
 } from '@/features/notas/componentes/renderizadores'
 import type { Json } from '@/types/database'
+import './documento.css'
 
 /**
  * A nota. **A página é o editor.**
@@ -44,6 +47,8 @@ export default function NotaDetalhePage() {
 
   const nota = useNota(slug)
   const todas = useNotas()
+  const materias = useMaterias()
+  const semestres = useSemestres()
   const salvar = useSalvarNota()
   const excluir = useExcluirNota()
 
@@ -72,6 +77,23 @@ export default function NotaDetalhePage() {
     () => new Set((todas.data ?? []).map((item) => item.slug)),
     [todas.data],
   )
+
+  /*
+   * O rótulo do semestre, pela cadeia nota → matéria → semestre. Nunca por
+   * atalho: o spec de 14/08 fixou que semestre não se liga direto à nota, e
+   * dois caminhos para o mesmo dado é como se produz inconsistência.
+   */
+  const semestre = useMemo(() => {
+    if (!atual) return null
+    const materia = (materias.data ?? []).find(
+      (item) => item.id === atual.materia_id,
+    )
+    if (!materia?.semestre_id) return null
+    return (
+      (semestres.data ?? []).find((item) => item.id === materia.semestre_id)
+        ?.rotulo ?? null
+    )
+  }, [atual, materias.data, semestres.data])
 
   const sujo =
     atual !== null && (titulo !== atual.titulo || conteudo !== atual.conteudo)
@@ -105,6 +127,24 @@ export default function NotaDetalhePage() {
           </Link>
         </Button>
       </>
+    )
+  }
+
+  /**
+   * Marca um tópico escrevendo a hashtag no fim do conteúdo.
+   *
+   * Não há tabela a tocar: `notas_topicos` é DERIVADO do texto, e `salvarNota`
+   * re-deriva. Gravar o tópico direto criaria um vocabulário que o conteúdo
+   * não explica — e some no próximo salvamento.
+   */
+  function adicionarTopico(slugTopico: string) {
+    if (conteudo.includes(`#${slugTopico}`)) return
+    setConteudo((atualConteudo) =>
+      atualConteudo.trimEnd() === ''
+        ? `#${slugTopico}`
+        : `${atualConteudo.trimEnd()}
+
+#${slugTopico}`,
     )
   }
 
@@ -151,7 +191,7 @@ export default function NotaDetalhePage() {
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
-        <article className="min-w-0">
+        <article className="documento-nota min-w-0">
           {desktop ? (
             <>
               {/*
@@ -164,7 +204,16 @@ export default function NotaDetalhePage() {
                 onChange={(evento) => setTitulo(evento.target.value)}
                 aria-label="Título da nota"
                 placeholder="Sem título"
-                className="placeholder:text-muted-foreground/50 mb-4 w-full border-none bg-transparent text-3xl font-bold outline-none"
+                className="documento-titulo"
+              />
+
+              <BlocoPropriedades
+                materiaId={atual.materia_id}
+                materiaNome={atual.materia_nome}
+                semestre={semestre}
+                topicos={atual.topicos}
+                atualizadaEm={atual.atualizada_em}
+                onAdicionarTopico={adicionarTopico}
               />
               <EditorMarkdown
                 value={conteudo}
@@ -184,8 +233,22 @@ export default function NotaDetalhePage() {
             </>
           ) : (
             <>
-              <h1 className="mb-4 text-2xl font-bold">{atual.titulo}</h1>
-              <ConteudoNota conteudo={atual.conteudo} existentes={existentes} />
+              <h1 className="documento-titulo mb-2">{atual.titulo}</h1>
+              <BlocoPropriedades
+                materiaId={atual.materia_id}
+                materiaNome={atual.materia_nome}
+                semestre={semestre}
+                topicos={atual.topicos}
+                atualizadaEm={atual.atualizada_em}
+                /* Celular é leitura: marcar tópico exige escrever. */
+                onAdicionarTopico={() => undefined}
+              />
+              <div className="documento-leitura">
+                <ConteudoNota
+                  conteudo={atual.conteudo}
+                  existentes={existentes}
+                />
+              </div>
             </>
           )}
         </article>

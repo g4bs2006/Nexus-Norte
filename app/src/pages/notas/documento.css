@@ -1,0 +1,91 @@
+/*
+ * A nota como documento.
+ *
+ * O app inteiro é `text-sm` (14px), e está certo: é um painel de leituras
+ * rápidas — saldo, média, faltas restantes. Uma nota é o oposto: texto longo,
+ * lido por vinte minutos seguidos. Esta é a única página do app com escala
+ * própria, e é por isso que ela existe.
+ *
+ * Fica em arquivo, e não em classes utilitárias, porque metade daqui alcança
+ * DOM que o ProseMirror monta — não há onde pendurar `className` nos `h2` e
+ * `li` que nascem de dentro do editor.
+ */
+
+.documento-nota {
+  /*
+   * ~68 caracteres é onde o olho ainda acha a volta da linha sem esforço.
+   * Acima disso a leitura vira rastreamento, e é o erro mais comum de editor
+   * em tela larga: usar a largura porque ela está lá.
+   */
+  max-width: 68ch;
+}
+
+.documento-titulo {
+  font-size: 2.5rem;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  width: 100%;
+  border: none;
+  background: transparent;
+  outline: none;
+  color: var(--foreground);
+}
+
+.documento-titulo::placeholder {
+  color: var(--muted-foreground);
+  opacity: 0.45;
+}
+
+/*
+ * O editor dentro do documento perde a moldura.
+ *
+ * Fora daqui ele é um campo de formulário e a borda ajuda a achá-lo. Aqui ele
+ * É a página — borda e fundo o fariam parecer um widget dentro do texto, que é
+ * exatamente a sensação de ficha que este spec veio corrigir.
+ */
+.documento-nota .editor-markdown {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1.65;
+  /* Espaço para clicar abaixo do último parágrafo e continuar escrevendo. */
+  min-height: 60vh;
+}
+
+.documento-nota .editor-markdown:focus-visible {
+  border-color: transparent;
+}
+
+/* Leitura no celular: mesma medida e mesma escala, sem o editor. */
+.documento-leitura {
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+/* ---------------------------------------------------------------------------
+   Bloco de propriedades — padrão Notion/AFFiNE.
+
+   Rótulo apagado à esquerda, valor à direita, sem card e sem borda. Card aqui
+   competiria com o título por atenção, e propriedade é informação de apoio:
+   se lê quando se procura, não enquanto se lê o texto.
+--------------------------------------------------------------------------- */
+
+.documento-propriedades {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  gap: 0.35rem 0.75rem;
+  align-items: baseline;
+  font-size: 0.75rem;
+  margin: 1.25rem 0;
+}
+
+.documento-propriedades dt {
+  color: var(--muted-foreground);
+}
+
+.documento-propriedades dd {
+  color: var(--foreground);
+  margin: 0;
+}
