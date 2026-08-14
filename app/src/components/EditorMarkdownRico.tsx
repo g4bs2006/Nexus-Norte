@@ -7,6 +7,7 @@ import {
 } from '@milkdown/kit/core'
 import { commonmark } from '@milkdown/kit/preset/commonmark'
 import { gfm } from '@milkdown/kit/preset/gfm'
+import { block } from '@milkdown/kit/plugin/block'
 import { history } from '@milkdown/kit/plugin/history'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
 import { insert } from '@milkdown/kit/utils'
@@ -18,6 +19,7 @@ import {
 } from './editor/dialeto'
 import { MenuSimbolos } from './editor/MenuSimbolos'
 import { navegarBuracos } from './editor/buracos'
+import { useAlcaArrasto } from './editor/useAlcaArrasto'
 import { useGatilho, type FonteItens } from './editor/useGatilho'
 import {
   criarViewCerca,
@@ -182,7 +184,8 @@ function Interno({
       .use(gatilhoBlocos.plugin)
       // Depois do gatilho: o Tab do menu tem precedência sobre o Tab que anda
       // pelos buracos, senão escolher um símbolo pularia para o buraco errado.
-      .use(navegarBuracos),
+      .use(navegarBuracos)
+      .use(block),
   )
 
   useEffect(() => {
@@ -197,8 +200,18 @@ function Interno({
 
   editorRef.current = get()
 
+  const alca = useAlcaArrasto(() => editorRef.current ?? undefined)
+
   return (
     <>
+      {/*
+        A alça vive fora do editor e é posicionada sobre o bloco sob o mouse.
+        `aria-hidden` porque reordenar por teclado não passa por aqui — quem
+        usa teclado move o texto, não a alça.
+      */}
+      <div ref={alca} className="alca-bloco" aria-hidden>
+        <span />
+      </div>
       <Milkdown />
       {simbolos && (
         <MenuSimbolos

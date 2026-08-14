@@ -185,3 +185,50 @@
     background: var(--estudos-soft);
     border-radius: var(--radius-sm);
 }
+
+/* ---------------------------------------------------------------------------
+   Alça de arrasto.
+
+   Fica na margem esquerda do bloco sob o mouse. Discreta de propósito: é
+   ferramenta ocasional, e uma alça sempre visível em cada parágrafo poluiria o
+   documento que este spec inteiro veio limpar.
+--------------------------------------------------------------------------- */
+
+.alca-bloco {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.5rem;
+    border-radius: var(--radius-sm);
+    cursor: grab;
+    opacity: 0;
+    transition: opacity 120ms ease, background 120ms ease;
+}
+
+/* O provider mostra a alça posicionando-a; a opacidade acompanha. */
+.alca-bloco[data-show='true'] {
+    opacity: 1;
+}
+
+.alca-bloco:hover {
+    background: var(--accent);
+}
+
+.alca-bloco:active {
+    cursor: grabbing;
+}
+
+/* Os seis pontos do "grip", desenhados sem ícone para não pesar um SVG. */
+.alca-bloco span {
+    width: 0.6rem;
+    height: 0.7rem;
+    background-image: radial-gradient(
+        circle,
+        var(--muted-foreground) 40%,
+        transparent 45%
+    );
+    background-size: 0.3rem 0.235rem;
+    opacity: 0.6;
+}
