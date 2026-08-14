@@ -1,10 +1,9 @@
+import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { CalendarClock, NotebookPen } from 'lucide-react'
+import { CalendarClock } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { DialogNota } from './DialogNota'
 import type { Status } from '@/lib/dominio'
 
 const ROTULO_STATUS: Record<Status, string> = {
@@ -37,6 +36,14 @@ interface CardMateriaProps {
   limiteFaltas: number
   status: Status
   proximaAvaliacao: { nome: string; dias: number } | null
+  /**
+   * Gatilho de nota, injetado pela composição.
+   *
+   * Nota é outra feature desde 14/08, e feature não importa feature (README —
+   * a regra de dependência). Quem monta o card é `EstudosPage`, que pode
+   * importar as duas.
+   */
+  acaoNota?: ReactNode
 }
 
 /** Card de matéria: média, faltas restantes e contagem regressiva (plano 3.3). */
@@ -51,6 +58,7 @@ export function CardMateria({
   limiteFaltas,
   status,
   proximaAvaliacao,
+  acaoNota,
 }: CardMateriaProps) {
   // Faltas próximas do limite ganham cor de alerta (plano 3.3)
   const faltasCriticas = limiteFaltas > 0 && faltasRestantes <= 2
@@ -84,19 +92,7 @@ export function CardMateria({
               meio da listagem — "preciso revisar isso" — e obrigar a navegar
               até o detalhe é onde ela se perde.
             */}
-            <DialogNota
-              materiaId={id}
-              trigger={
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-muted-foreground hover:text-foreground size-11 sm:size-7"
-                  aria-label={`Nova nota em ${nome}`}
-                >
-                  <NotebookPen className="size-3.5" />
-                </Button>
-              }
-            />
+            {acaoNota}
             <Badge
               variant="secondary"
               className={cn(

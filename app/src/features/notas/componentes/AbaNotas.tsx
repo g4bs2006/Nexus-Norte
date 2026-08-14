@@ -1,17 +1,19 @@
+import { Link } from 'react-router-dom'
 import { format, isToday, isYesterday } from 'date-fns'
 import { NotebookPen, Pencil, Pin, PinOff } from 'lucide-react'
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { EstadoVazio } from '@/components/EstadoVazio'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { useAtualizarNota, useExcluirNota } from '../hooks'
+import { useExcluirNota, useFixarNota } from '../hooks'
 import { DialogNota } from './DialogNota'
-import type { NotaEstudo } from '../types'
+import type { NotaListada } from '../types'
 
 interface AbaNotasProps {
   materiaId: string
-  notas: readonly NotaEstudo[]
+  notas: readonly NotaListada[]
   /**
    * Particularidades da matéria — continua sendo campo da ficha, e é exibida
    * aqui porque é onde se procura por ela. Editar segue pelo cadastro: é
@@ -25,15 +27,13 @@ interface AbaNotasProps {
 /**
  * Aba Notas — a lista de notas da matéria.
  *
- * Substitui os dois blocos de texto só-leitura que a versão de 12/08 tinha, e
- * que mandavam "edite a matéria para adicionar": a nota era coluna de
- * `materias`, então escrever exigia abrir o cadastro. Agora nota é entidade, e a
- * aba é a superfície de escrita.
+ * Desde 14/08 a lista é PONTO DE ENTRADA, não lugar de trabalho: o título leva
+ * para `/notas/:slug`, que é a nota em largura de leitura com o painel de
+ * backlinks. Escrever numa aba dentro de um card dentro de uma página era o
+ * que fazia a nota parecer um campo de ficha.
  *
- * Fixadas primeiro, depois a que mudou por último — mesma ordem que a query já
- * pede ao banco, mantida aqui de propósito. Ordenar de novo no cliente
- * garantiria a ordem mesmo se a query mudasse, mas esconderia o fato de que ela
- * vem ordenada; a lista é renderizada na ordem recebida.
+ * Editar pelo diálogo continua existindo para o retoque rápido — corrigir uma
+ * frase sem sair da matéria é fluxo real.
  */
 export function AbaNotas({
   materiaId,
@@ -41,7 +41,7 @@ export function AbaNotas({
   particularidades,
   dataPorSessao,
 }: AbaNotasProps) {
-  const atualizar = useAtualizarNota()
+  const fixar = useFixarNota()
   const excluir = useExcluirNota()
 
   return (
@@ -79,9 +79,12 @@ export function AbaNotas({
                             className="text-estudos size-3.5 shrink-0"
                           />
                         )}
-                        <p className="truncate text-sm font-medium">
+                        <Link
+                          to={`/notas/${nota.slug}`}
+                          className="hover:text-estudos truncate text-sm font-medium"
+                        >
                           {nota.titulo}
-                        </p>
+                        </Link>
                       </div>
                       <p className="text-muted-foreground mt-0.5 text-[11px]">
                         {rotuloData(nota.atualizada_em)}
@@ -100,12 +103,9 @@ export function AbaNotas({
                         size="icon"
                         className="text-muted-foreground hover:text-foreground size-11 sm:size-7"
                         aria-label={nota.fixada ? 'Desfixar nota' : 'Fixar nota'}
-                        disabled={atualizar.isPending}
+                        disabled={fixar.isPending}
                         onClick={() =>
-                          atualizar.mutate({
-                            id: nota.id,
-                            dados: { fixada: !nota.fixada },
-                          })
+                          fixar.mutate({ id: nota.id, fixada: !nota.fixada })
                         }
                       >
                         {nota.fixada ? (
@@ -130,7 +130,7 @@ export function AbaNotas({
                       />
                       <DialogConfirmarExclusao
                         titulo="Excluir nota"
-                        mensagem={`"${nota.titulo}" será apagada. Não há como recuperar.`}
+                        mensagem={`"${nota.titulo}" será apagada. Quem aponta para ela fica com um link quebrado, e o texto do link continua lá.`}
                         onConfirmar={() => excluir.mutate(nota.id)}
                         pendente={excluir.isPending}
                       />
@@ -142,9 +142,23 @@ export function AbaNotas({
                       Sem conteúdo ainda.
                     </p>
                   ) : (
-                    <p className="text-muted-foreground text-sm whitespace-pre-wrap">
+                    <p className="text-muted-foreground line-clamp-3 text-sm whitespace-pre-wrap">
                       {nota.conteudo}
                     </p>
+                  )}
+
+                  {nota.topicos.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {nota.topicos.map((topico) => (
+                        <Badge
+                          key={topico.id}
+                          variant="secondary"
+                          className="font-normal"
+                        >
+                          {topico.nome}
+                        </Badge>
+                      ))}
+                    </div>
                   )}
                 </CardContent>
               </Card>

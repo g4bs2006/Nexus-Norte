@@ -10,6 +10,9 @@ export type StatusExcecao = 'cancelado' | 'remarcado'
 
 export type Materia = Tables<'materias'>
 
+/** Semestre letivo normalizado (14/08). Substitui o texto livre `materias.semestre`. */
+export type Semestre = Tables<'semestres'>
+
 export type Documento = Omit<Tables<'documentos'>, 'tipo'> & {
   tipo: TipoDocumento
 }

@@ -7,9 +7,9 @@ import type {
   Falta,
   FluxogramaAula,
   Materia,
-  NotaEstudo,
   RegistroLista,
   SessaoEstudo,
+  Semestre,
 } from './types'
 
 /** Bucket definido na migration da Fase 2 (resolução 10.10). */
@@ -28,6 +28,22 @@ function lancarSeErro<T>(resultado: {
 
 export async function listarMaterias(): Promise<Materia[]> {
   return lancarSeErro(await supabase.from('materias').select('*').order('nome'))
+}
+
+/**
+ * Semestres, do mais recente para o mais antigo.
+ *
+ * Mora aqui, e não em Notas, porque `semestre_id` é coluna de `materias`: o
+ * semestre é do período letivo, e a nota só o alcança pela matéria (spec 14/08
+ * — a cadeia é nota → matéria → semestre, nunca um atalho).
+ */
+export async function listarSemestres(): Promise<Semestre[]> {
+  return lancarSeErro(
+    await supabase
+      .from('semestres')
+      .select('*')
+      .order('rotulo', { ascending: false }),
+  )
 }
 
 export async function criarMateria(
@@ -227,54 +243,6 @@ export async function atualizarRegistroLista(
 
 export async function excluirRegistroLista(id: string): Promise<void> {
   const { error } = await supabase.from('registro_listas').delete().eq('id', id)
-  if (error) throw new Error(error.message)
-}
-
-// --- Notas de estudo --------------------------------------------------------
-
-/**
- * Notas da matéria, fixadas primeiro.
- *
- * A ordem é a mesma do índice: `fixada desc, atualizada_em desc`. Quem fixou uma
- * nota quer ela no topo mesmo depois de mexer em outras cinco; entre as não
- * fixadas, a que mudou por último é a que está em uso.
- */
-export async function listarNotas(materiaId: string): Promise<NotaEstudo[]> {
-  return lancarSeErro(
-    await supabase
-      .from('notas_estudo')
-      .select('*')
-      .eq('materia_id', materiaId)
-      .order('fixada', { ascending: false })
-      .order('atualizada_em', { ascending: false }),
-  )
-}
-
-export async function criarNota(
-  dados: TablesInsert<'notas_estudo'>,
-): Promise<void> {
-  const { error } = await supabase.from('notas_estudo').insert(dados)
-  if (error) throw new Error(error.message)
-}
-
-/**
- * `atualizada_em` não entra aqui de propósito: quem carimba é o trigger
- * `notas_estudo_atualizada_em`. Mandar do cliente permitiria um update sem
- * carimbo — e a lista ordena por esse campo.
- */
-export async function atualizarNota(
-  id: string,
-  dados: TablesUpdate<'notas_estudo'>,
-): Promise<void> {
-  const { error } = await supabase
-    .from('notas_estudo')
-    .update(dados)
-    .eq('id', id)
-  if (error) throw new Error(error.message)
-}
-
-export async function excluirNota(id: string): Promise<void> {
-  const { error } = await supabase.from('notas_estudo').delete().eq('id', id)
   if (error) throw new Error(error.message)
 }
 

@@ -1,7 +1,8 @@
 import { useMemo } from 'react'
-import { GraduationCap } from 'lucide-react'
+import { GraduationCap, NotebookPen } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
 import { EstadoVazio } from '@/components/EstadoVazio'
+import { Button } from '@/components/ui/button'
 import { SkeletonPagina } from '@/components/Skeletons'
 import { ChecksFluxograma } from '@/features/fluxograma/componentes/ChecksFluxograma'
 import {
@@ -38,6 +39,7 @@ import {
 import { CardMateria } from '@/features/estudos/componentes/CardMateria'
 import { DialogMateria } from '@/features/estudos/componentes/DialogMateria'
 import { DialogFluxograma } from '@/features/estudos/componentes/DialogFluxograma'
+import { DialogNota } from '@/features/notas/componentes/DialogNota'
 
 export default function EstudosPage() {
   const hoje = useMemo(() => new Date(), [])
@@ -277,6 +279,21 @@ export default function EstudosPage() {
                   limiteFaltas={card.materia.limite_faltas}
                   status={card.status}
                   proximaAvaliacao={card.proxima}
+                  acaoNota={
+                    <DialogNota
+                      materiaId={card.materia.id}
+                      trigger={
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground hover:text-foreground size-11 sm:size-7"
+                          aria-label={`Nova nota em ${card.materia.nome}`}
+                        >
+                          <NotebookPen className="size-3.5" />
+                        </Button>
+                      }
+                    />
+                  }
                 />
               ))}
             </div>

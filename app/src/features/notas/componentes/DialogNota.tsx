@@ -23,16 +23,16 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { useCriarNota, useAtualizarNota } from '../hooks'
+import { useSalvarNota } from '../hooks'
 import { schemaNota, type FormularioNota } from '../schemas'
-import type { NotaEstudo } from '../types'
+import type { Nota } from '../types'
 
 const VAZIO: FormularioNota = { titulo: '', conteudo: '' }
 
 interface DialogNotaProps {
   materiaId: string
   /** Se passada, o dialog abre em modo de edição. */
-  nota?: NotaEstudo
+  nota?: Nota
   /**
    * Sessão a que a nota se refere, quando ela nasce de uma sessão de estudo.
    * Só vale na criação — mudar o vínculo de uma nota existente não é um caso
@@ -50,15 +50,18 @@ interface DialogNotaProps {
 }
 
 /**
- * Criação e edição de nota de estudo.
+ * Criação e edição de nota.
  *
  * Mesmo componente para os dois modos, como `DialogMateria` — o formulário é o
  * mesmo e separar duplicaria a validação.
  *
- * O conteúdo é texto puro e é exibido com `whitespace-pre-wrap`: quebra de
- * linha e indentação se preservam, e nada mais é interpretado. Markdown seria
- * outra decisão, com renderizador e sanitização atrás; até que faça falta, o
- * texto simples é o que a nota precisa.
+ * O conteúdo é Markdown, escrito em `textarea` DE PROPÓSITO nesta fase (spec
+ * 14/08, fase 3): o editor rico entra na fase 4, atrás do componente do kernel.
+ * Escrever o editor antes do schema, dos hooks e do grafo amarraria o alicerce
+ * à biblioteca; assim ele nasce como detalhe substituível.
+ *
+ * Toda gravação passa por `useSalvarNota` → `salvarNota`, que re-deriva links e
+ * tópicos. Não há caminho aqui que escreva `conteudo` por fora (seção 3).
  */
 export function DialogNota({
   materiaId,
@@ -69,8 +72,7 @@ export function DialogNota({
 }: DialogNotaProps) {
   const modoEdicao = Boolean(nota)
   const [aberto, setAberto] = useState(false)
-  const criar = useCriarNota()
-  const atualizar = useAtualizarNota()
+  const salvar = useSalvarNota()
 
   const form = useForm<FormularioNota>({
     resolver: zodResolver(schemaNota),
@@ -86,23 +88,14 @@ export function DialogNota({
     }
   }, [aberto, nota, tituloInicial, form])
 
-  const pendente = criar.isPending || atualizar.isPending
-
   async function submeter(valores: FormularioNota) {
-    if (modoEdicao && nota) {
-      await atualizar.mutateAsync({
-        id: nota.id,
-        // `atualizada_em` fica de fora: o trigger carimba.
-        dados: { titulo: valores.titulo, conteudo: valores.conteudo },
-      })
-    } else {
-      await criar.mutateAsync({
-        materia_id: materiaId,
-        titulo: valores.titulo,
-        conteudo: valores.conteudo,
-        ...(sessaoId ? { sessao_id: sessaoId } : {}),
-      })
-    }
+    await salvar.mutateAsync({
+      ...(nota ? { id: nota.id } : {}),
+      materiaId,
+      titulo: valores.titulo,
+      conteudo: valores.conteudo,
+      ...(sessaoId ? { sessaoId } : {}),
+    })
     form.reset(VAZIO)
     setAberto(false)
   }
@@ -146,6 +139,10 @@ export function DialogNota({
                       {...field}
                     />
                   </FormControl>
+                  <FormDescription className="text-[11px]">
+                    É de onde sai o endereço da nota. Renomear reescreve quem
+                    aponta para ela.
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -166,7 +163,8 @@ export function DialogNota({
                     />
                   </FormControl>
                   <FormDescription className="text-[11px]">
-                    Texto puro — as quebras de linha são preservadas.
+                    Markdown. <code>[[outra-nota]]</code> liga a outra nota,{' '}
+                    <code>#topico</code> marca o assunto.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -174,8 +172,8 @@ export function DialogNota({
             />
 
             <DialogFooter>
-              <Button type="submit" disabled={pendente}>
-                {pendente ? 'Salvando…' : 'Salvar'}
+              <Button type="submit" disabled={salvar.isPending}>
+                {salvar.isPending ? 'Salvando…' : 'Salvar'}
               </Button>
             </DialogFooter>
           </form>

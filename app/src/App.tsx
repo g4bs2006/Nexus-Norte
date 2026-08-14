@@ -23,6 +23,8 @@ const EstudosPage = lazy(() => import('@/pages/estudos/EstudosPage'))
 const MateriaDetalhePage = lazy(
   () => import('@/pages/estudos/MateriaDetalhePage'),
 )
+const NotasPage = lazy(() => import('@/pages/notas/NotasPage'))
+const NotaDetalhePage = lazy(() => import('@/pages/notas/NotaDetalhePage'))
 const TreinoPage = lazy(() => import('@/pages/treino/TreinoPage'))
 const ExercicioDetalhePage = lazy(
   () => import('@/pages/treino/ExercicioDetalhePage'),
@@ -61,6 +63,14 @@ export default function App() {
 
         <Route path="estudos" element={<EstudosPage />} />
         <Route path="estudos/:materiaId" element={<MateriaDetalhePage />} />
+
+        {/*
+         * Fora de `estudos/` de propósito: o índice cruza todas as matérias e
+         * semestres, e a nota tem endereço próprio para poder ser linkada de
+         * qualquer lugar (spec 14/08, seção 9).
+         */}
+        <Route path="notas" element={<NotasPage />} />
+        <Route path="notas/:slug" element={<NotaDetalhePage />} />
 
         <Route path="treino" element={<TreinoPage />} />
         <Route path="treino/:exercicioId" element={<ExercicioDetalhePage />} />

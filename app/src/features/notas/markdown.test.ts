@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   extrairLinks,
   extrairReferenciasDesenho,
+  extrairTopicos,
   gerarSlug,
   removerMatematica,
   renomearLinks,
@@ -83,6 +84,45 @@ describe('extrairLinks', () => {
 
   it('devolve vazio quando não há link', () => {
     expect(extrairLinks('texto sem nenhuma aresta')).toEqual([])
+  })
+})
+
+describe('extrairTopicos', () => {
+  it('acha a hashtag e devolve slug com nome legível', () => {
+    expect(extrairTopicos('Revisar #regra-da-cadeia hoje')).toEqual([
+      { slug: 'regra-da-cadeia', nome: 'regra da cadeia' },
+    ])
+  })
+
+  it('não repete o mesmo tópico citado duas vezes', () => {
+    expect(extrairTopicos('#limites e mais #limites')).toEqual([
+      { slug: 'limites', nome: 'limites' },
+    ])
+  })
+
+  it('não confunde heading com tópico', () => {
+    expect(extrairTopicos('# Título da nota\n## Subtítulo')).toEqual([])
+  })
+
+  it('ignora âncora de URL', () => {
+    expect(extrairTopicos('ver http://exemplo.com/pagina#secao')).toEqual([])
+  })
+
+  it('ignora marcação sem letra nenhuma', () => {
+    expect(extrairTopicos('questão #2 da lista')).toEqual([])
+  })
+
+  it('ignora hashtag dentro de código e de matemática', () => {
+    const conteudo = ['`#nao-e-topico`', '$$x #tambem-nao$$', '#e-topico'].join('\n')
+    expect(extrairTopicos(conteudo)).toEqual([
+      { slug: 'e-topico', nome: 'e topico' },
+    ])
+  })
+
+  it('acha o tópico no começo do conteúdo', () => {
+    expect(extrairTopicos('#taylor abre a nota')).toEqual([
+      { slug: 'taylor', nome: 'taylor' },
+    ])
   })
 })
 

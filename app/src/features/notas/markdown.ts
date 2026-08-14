@@ -10,6 +10,14 @@
  * `$math$`, cerca ```plot, cerca ```mermaid e `![[desenho:uuid]]`.
  */
 
+/** Tópico marcado no texto, como a tabela `topicos` o guarda. */
+export type TopicoCitado = {
+  /** Identidade, normalizada por `gerarSlug`. */
+  slug: string
+  /** Como se lê na tela: `#regra-da-cadeia` vira "regra da cadeia". */
+  nome: string
+}
+
 /** Alvo de um wikilink e o texto que a nota exibe no lugar dele. */
 export type LinkNota = {
   /** Slug do destino, já normalizado por `gerarSlug`. */
@@ -17,6 +25,9 @@ export type LinkNota = {
   /** Texto após `|`, ou `null` quando o link exibe o próprio alvo. */
   rotulo: string | null
 }
+
+/** Wikilink com onde ele começa e termina no conteúdo. Fim é exclusivo. */
+export type LinkLocalizado = LinkNota & { inicio: number; fim: number }
 
 type TipoRegiao = 'codigo' | 'matematica'
 
@@ -100,6 +111,49 @@ export function extrairLinks(conteudo: string): string[] {
 }
 
 /**
+ * Wikilinks com a posição que ocupam no texto.
+ *
+ * Existe para quem precisa REESCREVER ou RENDERIZAR o conteúdo em volta dos
+ * links, e não só saber quais são: a renderização da fase 3 fatia o texto por
+ * estas posições para transformar `[[slug]]` em link clicável sem precisar de
+ * um parser de Markdown inteiro.
+ */
+export function localizarLinks(conteudo: string): LinkLocalizado[] {
+  return lerLinks(conteudo)
+}
+
+/**
+ * Tópicos marcados no conteúdo por hashtag (`#regra-da-cadeia`), sem repetição.
+ *
+ * A sintaxe é a do Obsidian, e é a única que atende a exigência do spec de o
+ * tópico ser DERIVADO do conteúdo: um seletor à parte faria o vocabulário viver
+ * fora do texto, e aí renomear a nota e renomear a marcação seriam dois atos.
+ *
+ * Não colide com heading: `# Título` tem espaço depois do `#`, e aqui o
+ * caractere seguinte é obrigatoriamente parte do tópico. A marcação precisa ter
+ * ao menos uma letra, senão `#2` numa enumeração viraria vocabulário.
+ *
+ * Devolve o par que a tabela `topicos` guarda — o slug é a identidade, e o nome
+ * é o que se lê na tela e o que pode ser renomeado depois sem varrer conteúdo.
+ */
+export function extrairTopicos(conteudo: string): TopicoCitado[] {
+  const mascarado = mascarar(conteudo)
+  const porSlug = new Map<string, TopicoCitado>()
+
+  for (const achado of mascarado.matchAll(RE_TOPICO)) {
+    const marcacao = achado[1]
+    if (marcacao === undefined) continue
+    if (!/\p{L}/u.test(marcacao)) continue
+
+    const slug = gerarSlug(marcacao)
+    if (porSlug.has(slug)) continue
+    // `regra-da-cadeia` e `regra_da_cadeia` se leem como "regra da cadeia".
+    porSlug.set(slug, { slug, nome: marcacao.replace(/[-_]+/g, ' ').trim() })
+  }
+  return [...porSlug.values()]
+}
+
+/**
  * Ids dos desenhos embutidos (`![[desenho:uuid]]`), sem repetição.
  *
  * Só uuid bem formado entra: a referência vai virar filtro numa coluna `uuid`,
@@ -175,15 +229,21 @@ export function renomearLinks(
 /** `[[alvo]]` ou `[[alvo|texto exibido]]`, exceto o embed `![[...]]`. */
 const RE_LINK = /(!?)\[\[([^[\]|\n]+)(?:\|([^[\]\n]*))?\]\]/g
 
+/**
+ * `#topico`, só depois de início de texto ou espaço.
+ *
+ * O lookbehind é o que impede `http://exemplo/pagina#secao` de virar tópico —
+ * âncora de URL não é vocabulário.
+ */
+const RE_TOPICO = /(?<=^|\s)#([\p{L}\p{N}_-]+)/gu
+
 /** `![[desenho:uuid]]`. O uuid é validado aqui, não depois. */
 const RE_DESENHO =
   /!\[\[desenho:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\]\]/gi
 
-type LinkPosicionado = LinkNota & { inicio: number; fim: number }
-
-function lerLinks(conteudo: string): LinkPosicionado[] {
+function lerLinks(conteudo: string): LinkLocalizado[] {
   const mascarado = mascarar(conteudo)
-  const links: LinkPosicionado[] = []
+  const links: LinkLocalizado[] = []
 
   for (const achado of mascarado.matchAll(RE_LINK)) {
     const [texto, exclamacao, alvo, rotulo] = achado

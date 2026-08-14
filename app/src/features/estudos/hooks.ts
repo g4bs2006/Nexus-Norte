@@ -20,7 +20,7 @@ export const chaves = {
     ['estudos', 'documentos', materiaId] as const,
   registroListas: (materiaId: string) =>
     ['estudos', 'registro-listas', materiaId] as const,
-  notas: (materiaId: string) => ['estudos', 'notas', materiaId] as const,
+  semestres: () => ['estudos', 'semestres'] as const,
   fluxograma: () => ['estudos', 'fluxograma'] as const,
   conclusoes: (data: string) => ['estudos', 'conclusoes', data] as const,
 }
@@ -29,6 +29,10 @@ export const chaves = {
 
 export function useMaterias() {
   return useQuery({ queryKey: chaves.materias(), queryFn: api.listarMaterias })
+}
+
+export function useSemestres() {
+  return useQuery({ queryKey: chaves.semestres(), queryFn: api.listarSemestres })
 }
 
 export function useAvaliacoes() {
@@ -69,14 +73,6 @@ export function useRegistroListas(materiaId: string | undefined) {
   return useQuery({
     queryKey: chaves.registroListas(materiaId ?? ''),
     queryFn: () => api.listarRegistroListas(materiaId as string),
-    enabled: Boolean(materiaId),
-  })
-}
-
-export function useNotas(materiaId: string | undefined) {
-  return useQuery({
-    queryKey: chaves.notas(materiaId ?? ''),
-    queryFn: () => api.listarNotas(materiaId as string),
     enabled: Boolean(materiaId),
   })
 }
@@ -232,27 +228,6 @@ export function useAtualizarRegistroLista() {
 
 export function useExcluirRegistroLista() {
   return useMutationEstudos(api.excluirRegistroLista, 'Registro removido')
-}
-
-export function useCriarNota() {
-  return useMutationEstudos(api.criarNota, 'Nota criada')
-}
-
-export function useAtualizarNota() {
-  return useMutationEstudos(
-    ({
-      id,
-      dados,
-    }: {
-      id: string
-      dados: Parameters<typeof api.atualizarNota>[1]
-    }) => api.atualizarNota(id, dados),
-    'Nota salva',
-  )
-}
-
-export function useExcluirNota() {
-  return useMutationEstudos(api.excluirNota, 'Nota excluída')
 }
 
 export function useEnviarDocumento() {

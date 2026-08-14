@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { format } from 'date-fns'
+import { ArrowLeft, NotebookPen } from 'lucide-react'
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { PageHeader } from '@/components/PageHeader'
 import { SkeletonPagina } from '@/components/Skeletons'
@@ -23,19 +24,21 @@ import {
   useExcluirMateria,
   useFaltas,
   useMaterias,
-  useNotas,
   useRegistroListas,
   useSessoes,
 } from '@/features/estudos/hooks'
+import { useNotasDaMateria } from '@/features/notas/hooks'
 import { AbaAvaliacoes } from '@/features/estudos/componentes/AbaAvaliacoes'
 import { AbaDocumentos } from '@/features/estudos/componentes/AbaDocumentos'
 import { AbaFaltas } from '@/features/estudos/componentes/AbaFaltas'
 import { AbaListas } from '@/features/estudos/componentes/AbaListas'
-import { AbaNotas } from '@/features/estudos/componentes/AbaNotas'
+import { AbaNotas } from '@/features/notas/componentes/AbaNotas'
+import { DialogNota } from '@/features/notas/componentes/DialogNota'
 import { AbaSessoes } from '@/features/estudos/componentes/AbaSessoes'
 import { DialogMateria } from '@/features/estudos/componentes/DialogMateria'
+import { deISO } from '@/lib/datas'
 import type { Status } from '@/lib/dominio'
-import type { NotaEstudo } from '@/features/estudos/types'
+import type { NotaListada } from '@/features/notas/types'
 
 const ROTULO_STATUS: Record<Status, string> = {
   ok: 'Tranquilo',
@@ -61,7 +64,7 @@ export default function MateriaDetalhePage() {
   const config = useConfigMedia(materiaId)
   const documentos = useDocumentos(materiaId)
   const registros = useRegistroListas(materiaId)
-  const notas = useNotas(materiaId)
+  const notas = useNotasDaMateria(materiaId)
   const excluirMateria = useExcluirMateria()
 
   const materia = materias.data?.find((item) => item.id === materiaId)
@@ -97,7 +100,7 @@ export default function MateriaDetalhePage() {
    * e é a que a linha da sessão abre para editar.
    */
   const notaPorSessao = useMemo(() => {
-    const mapa = new Map<string, NotaEstudo>()
+    const mapa = new Map<string, NotaListada>()
     for (const nota of notas.data ?? []) {
       if (nota.sessao_id && !mapa.has(nota.sessao_id)) {
         mapa.set(nota.sessao_id, nota)
@@ -251,6 +254,31 @@ export default function MateriaDetalhePage() {
               sessoes={sessoesDaMateria}
               hoje={hoje}
               notaPorSessao={notaPorSessao}
+              acaoNota={(sessaoId, data) => (
+                <DialogNota
+                  materiaId={materiaId}
+                  {...(notaPorSessao.get(sessaoId)
+                    ? { nota: notaPorSessao.get(sessaoId) }
+                    : {
+                        sessaoId,
+                        tituloInicial: `Sessão de ${format(deISO(data), 'dd/MM')}`,
+                      })}
+                  trigger={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-foreground size-11 shrink-0 sm:size-7"
+                      aria-label={
+                        notaPorSessao.get(sessaoId)
+                          ? 'Editar nota da sessão'
+                          : 'Anotar esta sessão'
+                      }
+                    >
+                      <NotebookPen className="size-3.5" />
+                    </Button>
+                  }
+                />
+              )}
             />
           </TabsContent>
 

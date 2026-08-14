@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { format, subDays } from 'date-fns'
-import { NotebookPen, Pencil, Plus } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import {
   Bar,
@@ -22,8 +22,7 @@ import { deISO, paraISO } from '@/lib/datas'
 import { comportamentoRolagem } from '@/lib/movimento'
 import { useCriarSessao, useAtualizarSessao, useExcluirSessao } from '../hooks'
 import { frequenciaEstudoSemana } from '../calculos'
-import { DialogNota } from './DialogNota'
-import type { NotaEstudo, SessaoEstudo } from '../types'
+import type { SessaoEstudo } from '../types'
 
 const DIAS_GRAFICO = 14
 
@@ -39,7 +38,15 @@ interface AbaSessoesProps {
    * empilha notas silenciosamente numa linha de lista seria fácil de acionar
    * por engano e difícil de perceber.
    */
-  notaPorSessao?: ReadonlyMap<string, NotaEstudo>
+  notaPorSessao?: ReadonlyMap<string, { titulo: string }>
+  /**
+   * Gatilho de nota da sessão, injetado pela composição.
+   *
+   * Nota é outra feature desde 14/08, e feature não importa feature (README —
+   * a regra de dependência). Quem monta a aba é `MateriaDetalhePage`, que pode
+   * importar as duas.
+   */
+  acaoNota?: (sessaoId: string, data: string) => ReactNode
 }
 
 export function AbaSessoes({
@@ -47,6 +54,7 @@ export function AbaSessoes({
   sessoes,
   hoje,
   notaPorSessao,
+  acaoNota,
 }: AbaSessoesProps) {
   const criar = useCriarSessao()
   const atualizar = useAtualizarSessao()
@@ -350,29 +358,7 @@ export function AbaSessoes({
                       Anotar o que foi estudado na sessão sem sair da aba. Com
                       nota, edita a existente; sem nota, cria já vinculada.
                     */}
-                    <DialogNota
-                      materiaId={materiaId}
-                      {...(notaPorSessao?.get(sessao.id)
-                        ? { nota: notaPorSessao.get(sessao.id) as NotaEstudo }
-                        : {
-                            sessaoId: sessao.id,
-                            tituloInicial: `Sessão de ${format(deISO(sessao.data), 'dd/MM')}`,
-                          })}
-                      trigger={
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-muted-foreground hover:text-foreground size-11 shrink-0 sm:size-7"
-                          aria-label={
-                            notaPorSessao?.get(sessao.id)
-                              ? 'Editar nota da sessão'
-                              : 'Anotar esta sessão'
-                          }
-                        >
-                          <NotebookPen className="size-3.5" />
-                        </Button>
-                      }
-                    />
+                    {acaoNota?.(sessao.id, sessao.data)}
                     <Button
                       variant="ghost"
                       size="icon"
