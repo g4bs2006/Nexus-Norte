@@ -42,6 +42,22 @@ export type AchadoNota = {
   trecho: string
 }
 
+/**
+ * O que o cartão de espiada mostra ao passar o mouse num wikilink.
+ *
+ * Menos que `NotaListada` de propósito: o cartão não desenha tópicos nem
+ * conteúdo completo, e trazê-los faria um gesto de mouse custar uma consulta
+ * cheia.
+ */
+export type EspiadaNota = {
+  id: string
+  slug: string
+  titulo: string
+  materia_nome: string
+  /** Começo do conteúdo, sem matemática. */
+  resumo: string
+}
+
 /** Quem aponta para esta nota. É o painel de backlinks (seção 6). */
 export type Backlink = {
   id: string

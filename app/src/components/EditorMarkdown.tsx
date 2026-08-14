@@ -9,7 +9,11 @@ import { resolverTema, useUIStore } from '@/stores/ui'
 import { DialogFormula } from './DialogFormula'
 import { SeletorReferencia, type Referencia } from './SeletorReferencia'
 import type { CenaDesenho } from './EditorDesenho'
-import type { RenderizarBloco, RenderizarDesenho } from './editor/views'
+import type {
+  RenderizarBloco,
+  RenderizarDesenho,
+  SlugExiste,
+} from './editor/views'
 import type { FonteItens } from './editor/useGatilho'
 
 const EditorRico = lazy(() => import('./EditorMarkdownRico'))
@@ -61,6 +65,8 @@ export interface EditorMarkdownProps {
     abrirDesenho: () => void
     abrirFormula: () => void
   }) => FonteItens
+  /** O slug já tem nota? Decide o traço do wikilink. */
+  slugExiste?: SlugExiste
 }
 
 /**
@@ -92,6 +98,7 @@ export function EditorMarkdown({
   renderizarDesenho,
   simbolos,
   criarBlocos,
+  slugExiste,
 }: EditorMarkdownProps) {
   const inserirRef = useRef<Inserir | null>(null)
   const [seletorAberto, setSeletorAberto] = useState(false)
@@ -227,6 +234,7 @@ export function EditorMarkdown({
           renderizarDesenho={renderizarDesenho}
           simbolos={simbolos}
           blocos={blocos}
+          slugExiste={slugExiste}
         />
       </Suspense>
     </div>

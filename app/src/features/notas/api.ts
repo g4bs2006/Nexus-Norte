@@ -6,6 +6,7 @@ import type { DesenhoExportavel, NotaExportavel } from './exportacao'
 import type { Json } from '@/types/database'
 import type {
   AchadoNota,
+  EspiadaNota,
   Backlink,
   Desenho,
   LinkQuebrado,
@@ -232,6 +233,48 @@ export async function buscarNotas(termo: string): Promise<AchadoNota[]> {
     materia_nome: nota.materia_nome,
     trecho: nota.trecho,
   }))
+}
+
+/**
+ * O suficiente para o cartão que aparece ao passar o mouse num wikilink.
+ *
+ * Consulta própria, e enxuta de propósito: passar o mouse é gesto barato e
+ * frequente, e trazer a nota inteira — com tópicos e conteúdo completo — para
+ * mostrar três linhas seria caro à toa. O conteúdo vem cortado no servidor
+ * nunca; cortar aqui é mais simples e a diferença não se mede numa base de uma
+ * pessoa.
+ *
+ * `null` quando o slug não tem nota. Não é erro: é o link a escrever, e quem
+ * chama transforma isso em oferta de criar.
+ */
+export async function espiarNota(slug: string): Promise<EspiadaNota | null> {
+  const { data, error } = await supabase
+    .from('notas_estudo')
+    .select('id, slug, titulo, conteudo, materia_id, materias(nome)')
+    .eq('slug', slug)
+    .maybeSingle()
+
+  if (error) throw new Error(error.message)
+  if (!data) return null
+
+  const linha = data as {
+    id: string
+    slug: string
+    titulo: string
+    conteudo: string
+    materia_id: string
+    materias: { nome: string } | null
+  }
+
+  return {
+    id: linha.id,
+    slug: linha.slug,
+    titulo: linha.titulo,
+    materia_nome: linha.materias?.nome ?? '—',
+    // A matemática sai do resumo pelo mesmo motivo da busca: `rac{}{}` num
+    // cartão de três linhas ocupa o espaço todo e não diz nada.
+    resumo: removerMatematica(linha.conteudo).trim().slice(0, 240),
+  }
 }
 
 /**

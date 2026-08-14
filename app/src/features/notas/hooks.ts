@@ -20,6 +20,7 @@ export const chaves = {
   topicos: () => ['notas', 'topicos'] as const,
   desenho: (id: string) => ['notas', 'desenho', id] as const,
   busca: (termo: string) => ['notas', 'busca', termo] as const,
+  espiada: (slug: string) => ['notas', 'espiada', slug] as const,
 }
 
 // --- Leitura ----------------------------------------------------------------
@@ -77,6 +78,21 @@ export function useBuscaNotas(termo: string) {
     queryKey: chaves.busca(termo),
     queryFn: () => api.buscarNotas(termo),
     enabled: termo.trim() !== '',
+  })
+}
+
+/**
+ * A nota citada, para o cartão do wikilink.
+ *
+ * `enabled` pelo slug: o cartão só consulta quando de fato há um link sob o
+ * mouse. E o cache do React Query faz o resto — passar de novo pelo mesmo link
+ * não vai ao servidor.
+ */
+export function useEspiada(slug: string | null) {
+  return useQuery({
+    queryKey: chaves.espiada(slug ?? ''),
+    queryFn: () => api.espiarNota(slug as string),
+    enabled: slug !== null,
   })
 }
 

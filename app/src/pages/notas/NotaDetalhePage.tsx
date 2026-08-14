@@ -23,6 +23,7 @@ import { IndicadorSalvamento } from '@/features/notas/componentes/IndicadorSalva
 import { BlocoPropriedades } from '@/features/notas/componentes/BlocoPropriedades'
 import { ConteudoNota } from '@/features/notas/componentes/ConteudoNota'
 import { PainelConhecimento } from '@/features/notas/componentes/PainelConhecimento'
+import { PeekNota } from '@/features/notas/componentes/PeekNota'
 import {
   renderizarBloco,
   renderizarDesenho,
@@ -182,6 +183,12 @@ export default function NotaDetalhePage() {
 
   return (
     <div className="mx-auto w-full max-w-[1100px]">
+      {/*
+        Um só para a página inteira: ele escuta o documento, então serve tanto
+        os links do editor quanto os da leitura. A matéria é a desta nota — é
+        onde uma nota faltante nasce, e é o palpite certo em quase todo caso.
+      */}
+      <PeekNota materiaId={atual.materia_id} />
       <div className="text-muted-foreground mb-4 flex items-center gap-2 text-xs">
         <Link to={`/estudos/${atual.materia_id}`} className="hover:text-foreground">
           {atual.materia_nome}
@@ -248,6 +255,7 @@ export default function NotaDetalhePage() {
                 renderizarDesenho={renderizarDesenho}
                 simbolos={fonteSimbolos}
                 criarBlocos={criarFonteBlocos}
+                slugExiste={(slug) => existentes.has(slug)}
                 onSalvarDesenho={(cena, svg) =>
                   salvarDesenho({
                     notaId: atual.id,

@@ -180,6 +180,16 @@
     cursor: pointer;
 }
 
+/*
+ * Link para nota que ainda não existe. Tracejado e apagado — não é erro, é
+ * promessa: o spec chama de "onde a próxima nota nasce", e o cartão de espiada
+ * oferece criar ali mesmo.
+ */
+.editor-markdown .wikilink[data-pendente='sim'] {
+    color: var(--muted-foreground);
+    text-decoration-style: dashed;
+}
+
 /* Selecionado pelo ProseMirror: é nó atômico, então some inteiro ou fica. */
 .editor-markdown .wikilink.ProseMirror-selectednode {
     background: var(--estudos-soft);

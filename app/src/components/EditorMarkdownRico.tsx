@@ -24,9 +24,10 @@ import { useGatilho, type FonteItens } from './editor/useGatilho'
 import {
   criarViewCerca,
   criarViewDesenho,
-  viewWikilink,
+  criarViewWikilink,
   type RenderizarBloco,
   type RenderizarDesenho,
+  type SlugExiste,
 } from './editor/views'
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react'
 import '@milkdown/kit/prose/view/style/prosemirror.css'
@@ -63,6 +64,8 @@ interface EditorRicoProps {
   simbolos?: FonteItens
   /** Catálogo do gatilho `/`, de bloco. */
   blocos?: FonteItens
+  /** O slug já tem nota? Decide o traço do wikilink. */
+  slugExiste?: SlugExiste
 }
 
 /**
@@ -99,14 +102,23 @@ function Interno({
   renderizarDesenho,
   simbolos,
   blocos,
+  slugExiste,
 }: EditorRicoProps) {
   /*
    * As views entram na configuração do editor, então precisam ser estáveis:
    * recriá-las a cada render remontaria o editor inteiro e apagaria o undo.
    */
+  /*
+   * `slugExiste` por ref: a lista de notas muda enquanto se escreve, e trocar
+   * a view por causa disso remontaria o editor. A view lê o valor atual.
+   */
+  const existeRef = useRef(slugExiste)
+  existeRef.current = slugExiste
+
   const views = useRef({
     cerca: criarViewCerca(renderizarBloco),
     desenho: criarViewDesenho(renderizarDesenho),
+    wikilink: criarViewWikilink((slug) => existeRef.current?.(slug) ?? true),
   })
   /*
    * `onChange` por ref, e não na dependência do editor.
@@ -178,7 +190,7 @@ function Interno({
       .use(wikilinkSchema)
       .use(desenhoSchema)
       .use(views.current.cerca)
-      .use(viewWikilink)
+      .use(views.current.wikilink)
       .use(views.current.desenho)
       .use(gatilhoSimbolos.plugin)
       .use(gatilhoBlocos.plugin)

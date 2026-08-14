@@ -68,6 +68,12 @@ export function ConteudoNota({ conteudo, existentes }: ConteudoNotaProps) {
           <Link
             key={indice}
             to={`/notas/${fatia.slug}`}
+            /*
+             * O mesmo atributo que a node view do editor usa. É o que faz o
+             * cartão de espiada valer nos dois lados sem que nenhum conheça o
+             * outro.
+             */
+            data-wikilink={fatia.slug}
             className={
               existentes.has(fatia.slug)
                 ? 'text-estudos underline underline-offset-2'

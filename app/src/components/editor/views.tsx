@@ -36,6 +36,9 @@ export type RenderizarBloco = (
 /** Desenha o desenho de id conhecido. */
 export type RenderizarDesenho = (id: string) => ReactNode
 
+/** O slug já tem nota? Decide o traço do link. */
+export type SlugExiste = (slug: string) => boolean
+
 /**
  * Monta React dentro de um elemento do ProseMirror, devolvendo como desmontar.
  *
@@ -117,17 +120,26 @@ export function criarViewCerca(renderizar: RenderizarBloco) {
  * Sem React de propósito — é um `<a>`. Um root do React por link faria uma nota
  * com trinta citações montar trinta roots, e o ganho seria zero.
  */
-export const viewWikilink = $view(wikilinkSchema.node, () => (node) => {
-  const dom = document.createElement('a')
-  dom.className = 'wikilink'
-  dom.dataset.wikilink = node.attrs.alvo as string
-  dom.href = `/notas/${node.attrs.alvo as string}`
-  dom.textContent =
-    (node.attrs.rotulo as string | null) ?? (node.attrs.alvo as string)
+export function criarViewWikilink(existe: SlugExiste) {
+  return $view(wikilinkSchema.node, () => (node) => {
+    const dom = document.createElement('a')
+    const alvo = node.attrs.alvo as string
 
-  const view: NodeView = { dom }
-  return view
-})
+    dom.className = 'wikilink'
+    dom.dataset.wikilink = alvo
+    /*
+     * Link para nota que ainda não existe fica visivelmente diferente. É a
+     * mesma distinção que a leitura faz, e a que dá sentido ao cartão de
+     * espiada oferecer criar.
+     */
+    dom.dataset.pendente = existe(alvo) ? 'nao' : 'sim'
+    dom.href = `/notas/${alvo}`
+    dom.textContent = (node.attrs.rotulo as string | null) ?? alvo
+
+    const view: NodeView = { dom }
+    return view
+  })
+}
 
 /** Desenho: o mesmo componente que a leitura usa, montado dentro do editor. */
 export function criarViewDesenho(renderizar: RenderizarDesenho) {
