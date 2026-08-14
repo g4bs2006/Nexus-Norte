@@ -1,8 +1,19 @@
-import { Suspense, lazy } from 'react'
+import { Suspense, lazy, useCallback, useRef } from 'react'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { Textarea } from '@/components/ui/textarea'
+import { DialogFormula } from './DialogFormula'
 
 const EditorRico = lazy(() => import('./EditorMarkdownRico'))
+
+/**
+ * Porta imperativa de inserção.
+ *
+ * O editor rico é não controlado, então não dá para inserir mexendo na prop
+ * `value` — o texto tem que entrar por onde o cursor está. Cada modo preenche
+ * esta ref com o seu jeito de inserir, e a barra de ferramentas chama sem saber
+ * qual está montado.
+ */
+export type Inserir = (markdown: string, inline: boolean) => void
 
 export interface EditorMarkdownProps {
   value: string
@@ -29,8 +40,8 @@ export interface EditorMarkdownProps {
  *   de tela de 6 polegadas, e forçar paridade encareceria tudo sem uso real.
  *   Corrigir uma frase continua possível, e o conteúdo nunca fica refém do
  *   desktop porque os dois lados escrevem o mesmo texto.
- * - **O editor rico entra por `lazy`.** Quem só lê no celular não baixa o
- *   ProseMirror inteiro.
+ * - **O editor rico e o campo de fórmula entram por `lazy`.** Quem só lê no
+ *   celular não baixa o ProseMirror nem o MathLive.
  *
  * A fonte de verdade é a string Markdown, nos dois modos. É o que permite o
  * editor ser trocado sem migração de dado — e o que torna a camada pura de
@@ -43,32 +54,67 @@ export function EditorMarkdown({
   rows = 12,
 }: EditorMarkdownProps) {
   const desktop = useMediaQuery('(min-width: 768px)')
+  const inserir = useRef<Inserir | null>(null)
+  const campo = useRef<HTMLTextAreaElement>(null)
 
-  if (!desktop) {
-    return (
-      <Textarea
-        value={value}
-        onChange={(evento) => onChange(evento.target.value)}
-        placeholder={placeholder}
-        rows={rows}
-        className="font-mono text-[13px]"
+  /* Inserção no `textarea`: na seleção, como qualquer editor de texto faria. */
+  const inserirNoCampo = useCallback<Inserir>(
+    (markdown, inline) => {
+      const elemento = campo.current
+      const trecho = inline ? markdown : `\n${markdown}\n`
+
+      if (!elemento) {
+        onChange(value + trecho)
+        return
+      }
+
+      const { selectionStart, selectionEnd } = elemento
+      onChange(
+        value.slice(0, selectionStart) + trecho + value.slice(selectionEnd),
+      )
+    },
+    [value, onChange],
+  )
+
+  const barra = (
+    <div className="flex items-center gap-1">
+      <DialogFormula
+        onInserir={(latex, bloco) =>
+          (desktop ? inserir.current : inserirNoCampo)?.(
+            bloco ? `$$${latex}$$` : `$${latex}$`,
+            !bloco,
+          )
+        }
       />
-    )
-  }
+    </div>
+  )
+
+  const textarea = (
+    <Textarea
+      ref={campo}
+      value={value}
+      onChange={(evento) => onChange(evento.target.value)}
+      placeholder={placeholder}
+      rows={rows}
+      className="font-mono text-[13px]"
+    />
+  )
 
   return (
-    <Suspense
-      fallback={
-        <Textarea
-          value={value}
-          onChange={(evento) => onChange(evento.target.value)}
-          placeholder={placeholder}
-          rows={rows}
-          className="font-mono text-[13px]"
-        />
-      }
-    >
-      <EditorRico value={value} onChange={onChange} placeholder={placeholder} />
-    </Suspense>
+    <div className="space-y-2">
+      {barra}
+      {desktop ? (
+        <Suspense fallback={textarea}>
+          <EditorRico
+            value={value}
+            onChange={onChange}
+            placeholder={placeholder}
+            inserirRef={inserir}
+          />
+        </Suspense>
+      ) : (
+        textarea
+      )}
+    </div>
   )
 }

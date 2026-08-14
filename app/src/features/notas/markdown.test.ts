@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  fatiar,
   extrairLinks,
   extrairReferenciasDesenho,
   extrairTopicos,
@@ -176,6 +177,43 @@ describe('removerMatematica', () => {
   it('não mexe em $ dentro de bloco de código', () => {
     const conteudo = ['```', 'echo $HOME e $PATH', '```'].join('\n')
     expect(removerMatematica(conteudo)).toBe(conteudo)
+  })
+})
+
+describe('fatiar', () => {
+  it('devolve uma fatia de texto só, quando não há construção nenhuma', () => {
+    expect(fatiar('texto puro')).toEqual([{ tipo: 'texto', texto: 'texto puro' }])
+  })
+
+  it('separa texto, link e fórmula na ordem em que aparecem', () => {
+    expect(fatiar('antes [[limites]] meio $x^2$ fim')).toEqual([
+      { tipo: 'texto', texto: 'antes ' },
+      { tipo: 'link', slug: 'limites', rotulo: null },
+      { tipo: 'texto', texto: ' meio ' },
+      { tipo: 'matematica', latex: 'x^2', bloco: false },
+      { tipo: 'texto', texto: ' fim' },
+    ])
+  })
+
+  it('entrega o latex sem os delimitadores e marca o bloco', () => {
+    expect(fatiar('$$\\frac{a}{b}$$')).toEqual([
+      { tipo: 'matematica', latex: '\\frac{a}{b}', bloco: true },
+    ])
+  })
+
+  it('preserva o texto exibido do link', () => {
+    expect(fatiar('[[limites|o que vimos]]')).toEqual([
+      { tipo: 'link', slug: 'limites', rotulo: 'o que vimos' },
+    ])
+  })
+
+  it('deixa código como texto, sem virar link nem fórmula', () => {
+    const conteudo = '```\n[[nao]] $nao$\n```'
+    expect(fatiar(conteudo)).toEqual([{ tipo: 'texto', texto: conteudo }])
+  })
+
+  it('devolve vazio para conteúdo vazio', () => {
+    expect(fatiar('')).toEqual([])
   })
 })
 

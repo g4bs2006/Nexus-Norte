@@ -1,17 +1,28 @@
-import { useRef } from 'react'
-import { Editor, defaultValueCtx, editorViewOptionsCtx, rootCtx } from '@milkdown/kit/core'
+import { useEffect, useRef, type RefObject } from 'react'
+import {
+  Editor,
+  defaultValueCtx,
+  editorViewOptionsCtx,
+  rootCtx,
+} from '@milkdown/kit/core'
 import { commonmark } from '@milkdown/kit/preset/commonmark'
 import { gfm } from '@milkdown/kit/preset/gfm'
 import { history } from '@milkdown/kit/plugin/history'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
+import { insert } from '@milkdown/kit/utils'
+import { math } from '@milkdown/plugin-math'
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react'
 import '@milkdown/kit/prose/view/style/prosemirror.css'
+import 'katex/dist/katex.min.css'
 import './editorMarkdown.css'
+import type { Inserir } from './EditorMarkdown'
 
 interface EditorRicoProps {
   value: string
   onChange: (markdown: string) => void
   placeholder?: string
+  /** Preenchida com o jeito deste editor de inserir Markdown no cursor. */
+  inserirRef: RefObject<Inserir | null>
 }
 
 /**
@@ -24,6 +35,10 @@ interface EditorRicoProps {
  * desenho), manter parse e serialize dos dois lados seria custo permanente e
  * proporcional. A fonte de verdade ser Markdown é o que decide.
  *
+ * `plugin-math` é a contrapartida disso já valendo: ele monta em cima de
+ * `remark-math`, então `$x^2$` vira nó renderizado sem parser próprio — que é
+ * exatamente o argumento que escolheu o Milkdown.
+ *
  * É a decisão mais arriscada da stack, e a mais fácil de reverter: as regras de
  * parsing moram em `features/notas/markdown.ts`, que não importa nada daqui.
  */
@@ -35,7 +50,7 @@ export default function EditorMarkdownRico(props: EditorRicoProps) {
   )
 }
 
-function Interno({ value, onChange, placeholder }: EditorRicoProps) {
+function Interno({ value, onChange, placeholder, inserirRef }: EditorRicoProps) {
   /*
    * `onChange` por ref, e não na dependência do editor.
    *
@@ -55,7 +70,7 @@ function Interno({ value, onChange, placeholder }: EditorRicoProps) {
    */
   const inicial = useRef(value)
 
-  useEditor((raiz) =>
+  const { get } = useEditor((raiz) =>
     Editor.make()
       .config((ctx) => {
         ctx.set(rootCtx, raiz)
@@ -73,9 +88,20 @@ function Interno({ value, onChange, placeholder }: EditorRicoProps) {
       })
       .use(commonmark)
       .use(gfm)
+      .use(math)
       .use(history)
       .use(listener),
   )
+
+  useEffect(() => {
+    const alvo = inserirRef
+    alvo.current = (markdown, inline) => {
+      get()?.action(insert(markdown, inline))
+    }
+    return () => {
+      alvo.current = null
+    }
+  }, [get, inserirRef])
 
   return <Milkdown />
 }

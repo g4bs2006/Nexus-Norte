@@ -29,6 +29,13 @@ export type LinkNota = {
 /** Wikilink com onde ele começa e termina no conteúdo. Fim é exclusivo. */
 export type LinkLocalizado = LinkNota & { inicio: number; fim: number }
 
+/** Pedaço do conteúdo, na ordem em que a leitura o encontra. */
+export type Fatia =
+  | { tipo: 'texto'; texto: string }
+  | { tipo: 'link'; slug: string; rotulo: string | null }
+  /** `latex` vem sem os `$`; `bloco` distingue `$$…$$` de `$…$`. */
+  | { tipo: 'matematica'; latex: string; bloco: boolean }
+
 type TipoRegiao = 'codigo' | 'matematica'
 
 type Regiao = {
@@ -168,6 +175,60 @@ export function extrairReferenciasDesenho(conteudo: string): string[] {
     if (uuid !== undefined) ids.add(uuid.toLowerCase())
   }
   return [...ids]
+}
+
+/**
+ * Quebra o conteúdo na sequência que a leitura precisa renderizar.
+ *
+ * Existe para o componente de leitura não virar um parser. Ele só mapeia fatia
+ * para elemento; quem sabe o que é link, o que é fórmula e o que é texto é esta
+ * camada, que roda sem DOM e tem teste.
+ *
+ * Não é um renderizador de Markdown — heading, lista e negrito seguem chegando
+ * como texto. É a leitura mínima que as construções PRÓPRIAS da nota exigem,
+ * porque `$x^2$` exibido cru não serve para nada.
+ */
+export function fatiar(conteudo: string): Fatia[] {
+  const marcos = [
+    ...lerLinks(conteudo).map((link) => ({
+      inicio: link.inicio,
+      fim: link.fim,
+      fatia: { tipo: 'link' as const, slug: link.slug, rotulo: link.rotulo },
+    })),
+    ...mapear(conteudo)
+      .filter((regiao) => regiao.tipo === 'matematica')
+      .map((regiao) => {
+        const bloco = conteudo.startsWith('$$', regiao.inicio)
+        const delimitador = bloco ? 2 : 1
+        return {
+          inicio: regiao.inicio,
+          fim: regiao.fim,
+          fatia: {
+            tipo: 'matematica' as const,
+            latex: conteudo.slice(
+              regiao.inicio + delimitador,
+              regiao.fim - delimitador,
+            ),
+            bloco,
+          },
+        }
+      }),
+  ].sort((a, b) => a.inicio - b.inicio)
+
+  const fatias: Fatia[] = []
+  let cursor = 0
+
+  for (const marco of marcos) {
+    if (marco.inicio > cursor) {
+      fatias.push({ tipo: 'texto', texto: conteudo.slice(cursor, marco.inicio) })
+    }
+    fatias.push(marco.fatia)
+    cursor = marco.fim
+  }
+  if (cursor < conteudo.length) {
+    fatias.push({ tipo: 'texto', texto: conteudo.slice(cursor) })
+  }
+  return fatias
 }
 
 /**
