@@ -1,7 +1,10 @@
-import { Suspense, lazy, useCallback, useRef } from 'react'
+import { Suspense, lazy, useCallback, useRef, useState } from 'react'
+import { Link2 } from 'lucide-react'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { DialogFormula } from './DialogFormula'
+import { SeletorReferencia, type Referencia } from './SeletorReferencia'
 
 const EditorRico = lazy(() => import('./EditorMarkdownRico'))
 
@@ -21,6 +24,14 @@ export interface EditorMarkdownProps {
   placeholder?: string
   /** Linhas do `textarea` de fallback. O editor rico cresce com o conteúdo. */
   rows?: number
+  /**
+   * Busca as notas que o `[[` pode citar.
+   *
+   * Injetada, e não importada: o editor mora no kernel e não pode conhecer
+   * nota (README — a regra de dependência). Sem ela, o botão de ligar some e o
+   * `[[` volta a ser texto comum, que continua virando link ao salvar.
+   */
+  buscarReferencias?: (termo: string) => Promise<Referencia[]>
 }
 
 /**
@@ -52,10 +63,18 @@ export function EditorMarkdown({
   onChange,
   placeholder,
   rows = 12,
+  buscarReferencias,
 }: EditorMarkdownProps) {
   const desktop = useMediaQuery('(min-width: 768px)')
   const inserir = useRef<Inserir | null>(null)
   const campo = useRef<HTMLTextAreaElement>(null)
+  const [seletorAberto, setSeletorAberto] = useState(false)
+  /*
+   * Quando o seletor abre por causa do `[[` já digitado, só falta completar o
+   * miolo e fechar. Quando abre pelo botão, o link inteiro precisa ser escrito.
+   */
+  const completando = useRef(false)
+  const ultimoColchete = useRef(0)
 
   /* Inserção no `textarea`: na seleção, como qualquer editor de texto faria. */
   const inserirNoCampo = useCallback<Inserir>(
@@ -76,16 +95,68 @@ export function EditorMarkdown({
     [value, onChange],
   )
 
+  /** O jeito de inserir do modo que está montado. */
+  const inserirAqui = useCallback<Inserir>(
+    (markdown, inline) => {
+      if (desktop) inserir.current?.(markdown, inline)
+      else inserirNoCampo(markdown, inline)
+    },
+    [desktop, inserirNoCampo],
+  )
+
+  /*
+   * Gatilho do `[[`.
+   *
+   * O `keydown` fica no contêiner, e não no editor: assim o mesmo código serve
+   * ao `textarea` e ao ProseMirror, que não compartilham API nenhuma mas
+   * borbulham o evento igual.
+   *
+   * O segundo `[` é deixado entrar antes de abrir — completar o que já está na
+   * tela é como o Obsidian se comporta, e cancelar deixando `[[` escrito é o
+   * resultado esperado, não um resto.
+   */
+  function aoTeclar(evento: React.KeyboardEvent) {
+    if (!buscarReferencias || evento.key !== '[') return
+
+    const agora = evento.timeStamp
+    const seguido = agora - ultimoColchete.current < 800
+    ultimoColchete.current = agora
+
+    if (!seguido) return
+    ultimoColchete.current = 0
+    completando.current = true
+    setSeletorAberto(true)
+  }
+
+  function escolher(referencia: Referencia) {
+    inserirAqui(
+      completando.current ? `${referencia.slug}]]` : `[[${referencia.slug}]]`,
+      true,
+    )
+    completando.current = false
+  }
+
   const barra = (
     <div className="flex items-center gap-1">
       <DialogFormula
         onInserir={(latex, bloco) =>
-          (desktop ? inserir.current : inserirNoCampo)?.(
-            bloco ? `$$${latex}$$` : `$${latex}$`,
-            !bloco,
-          )
+          inserirAqui(bloco ? `$$${latex}$$` : `$${latex}$`, !bloco)
         }
       />
+      {buscarReferencias && (
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            completando.current = false
+            setSeletorAberto(true)
+          }}
+        >
+          <Link2 className="size-4" />
+          Ligar nota
+        </Button>
+      )}
     </div>
   )
 
@@ -101,8 +172,16 @@ export function EditorMarkdown({
   )
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" onKeyDown={aoTeclar}>
       {barra}
+      {buscarReferencias && (
+        <SeletorReferencia
+          aberto={seletorAberto}
+          onAbertoChange={setSeletorAberto}
+          buscar={buscarReferencias}
+          onEscolher={escolher}
+        />
+      )}
       {desktop ? (
         <Suspense fallback={textarea}>
           <EditorRico

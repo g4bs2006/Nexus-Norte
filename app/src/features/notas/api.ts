@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import type { Referencia } from '@/components/SeletorReferencia'
 import { gerarSlug } from './markdown'
 import { planejarArestas, planejarPropagacao, planejarTopicos } from './grafo'
 import type {
@@ -161,6 +162,45 @@ export async function listarLinksQuebrados(
       .is('destino_id', null),
   )
   return linhas.map((linha) => ({ slug: linha.destino_slug }))
+}
+
+/**
+ * Notas que o `[[` pode citar, ordenadas por semelhança de título.
+ *
+ * Vai por RPC (`buscar_notas_por_titulo`, migration de 14/08) porque
+ * `similarity()` precisa aparecer no `order by` — e PostgREST não expressa
+ * isso. A regra de relevância morar no banco também garante que qualquer outro
+ * consumidor ordene igual.
+ *
+ * Termo vazio devolve as últimas mexidas: abrir o seletor sem digitar nada tem
+ * que mostrar no que se estava trabalhando, não uma lista em branco.
+ */
+export async function buscarReferencias(termo: string): Promise<Referencia[]> {
+  if (termo.trim() === '') {
+    const recentes = lancarSeErro(
+      await supabase
+        .from('notas_estudo')
+        .select('slug, titulo, materias(nome)')
+        .order('atualizada_em', { ascending: false })
+        .limit(8),
+    ) as { slug: string; titulo: string; materias: { nome: string } | null }[]
+
+    return recentes.map((nota) => ({
+      slug: nota.slug,
+      titulo: nota.titulo,
+      contexto: nota.materias?.nome ?? '—',
+    }))
+  }
+
+  const achados = lancarSeErro(
+    await supabase.rpc('buscar_notas_por_titulo', { termo, limite: 8 }),
+  )
+
+  return achados.map((nota) => ({
+    slug: nota.slug,
+    titulo: nota.titulo,
+    contexto: nota.materia_nome,
+  }))
 }
 
 export async function listarTopicos(): Promise<Topico[]> {

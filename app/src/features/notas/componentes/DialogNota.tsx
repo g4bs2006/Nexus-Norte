@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/form'
 import { EditorMarkdown } from '@/components/EditorMarkdown'
 import { Input } from '@/components/ui/input'
+import { buscarReferencias } from '../api'
 import { useSalvarNota } from '../hooks'
 import { schemaNota, type FormularioNota } from '../schemas'
 import type { Nota } from '../types'
@@ -161,6 +162,7 @@ export function DialogNota({
                       value={field.value}
                       onChange={field.onChange}
                       placeholder="Escreva aqui…"
+                      buscarReferencias={buscarReferencias}
                     />
                   </FormControl>
                   <FormDescription className="text-[11px]">

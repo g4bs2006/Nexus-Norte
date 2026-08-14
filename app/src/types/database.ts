@@ -1605,6 +1605,15 @@ export type Database = {
       }
     }
     Functions: {
+      buscar_notas_por_titulo: {
+        Args: { limite?: number; termo: string }
+        Returns: {
+          id: string
+          materia_nome: string
+          slug: string
+          titulo: string
+        }[]
+      }
       calcular_media_materia: {
         Args: { p_materia_id: string }
         Returns: number
@@ -1623,6 +1632,8 @@ export type Database = {
         Args: { p_categoria_id: string }
         Returns: undefined
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       [_ in never]: never

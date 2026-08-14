@@ -34,12 +34,19 @@ function CommandDialog({
   children,
   className,
   showCloseButton = false,
+  shouldFilter,
   ...props
 }: React.ComponentProps<typeof Dialog> & {
   title?: string
   description?: string
   className?: string
   showCloseButton?: boolean
+  /**
+   * Repassado à raiz `Command`. Existe para quem já recebe os resultados
+   * ordenados pelo servidor: o filtro do `cmdk` por cima descartaria justamente
+   * os resultados tolerantes a erro de digitação que a busca achou.
+   */
+  shouldFilter?: boolean
 }) {
   return (
     <Dialog {...props}>
@@ -75,7 +82,7 @@ function CommandDialog({
           abriram. Como não há error boundary, o app ia para branco e só voltava
           recarregando.
         */}
-        <Command>{children}</Command>
+        <Command shouldFilter={shouldFilter}>{children}</Command>
       </DialogContent>
     </Dialog>
   )
