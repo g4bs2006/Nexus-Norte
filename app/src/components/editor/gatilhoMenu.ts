@@ -67,6 +67,8 @@ export function criarGatilhoMenu(opcoes: Opcoes) {
    * mesmo evento — ler de lá daria o valor de um passo atrás.
    */
   let aberto = false
+  /** O último estado reportado, para não avisar o React à toa. */
+  let ultimo: EstadoGatilho | null = null
 
   /** Lê o gatilho imediatamente antes do cursor, se houver. */
   function ler(view: EditorView, gatilho: string): EstadoGatilho | null {
@@ -143,16 +145,45 @@ export function criarGatilhoMenu(opcoes: Opcoes) {
           update: (view) => {
             const estado = ler(view, opcoes.gatilho)
             aberto = estado !== null
+
+            /*
+             * Só avisa o React quando algo MUDOU de verdade.
+             *
+             * `update` roda a cada transação do editor, e `ler` devolve objeto
+             * novo sempre que o gatilho casa — então o React re-renderizava a
+             * cada tecla, nas duas instâncias (`//` e `/`), mesmo com a lista
+             * idêntica. Além do desperdício, era esse render por tecla que
+             * fazia efeitos vizinhos rodarem sem necessidade.
+             */
+            if (mesmoEstado(ultimo, estado)) return
+            ultimo = estado
             opcoes.aoMudar(estado)
           },
           destroy: () => {
             aberto = false
+            ultimo = null
             opcoes.aoMudar(null)
           },
         }),
       }),
   )
 
+}
+
+/** Igualdade por valor: posição e termo são o que a lista consome. */
+function mesmoEstado(
+  a: EstadoGatilho | null,
+  b: EstadoGatilho | null,
+): boolean {
+  if (a === null || b === null) return a === b
+  return (
+    a.termo === b.termo &&
+    a.de === b.de &&
+    a.ate === b.ate &&
+    a.emMatematica === b.emMatematica &&
+    a.ancora.esquerda === b.ancora.esquerda &&
+    a.ancora.base === b.ancora.base
+  )
 }
 
 function escapar(texto: string): string {

@@ -16,13 +16,16 @@ import { BlockProvider } from '@milkdown/kit/plugin/block'
  * O `BlockProvider` do Milkdown cuida do resto: detectar o bloco sob o mouse,
  * posicionar a alça com floating-ui e conduzir o arrasto. O que falta é o
  * elemento, e é isso que este hook fornece e destrói na hora certa.
+ *
+ * **A dependência do efeito é o editor em si**, e isso importa: `destroy()` do
+ * provider remove do DOM o elemento da alça, que é do React. Recriar o provider
+ * a cada render arrancaria e reparentaria esse nó a cada tecla digitada.
  */
-export function useAlcaArrasto(obterEditor: () => Editor | undefined) {
+export function useAlcaArrasto(editor: Editor | undefined) {
   const alca = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const elemento = alca.current
-    const editor = obterEditor()
     if (!elemento || !editor) return
 
     let provider: BlockProvider | null = null
@@ -39,7 +42,19 @@ export function useAlcaArrasto(obterEditor: () => Editor | undefined) {
      * não existem mais.
      */
     return () => provider?.destroy()
-  }, [obterEditor])
+    /*
+     * Depende do EDITOR, não de uma função que o busca.
+     *
+     * Antes chegava aqui um `() => editorRef.current`, arrow nova a cada
+     * render — e como há um render por tecla, o efeito rodava a cada tecla.
+     * Cada rodada chamava `provider.destroy()`, que faz `element.remove()`
+     * sobre o `div` da alça — um nó gerenciado pelo React —, e em seguida o
+     * novo provider o reanexava em outro lugar do DOM.
+     *
+     * Arrancar e reparentar um nó do React por fora dele, uma vez por tecla, é
+     * receita de `insertBefore` sobre nó solto e de travamento aparente.
+     */
+  }, [editor])
 
   return alca
 }

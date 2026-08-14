@@ -27,7 +27,7 @@ export default function Diagrama({ codigo }: DiagramaProps) {
    * Id de módulo, e não `useId`: cada node view do editor monta um root React
    * próprio, e `useId` só é único DENTRO de um root — dois diagramas colidiriam.
    */
-  const id = useRef(idUnico('mermaid')).current
+  const [id] = useState(() => idUnico('mermaid'))
   const vivo = useRef(true)
 
   useEffect(() => {

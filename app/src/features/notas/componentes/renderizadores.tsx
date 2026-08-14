@@ -36,6 +36,17 @@ export function renderizarBloco(
   linguagem: string,
   codigo: string,
 ): ReactNode | null {
+  /*
+   * Cerca vazia não desenha nada, e a guarda é importante.
+   *
+   * A node view pinta no construtor, e nesse instante a cerca criada pelo `/`
+   * ainda está vazia — o corpo de exemplo entra num dispatch seguinte. Sem
+   * isto, `mermaid.render(id, '')` era chamado em TODA cerca criada, num
+   * container que o CSS ainda mantinha sem layout. Medir texto sem layout é o
+   * travamento conhecido do mermaid.
+   */
+  if (codigo.trim() === '') return null
+
   if (linguagem === 'mermaid') {
     return (
       <Suspense fallback={<Espera />}>

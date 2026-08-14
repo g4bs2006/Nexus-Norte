@@ -245,7 +245,7 @@ function Interno({
 
   editorRef.current = get()
 
-  const alca = useAlcaArrasto(() => editorRef.current ?? undefined)
+  const alca = useAlcaArrasto(editorRef.current ?? undefined)
 
   function marcar(marca: MarcaEscrita) {
     editorRef.current?.action(aplicarMarca(marca))

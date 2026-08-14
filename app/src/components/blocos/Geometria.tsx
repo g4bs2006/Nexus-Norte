@@ -42,7 +42,7 @@ export default function Geometria({ geometria }: GeometriaProps) {
    * Id de módulo, e não `useId`: cada node view do editor monta um root React
    * próprio, e `useId` só é único DENTRO de um root — dois blocos colidiriam.
    */
-  const id = useRef(idUnico('jxg')).current
+  const [id] = useState(() => idUnico('jxg'))
   const escuro = resolverTema(useUIStore((estado) => estado.tema)) === 'escuro'
 
   const chave = JSON.stringify(geometria)

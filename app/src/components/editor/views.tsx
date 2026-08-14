@@ -42,13 +42,35 @@ export type SlugExiste = (slug: string) => boolean
 /**
  * Monta React dentro de um elemento do ProseMirror, devolvendo como desmontar.
  *
- * `queueMicrotask` no unmount porque o React recusa desmontar durante um ciclo
- * de render — e o `destroy` da node view é chamado exatamente lá.
+ * ## Cada montagem ganha o próprio container, e isso não é detalhe
+ *
+ * A versão anterior chamava `createRoot` sempre no MESMO elemento e adiava o
+ * unmount com `queueMicrotask` (para o React não reclamar de desmontar durante
+ * um render). A ordem que saía disso destruía a tela:
+ *
+ *   1. `desmontar()` agenda `rootA.unmount()`
+ *   2. `createRoot` cria o rootB no mesmo elemento, com o rootA ainda vivo
+ *   3. `rootB.render()` commita o DOM
+ *   4. a microtask roda: `rootA.unmount()` limpa o container — apagando o que
+ *      o rootB acabou de commitar
+ *
+ * O rootB ficava com uma árvore apontando para nós soltos, e o commit seguinte
+ * do mermaid escrevia no vazio. Com um container por montagem, os dois roots
+ * nunca disputam o mesmo elemento, e o adiamento do unmount volta a ser
+ * inofensivo.
  */
-function montarReact(elemento: HTMLElement, conteudo: ReactNode): () => void {
-  const raiz: Root = createRoot(elemento)
+function montarReact(pai: HTMLElement, conteudo: ReactNode): () => void {
+  const alvo = document.createElement('div')
+  pai.append(alvo)
+
+  const raiz: Root = createRoot(alvo)
   raiz.render(conteudo)
-  return () => queueMicrotask(() => raiz.unmount())
+
+  return () =>
+    queueMicrotask(() => {
+      raiz.unmount()
+      alvo.remove()
+    })
 }
 
 /**
@@ -66,6 +88,12 @@ export function criarViewCerca(renderizar: RenderizarBloco) {
 
     const previa = document.createElement('div')
     previa.className = 'bloco-cerca-previa'
+    /*
+     * Fora da região editável: sem isto o cursor entra no SVG do diagrama, e o
+     * ProseMirror passa a ter que decidir o que fazer com uma seleção dentro de
+     * um desenho. `viewMatematica` já fazia isso; aqui faltava.
+     */
+    previa.contentEditable = 'false'
 
     const pre = document.createElement('pre')
     const code = document.createElement('code')
