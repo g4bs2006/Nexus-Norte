@@ -16,6 +16,9 @@ import {
   dialetoRemark,
   wikilinkSchema,
 } from './editor/dialeto'
+import { MenuSimbolos } from './editor/MenuSimbolos'
+import { navegarBuracos } from './editor/buracos'
+import { useGatilho, type FonteItens } from './editor/useGatilho'
 import {
   criarViewCerca,
   criarViewDesenho,
@@ -28,6 +31,12 @@ import '@milkdown/kit/prose/view/style/prosemirror.css'
 import 'katex/dist/katex.min.css'
 import './editorMarkdown.css'
 import type { Inserir } from './EditorMarkdown'
+
+/** Catálogo vazio, para o hook existir mesmo sem símbolos injetados. */
+const FONTE_VAZIA: FonteItens = {
+  filtrar: () => [],
+  montar: () => ({ texto: '', buracos: [] }),
+}
 
 interface EditorRicoProps {
   value: string
@@ -43,6 +52,13 @@ interface EditorRicoProps {
    */
   renderizarBloco: RenderizarBloco
   renderizarDesenho: RenderizarDesenho
+  /**
+   * O catálogo do gatilho `//`.
+   *
+   * Injetado como todo o resto: o kernel não sabe o que é uma integral. Sem
+   * ele o gatilho some, e escrever LaTeX à mão continua funcionando.
+   */
+  simbolos?: FonteItens
 }
 
 /**
@@ -77,6 +93,7 @@ function Interno({
   inserirRef,
   renderizarBloco,
   renderizarDesenho,
+  simbolos,
 }: EditorRicoProps) {
   /*
    * As views entram na configuração do editor, então precisam ser estáveis:
@@ -104,6 +121,19 @@ function Interno({
    * texto entre montagens é a prop.
    */
   const inicial = useRef(value)
+
+  /*
+   * O gatilho precisa do editor para inserir, e o editor precisa do plugin do
+   * gatilho para existir. A ref quebra o ciclo: o hook recebe um getter que só
+   * é chamado depois, quando alguém escolhe um símbolo.
+   */
+  const editorRef = useRef<ReturnType<typeof get> | null>(null)
+
+  const gatilhoSimbolos = useGatilho(
+    '//',
+    simbolos ?? FONTE_VAZIA,
+    () => editorRef.current ?? undefined,
+  )
 
   const { get } = useEditor((raiz) =>
     Editor.make()
@@ -133,7 +163,11 @@ function Interno({
       .use(desenhoSchema)
       .use(views.current.cerca)
       .use(viewWikilink)
-      .use(views.current.desenho),
+      .use(views.current.desenho)
+      .use(gatilhoSimbolos.plugin)
+      // Depois do gatilho: o Tab do menu tem precedência sobre o Tab que anda
+      // pelos buracos, senão escolher um símbolo pularia para o buraco errado.
+      .use(navegarBuracos),
   )
 
   useEffect(() => {
@@ -146,5 +180,19 @@ function Interno({
     }
   }, [get, inserirRef])
 
-  return <Milkdown />
+  editorRef.current = get()
+
+  return (
+    <>
+      <Milkdown />
+      {simbolos && (
+        <MenuSimbolos
+          estado={gatilhoSimbolos.estado}
+          itens={gatilhoSimbolos.itens}
+          indice={gatilhoSimbolos.indice}
+          onEscolher={gatilhoSimbolos.escolher}
+        />
+      )}
+    </>
+  )
 }

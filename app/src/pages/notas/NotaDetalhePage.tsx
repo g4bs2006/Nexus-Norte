@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useMaterias, useSemestres } from '@/features/estudos/hooks'
 import { buscarReferencias, salvarDesenho } from '@/features/notas/api'
+import { fonteSimbolos } from '@/features/notas/simbolos'
 import {
   useExcluirNota,
   useNota,
@@ -244,6 +245,7 @@ export default function NotaDetalhePage() {
                 buscarReferencias={buscarReferencias}
                 renderizarBloco={renderizarBloco}
                 renderizarDesenho={renderizarDesenho}
+                simbolos={fonteSimbolos}
                 onSalvarDesenho={(cena, svg) =>
                   salvarDesenho({
                     notaId: atual.id,

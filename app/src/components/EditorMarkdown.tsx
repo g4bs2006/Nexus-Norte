@@ -12,6 +12,7 @@ import { DialogFormula } from './DialogFormula'
 import { SeletorReferencia, type Referencia } from './SeletorReferencia'
 import type { CenaDesenho } from './EditorDesenho'
 import type { RenderizarBloco, RenderizarDesenho } from './editor/views'
+import type { FonteItens } from './editor/useGatilho'
 
 const EditorRico = lazy(() => import('./EditorMarkdownRico'))
 const EditorDesenho = lazy(() => import('./EditorDesenho'))
@@ -52,6 +53,8 @@ export interface EditorMarkdownProps {
    */
   renderizarBloco: RenderizarBloco
   renderizarDesenho: RenderizarDesenho
+  /** Catálogo do gatilho `//`. Sem ele, o gatilho simplesmente não existe. */
+  simbolos?: FonteItens
 }
 
 /**
@@ -81,6 +84,7 @@ export function EditorMarkdown({
   onSalvarDesenho,
   renderizarBloco,
   renderizarDesenho,
+  simbolos,
 }: EditorMarkdownProps) {
   const inserirRef = useRef<Inserir | null>(null)
   const [seletorAberto, setSeletorAberto] = useState(false)
@@ -213,6 +217,7 @@ export function EditorMarkdown({
           inserirRef={inserirRef}
           renderizarBloco={renderizarBloco}
           renderizarDesenho={renderizarDesenho}
+          simbolos={simbolos}
         />
       </Suspense>
     </div>
