@@ -35,8 +35,16 @@ export type Fatia =
   | { tipo: 'link'; slug: string; rotulo: string | null }
   /** `latex` vem sem os `$`; `bloco` distingue `$$…$$` de `$…$`. */
   | { tipo: 'matematica'; latex: string; bloco: boolean }
+  /** Cerca de código. `linguagem` é o info string: 'mermaid', 'plot', ''… */
+  | { tipo: 'cerca'; linguagem: string; codigo: string }
+  /** `![[desenho:uuid]]`. */
+  | { tipo: 'desenho'; id: string }
 
-type TipoRegiao = 'codigo' | 'matematica'
+/**
+ * `cerca` é separada de `codigo` porque só ela vira bloco renderizado: crase
+ * simples no meio da frase é código inline e continua texto.
+ */
+type TipoRegiao = 'cerca' | 'codigo' | 'matematica'
 
 type Regiao = {
   inicio: number
@@ -213,6 +221,18 @@ export function fatiar(conteudo: string): Fatia[] {
           },
         }
       }),
+    ...mapear(conteudo)
+      .filter((regiao) => regiao.tipo === 'cerca')
+      .map((regiao) => ({
+        inicio: regiao.inicio,
+        fim: regiao.fim,
+        fatia: lerCercaFatia(conteudo.slice(regiao.inicio, regiao.fim)),
+      })),
+    ...localizarDesenhos(conteudo).map((desenho) => ({
+      inicio: desenho.inicio,
+      fim: desenho.fim,
+      fatia: { tipo: 'desenho' as const, id: desenho.id },
+    })),
   ].sort((a, b) => a.inicio - b.inicio)
 
   const fatias: Fatia[] = []
@@ -229,6 +249,49 @@ export function fatiar(conteudo: string): Fatia[] {
     fatias.push({ tipo: 'texto', texto: conteudo.slice(cursor) })
   }
   return fatias
+}
+
+/**
+ * Separa o info string do corpo de uma cerca.
+ *
+ * O info string é o que decide o bloco: ```` ```plot ```` e ```` ```mermaid ````
+ * viram gráfico e diagrama, e qualquer outro (ou nenhum) segue sendo código
+ * exibido como código.
+ */
+function lerCercaFatia(texto: string): Fatia {
+  const quebra = texto.indexOf('\n')
+  if (quebra === -1) return { tipo: 'cerca', linguagem: '', codigo: '' }
+
+  const abertura = texto.slice(0, quebra)
+  const linguagem = abertura.replace(/^[ \t]*(`{3,}|~{3,})/, '').trim()
+
+  const corpo = texto.slice(quebra + 1)
+  // A última linha é a cerca de fechamento, quando ela existe.
+  const fecha = corpo.lastIndexOf('\n')
+  const codigo = /^[ \t]*(`{3,}|~{3,})[ \t]*$/.test(corpo.slice(fecha + 1))
+    ? corpo.slice(0, fecha === -1 ? 0 : fecha)
+    : corpo
+
+  return { tipo: 'cerca', linguagem: linguagem.toLowerCase(), codigo }
+}
+
+/** Posição de cada `![[desenho:uuid]]`, para o fatiador. */
+function localizarDesenhos(
+  conteudo: string,
+): { inicio: number; fim: number; id: string }[] {
+  const mascarado = mascarar(conteudo)
+  const achados: { inicio: number; fim: number; id: string }[] = []
+
+  for (const achado of mascarado.matchAll(RE_DESENHO)) {
+    const uuid = achado[1]
+    if (uuid === undefined) continue
+    achados.push({
+      inicio: achado.index,
+      fim: achado.index + achado[0].length,
+      id: uuid.toLowerCase(),
+    })
+  }
+  return achados
 }
 
 /**
@@ -416,7 +479,7 @@ function lerCerca(conteudo: string, indice: number, marca: string): Regiao | nul
 
   const fimDaAbertura = conteudo.indexOf('\n', indice)
   if (fimDaAbertura === -1) {
-    return { inicio: indice, fim: conteudo.length, tipo: 'codigo' }
+    return { inicio: indice, fim: conteudo.length, tipo: 'cerca' }
   }
 
   let cursor = fimDaAbertura + 1
@@ -436,13 +499,13 @@ function lerCerca(conteudo: string, indice: number, marca: string): Regiao | nul
       return {
         inicio: indice,
         fim: fimDaLinha === -1 ? conteudo.length : fimDaLinha,
-        tipo: 'codigo',
+        tipo: 'cerca',
       }
     }
     if (fimDaLinha === -1) break
     cursor = fimDaLinha + 1
   }
-  return { inicio: indice, fim: conteudo.length, tipo: 'codigo' }
+  return { inicio: indice, fim: conteudo.length, tipo: 'cerca' }
 }
 
 /** Código inline: mesma quantidade de crases abrindo e fechando, na mesma linha. */

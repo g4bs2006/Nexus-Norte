@@ -1,9 +1,13 @@
 import { supabase } from '@/lib/supabase'
 import type { Referencia } from '@/components/SeletorReferencia'
-import { gerarSlug } from './markdown'
+import { gerarSlug, removerMatematica } from './markdown'
 import { planejarArestas, planejarPropagacao, planejarTopicos } from './grafo'
+import type { DesenhoExportavel, NotaExportavel } from './exportacao'
+import type { Json } from '@/types/database'
 import type {
+  AchadoNota,
   Backlink,
+  Desenho,
   LinkQuebrado,
   Nota,
   NotaListada,
@@ -203,6 +207,141 @@ export async function buscarReferencias(termo: string): Promise<Referencia[]> {
   }))
 }
 
+/**
+ * Busca literal no conteúdo das notas (seção 8).
+ *
+ * Responde "sei que anotei isso em algum lugar" — pergunta diferente da que o
+ * autocomplete resolve: lá se procura a nota a CITAR, pelo nome; aqui a nota a
+ * REENCONTRAR, pelo que foi escrito nela.
+ *
+ * O `trecho` volta com o termo entre `<<` e `>>`. Marcadores em texto, e não
+ * HTML, porque quem exibe é React — receber HTML do banco só para injetar com
+ * `dangerouslySetInnerHTML` seria criar um caminho de injeção onde não precisa.
+ */
+export async function buscarNotas(termo: string): Promise<AchadoNota[]> {
+  if (termo.trim() === '') return []
+
+  const achados = lancarSeErro(
+    await supabase.rpc('buscar_notas', { termo, limite: 30 }),
+  )
+
+  return achados.map((nota) => ({
+    id: nota.id,
+    slug: nota.slug,
+    titulo: nota.titulo,
+    materia_nome: nota.materia_nome,
+    trecho: nota.trecho,
+  }))
+}
+
+/**
+ * Um desenho pelo id que a referência `![[desenho:uuid]]` carrega.
+ *
+ * A leitura pede as colunas todas porque quem abre o editor precisa de `cena`,
+ * e quem só lê precisa de `svg` — separar em duas consultas faria a segunda
+ * acontecer sempre no clique, que é justamente quando a espera incomoda.
+ */
+export async function obterDesenho(id: string): Promise<Desenho | null> {
+  const { data, error } = await supabase
+    .from('desenhos')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export type EntradaDesenho = {
+  /** Ausente cria o desenho; presente atualiza. */
+  id?: string
+  notaId: string
+  titulo?: string | null
+  cena: Json
+  svg: string
+}
+
+/**
+ * Grava cena e SVG JUNTOS, sempre.
+ *
+ * `cena` é a fonte editável e `svg` é o render. Deixar os dois divergirem faria
+ * a leitura mostrar um desenho e a edição abrir outro — e como o SVG é o que
+ * sobrevive a uma troca de biblioteca e o que a exportação leva (seção 10),
+ * um SVG velho é perda de dado silenciosa.
+ */
+export async function salvarDesenho(entrada: EntradaDesenho): Promise<string> {
+  if (entrada.id) {
+    lancar(
+      await supabase
+        .from('desenhos')
+        // `atualizado_em` fica de fora: o trigger carimba.
+        .update({ cena: entrada.cena, svg: entrada.svg })
+        .eq('id', entrada.id),
+    )
+    return entrada.id
+  }
+
+  const criado = lancarSeErro(
+    await supabase
+      .from('desenhos')
+      .insert({
+        nota_id: entrada.notaId,
+        cena: entrada.cena,
+        svg: entrada.svg,
+        ...(entrada.titulo ? { titulo: entrada.titulo } : {}),
+      })
+      .select('id')
+      .single(),
+  )
+  return criado.id
+}
+
+/**
+ * Tudo que a exportação precisa, em duas consultas (seção 10).
+ *
+ * Traz a base inteira de propósito: um dump parcial não é rede de segurança, e
+ * esta é a única que o sistema tem — não há autenticação nem backup
+ * (resolução 10.0).
+ *
+ * Do desenho vem só o `svg`, nunca a `cena`: o JSONB do Excalidraw é grande e
+ * ilegível fora dele, e quem abre o `.zip` quer ver o desenho, não a estrutura
+ * interna de quem o desenhou.
+ */
+export async function carregarParaExportar(): Promise<{
+  notas: NotaExportavel[]
+  desenhos: DesenhoExportavel[]
+}> {
+  const [linhas, desenhos] = await Promise.all([
+    supabase
+      .from('notas_estudo')
+      .select('slug, titulo, conteudo, atualizada_em, materias(nome)')
+      .order('atualizada_em', { ascending: false }),
+    supabase.from('desenhos').select('id, svg'),
+  ])
+
+  const erro = linhas.error ?? desenhos.error
+  if (erro) throw new Error(erro.message)
+
+  return {
+    notas: (
+      (linhas.data ?? []) as {
+        slug: string
+        titulo: string
+        conteudo: string
+        atualizada_em: string
+        materias: { nome: string } | null
+      }[]
+    ).map((nota) => ({
+      slug: nota.slug,
+      titulo: nota.titulo,
+      conteudo: nota.conteudo,
+      atualizada_em: nota.atualizada_em,
+      materia_nome: nota.materias?.nome ?? 'sem-materia',
+    })),
+    desenhos: desenhos.data ?? [],
+  }
+}
+
 export async function listarTopicos(): Promise<Topico[]> {
   return lancarSeErro(await supabase.from('topicos').select('*').order('nome'))
 }
@@ -249,12 +388,27 @@ export async function salvarNota(entrada: EntradaNota): Promise<Nota> {
   const slug = gerarSlug(entrada.titulo, tomados)
   const renomeou = anterior !== null && anterior.slug !== slug
 
+  /*
+   * O texto que alimenta o índice de busca (seção 8).
+   *
+   * Sai daqui, e não de uma expressão em SQL, porque a regra de remover
+   * matemática já existe testada em `markdown.ts` e conhece cerca, código
+   * inline e escape — coisas que uma regex de `$...$` no banco erraria. Só é
+   * seguro porque esta função é o único caminho que grava conteúdo.
+   */
+  const conteudoBusca = removerMatematica(entrada.conteudo)
+
   const nota = entrada.id
     ? lancarSeErro(
         await supabase
           .from('notas_estudo')
           // `atualizada_em` fica de fora: o trigger carimba (resolução 10.9).
-          .update({ titulo: entrada.titulo, conteudo: entrada.conteudo, slug })
+          .update({
+            titulo: entrada.titulo,
+            conteudo: entrada.conteudo,
+            conteudo_busca: conteudoBusca,
+            slug,
+          })
           .eq('id', entrada.id)
           .select('*')
           .single(),
@@ -266,6 +420,7 @@ export async function salvarNota(entrada: EntradaNota): Promise<Nota> {
             materia_id: entrada.materiaId,
             titulo: entrada.titulo,
             conteudo: entrada.conteudo,
+            conteudo_busca: conteudoBusca,
             slug,
             ...(entrada.sessaoId ? { sessao_id: entrada.sessaoId } : {}),
           })
@@ -320,7 +475,12 @@ async function propagarRenomeacao(
     lancar(
       await supabase
         .from('notas_estudo')
-        .update({ conteudo: reescrita.conteudo })
+        // `conteudo_busca` acompanha SEMPRE que `conteudo` muda. Deixar de
+        // fora aqui faria o índice guardar o texto com o link antigo.
+        .update({
+          conteudo: reescrita.conteudo,
+          conteudo_busca: removerMatematica(reescrita.conteudo),
+        })
         .eq('id', reescrita.id),
     )
     const slugDoCitante = alvos.find((nota) => nota.id === reescrita.id)?.slug

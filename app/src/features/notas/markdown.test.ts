@@ -207,9 +207,31 @@ describe('fatiar', () => {
     ])
   })
 
-  it('deixa código como texto, sem virar link nem fórmula', () => {
-    const conteudo = '```\n[[nao]] $nao$\n```'
-    expect(fatiar(conteudo)).toEqual([{ tipo: 'texto', texto: conteudo }])
+  it('entrega a cerca com a linguagem e o corpo, sem os delimitadores', () => {
+    expect(fatiar('```mermaid\ngraph TD; A-->B\n```')).toEqual([
+      { tipo: 'cerca', linguagem: 'mermaid', codigo: 'graph TD; A-->B' },
+    ])
+  })
+
+  it('não vê link nem fórmula dentro da cerca', () => {
+    expect(fatiar('```\n[[nao]] $nao$\n```')).toEqual([
+      { tipo: 'cerca', linguagem: '', codigo: '[[nao]] $nao$' },
+    ])
+  })
+
+  it('preserva as linhas do corpo da cerca', () => {
+    expect(fatiar('```plot\nx^2\n-5:5\n```')).toEqual([
+      { tipo: 'cerca', linguagem: 'plot', codigo: 'x^2\n-5:5' },
+    ])
+  })
+
+  it('acha o desenho embutido entre o texto', () => {
+    const id = '3f1a2b4c-5d6e-4f70-8a91-b2c3d4e5f607'
+    expect(fatiar(`antes ![[desenho:${id}]] depois`)).toEqual([
+      { tipo: 'texto', texto: 'antes ' },
+      { tipo: 'desenho', id },
+      { tipo: 'texto', texto: ' depois' },
+    ])
   })
 
   it('devolve vazio para conteúdo vazio', () => {

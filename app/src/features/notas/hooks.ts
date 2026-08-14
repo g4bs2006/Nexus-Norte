@@ -18,6 +18,8 @@ export const chaves = {
   backlinks: (notaId: string) => ['notas', 'backlinks', notaId] as const,
   quebrados: (notaId: string) => ['notas', 'quebrados', notaId] as const,
   topicos: () => ['notas', 'topicos'] as const,
+  desenho: (id: string) => ['notas', 'desenho', id] as const,
+  busca: (termo: string) => ['notas', 'busca', termo] as const,
 }
 
 // --- Leitura ----------------------------------------------------------------
@@ -55,6 +57,26 @@ export function useLinksQuebrados(notaId: string | undefined) {
     queryKey: chaves.quebrados(notaId ?? ''),
     queryFn: () => api.listarLinksQuebrados(notaId as string),
     enabled: Boolean(notaId),
+  })
+}
+
+export function useDesenho(id: string | undefined) {
+  return useQuery({
+    queryKey: chaves.desenho(id ?? ''),
+    queryFn: () => api.obterDesenho(id as string),
+    enabled: Boolean(id),
+  })
+}
+
+/**
+ * Busca no conteúdo. Termo vazio não vai ao servidor: a lista completa já está
+ * em `useNotas`, e uma consulta para "tudo" seria trabalho jogado fora.
+ */
+export function useBuscaNotas(termo: string) {
+  return useQuery({
+    queryKey: chaves.busca(termo),
+    queryFn: () => api.buscarNotas(termo),
+    enabled: termo.trim() !== '',
   })
 }
 
@@ -96,6 +118,10 @@ export function useFixarNota() {
       api.fixarNota(id, fixada),
     'Nota atualizada',
   )
+}
+
+export function useSalvarDesenho() {
+  return useMutationNotas(api.salvarDesenho, 'Desenho salvo')
 }
 
 export function useExcluirNota() {

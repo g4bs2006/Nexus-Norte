@@ -221,15 +221,35 @@ export default function MateriaDetalhePage() {
           </CardContent>
         </Card>
 
-        <Tabs defaultValue="avaliacoes">
+        {/*
+          Notas em primeiro, e como aba padrão (spec 14/08, seção 9).
+          A matéria é espaço de conhecimento, e é ali que se trabalha — Notas
+          estava em ÚLTIMO entre seis abas, atrás até de Documentos.
+
+          A proeminência de prova não foi removida, foi realocada: urgência de
+          avaliação já vive na Home e no Calendário, via CardPressaoPrazos e a
+          contagem regressiva, que é onde ela é consultada antes de decidir o
+          dia. Dentro da matéria ela competia pela tela com o conteúdo — e
+          continua a um clique, com a contagem regressiva no card acima.
+        */}
+        <Tabs defaultValue="notas">
           <TabsList>
+            <TabsTrigger value="notas">Notas</TabsTrigger>
             <TabsTrigger value="avaliacoes">Avaliações</TabsTrigger>
             <TabsTrigger value="faltas">Faltas</TabsTrigger>
             <TabsTrigger value="sessoes">Sessões</TabsTrigger>
             <TabsTrigger value="documentos">Documentos</TabsTrigger>
             <TabsTrigger value="listas">Listas</TabsTrigger>
-            <TabsTrigger value="notas">Notas</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="notas" className="mt-5">
+            <AbaNotas
+              materiaId={materiaId}
+              notas={notas.data ?? []}
+              particularidades={materia.notas_particularidades}
+              dataPorSessao={dataPorSessao}
+            />
+          </TabsContent>
 
           <TabsContent value="avaliacoes" className="mt-5">
             <AbaAvaliacoes
@@ -294,15 +314,6 @@ export default function MateriaDetalhePage() {
               materiaId={materiaId}
               registros={registros.data ?? []}
               hoje={hoje}
-            />
-          </TabsContent>
-
-          <TabsContent value="notas" className="mt-5">
-            <AbaNotas
-              materiaId={materiaId}
-              notas={notas.data ?? []}
-              particularidades={materia.notas_particularidades}
-              dataPorSessao={dataPorSessao}
             />
           </TabsContent>
         </Tabs>

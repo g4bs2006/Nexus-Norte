@@ -14,8 +14,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useDebounced } from '@/hooks/useDebounced'
 import { useMaterias, useSemestres } from '@/features/estudos/hooks'
-import { useNotas, useTopicos } from '@/features/notas/hooks'
+import { useBuscaNotas, useNotas, useTopicos } from '@/features/notas/hooks'
+import { TrechoBusca } from '@/features/notas/componentes/TrechoBusca'
+import { BotaoExportar } from '@/features/notas/componentes/BotaoExportar'
 
 /** Valor do `Select` para "sem filtro". String vazia não é aceita pelo shadcn. */
 const TODOS = 'todos'
@@ -35,7 +38,9 @@ export default function NotasPage() {
   const [params, setParams] = useSearchParams()
   const [termo, setTermo] = useState('')
 
+  const termoBusca = useDebounced(termo.trim(), 250)
   const notas = useNotas()
+  const busca = useBuscaNotas(termoBusca)
   const materias = useMaterias()
   const semestres = useSemestres()
   const topicos = useTopicos()
@@ -53,11 +58,27 @@ export default function NotasPage() {
     [materias.data],
   )
 
-  const filtradas = useMemo(() => {
-    const busca = termo.trim().toLowerCase()
+  /*
+   * Com termo, quem manda é o servidor: `busca_notas` procura DENTRO do
+   * conteúdo e ordena por relevância, que é o ponto da fase 8 — filtrar título
+   * em memória nunca acharia "aquilo que eu anotei em algum lugar". Os filtros
+   * de matéria, tópico e semestre seguem por cima, em memória.
+   */
+  const encontrados = useMemo(() => {
+    if (termoBusca === '') return null
+    const slugs = new Set((busca.data ?? []).map((achado) => achado.slug))
+    return slugs
+  }, [termoBusca, busca.data])
 
+  const trechoPorSlug = useMemo(
+    () =>
+      new Map((busca.data ?? []).map((achado) => [achado.slug, achado.trecho])),
+    [busca.data],
+  )
+
+  const filtradas = useMemo(() => {
     return (notas.data ?? []).filter((nota) => {
-      if (busca && !nota.titulo.toLowerCase().includes(busca)) return false
+      if (encontrados !== null && !encontrados.has(nota.slug)) return false
       if (materiaFiltro !== TODOS && nota.materia_id !== materiaFiltro) {
         return false
       }
@@ -77,7 +98,7 @@ export default function NotasPage() {
     })
   }, [
     notas.data,
-    termo,
+    encontrados,
     materiaFiltro,
     topicoFiltro,
     semestreFiltro,
@@ -97,6 +118,7 @@ export default function NotasPage() {
         titulo="Notas"
         descricao="Tudo que foi escrito, de todas as matérias e semestres."
         pilar="estudos"
+        acoes={<BotaoExportar />}
       />
 
       <div className="surgir-grupo space-y-5">
@@ -104,7 +126,7 @@ export default function NotasPage() {
           <Input
             value={termo}
             onChange={(evento) => setTermo(evento.target.value)}
-            placeholder="Buscar por título…"
+            placeholder="Buscar no conteúdo…"
           />
 
           <FiltroSelect
@@ -148,12 +170,14 @@ export default function NotasPage() {
             titulo={
               (notas.data ?? []).length === 0
                 ? 'Nenhuma nota escrita ainda'
-                : 'Nada com esses filtros'
+                : termoBusca !== ''
+                  ? `Nada escrito sobre "${termoBusca}"`
+                  : 'Nada com esses filtros'
             }
             descricao={
               (notas.data ?? []).length === 0
                 ? 'A nota nasce dentro da matéria, na aba Notas.'
-                : 'Afrouxe a matéria, o tópico ou o semestre.'
+                : 'Tente outra palavra, ou afrouxe a matéria, o tópico e o semestre.'
             }
           />
         ) : (
@@ -171,6 +195,9 @@ export default function NotasPage() {
                     <p className="text-muted-foreground text-[11px]">
                       {nota.materia_nome}
                     </p>
+                    {trechoPorSlug.has(nota.slug) && (
+                      <TrechoBusca texto={trechoPorSlug.get(nota.slug) ?? ''} />
+                    )}
                     {nota.topicos.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {nota.topicos.map((topico) => (

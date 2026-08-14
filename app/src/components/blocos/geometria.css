@@ -1,0 +1,45 @@
+/*
+ * Estilo do quadro do JSXGraph.
+ *
+ * O CSS que vem no pacote (`distrib/jsxgraph.css`) NÃO é importável: o
+ * `exports` do jsxgraph só expõe a raiz, e o bundler recusa o caminho — foi o
+ * build que pegou isso, não o typecheck.
+ *
+ * Reescrever era o melhor caminho de qualquer jeito: quase todo aquele arquivo
+ * estiliza a barra de navegação, que este bloco desliga, e as cores de lá são
+ * fixas — ignorariam o tema do app. Aqui sai dos mesmos tokens do resto.
+ */
+
+.jxgbox {
+  position: relative;
+  overflow: hidden;
+  background: var(--background);
+  touch-action: none;
+}
+
+/* Rótulo de curva e de slider desenhado como HTML sobre o SVG. */
+.JXGtext {
+  position: absolute;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  color: var(--foreground);
+  background: none;
+  padding: 0;
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* Caixa que aparece ao arrastar um ponto, com as coordenadas. */
+.JXGinfobox {
+  position: absolute;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--muted-foreground);
+  padding: 0.15rem 0.35rem;
+  font-size: 0.7rem;
+}
+
+.JXGimage {
+  max-width: none;
+}

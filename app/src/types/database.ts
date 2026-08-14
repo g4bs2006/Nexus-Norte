@@ -1022,7 +1022,9 @@ export type Database = {
       notas_estudo: {
         Row: {
           atualizada_em: string
+          busca: unknown
           conteudo: string
+          conteudo_busca: string
           created_at: string
           fixada: boolean
           id: string
@@ -1033,7 +1035,9 @@ export type Database = {
         }
         Insert: {
           atualizada_em?: string
+          busca?: unknown
           conteudo?: string
+          conteudo_busca?: string
           created_at?: string
           fixada?: boolean
           id?: string
@@ -1044,7 +1048,9 @@ export type Database = {
         }
         Update: {
           atualizada_em?: string
+          busca?: unknown
           conteudo?: string
+          conteudo_busca?: string
           created_at?: string
           fixada?: boolean
           id?: string
@@ -1640,6 +1646,16 @@ export type Database = {
       }
     }
     Functions: {
+      buscar_notas: {
+        Args: { limite?: number; termo: string }
+        Returns: {
+          id: string
+          materia_nome: string
+          slug: string
+          titulo: string
+          trecho: string
+        }[]
+      }
       buscar_notas_por_titulo: {
         Args: { limite?: number; termo: string }
         Returns: {
