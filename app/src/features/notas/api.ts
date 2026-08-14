@@ -1,9 +1,10 @@
 import { supabase } from '@/lib/supabase'
 import type { Referencia } from '@/components/SeletorReferencia'
-import { gerarSlug } from './markdown'
+import { gerarSlug, removerMatematica } from './markdown'
 import { planejarArestas, planejarPropagacao, planejarTopicos } from './grafo'
 import type { Json } from '@/types/database'
 import type {
+  AchadoNota,
   Backlink,
   Desenho,
   LinkQuebrado,
@@ -206,6 +207,33 @@ export async function buscarReferencias(termo: string): Promise<Referencia[]> {
 }
 
 /**
+ * Busca literal no conteúdo das notas (seção 8).
+ *
+ * Responde "sei que anotei isso em algum lugar" — pergunta diferente da que o
+ * autocomplete resolve: lá se procura a nota a CITAR, pelo nome; aqui a nota a
+ * REENCONTRAR, pelo que foi escrito nela.
+ *
+ * O `trecho` volta com o termo entre `<<` e `>>`. Marcadores em texto, e não
+ * HTML, porque quem exibe é React — receber HTML do banco só para injetar com
+ * `dangerouslySetInnerHTML` seria criar um caminho de injeção onde não precisa.
+ */
+export async function buscarNotas(termo: string): Promise<AchadoNota[]> {
+  if (termo.trim() === '') return []
+
+  const achados = lancarSeErro(
+    await supabase.rpc('buscar_notas', { termo, limite: 30 }),
+  )
+
+  return achados.map((nota) => ({
+    id: nota.id,
+    slug: nota.slug,
+    titulo: nota.titulo,
+    materia_nome: nota.materia_nome,
+    trecho: nota.trecho,
+  }))
+}
+
+/**
  * Um desenho pelo id que a referência `![[desenho:uuid]]` carrega.
  *
  * A leitura pede as colunas todas porque quem abre o editor precisa de `cena`,
@@ -313,12 +341,27 @@ export async function salvarNota(entrada: EntradaNota): Promise<Nota> {
   const slug = gerarSlug(entrada.titulo, tomados)
   const renomeou = anterior !== null && anterior.slug !== slug
 
+  /*
+   * O texto que alimenta o índice de busca (seção 8).
+   *
+   * Sai daqui, e não de uma expressão em SQL, porque a regra de remover
+   * matemática já existe testada em `markdown.ts` e conhece cerca, código
+   * inline e escape — coisas que uma regex de `$...$` no banco erraria. Só é
+   * seguro porque esta função é o único caminho que grava conteúdo.
+   */
+  const conteudoBusca = removerMatematica(entrada.conteudo)
+
   const nota = entrada.id
     ? lancarSeErro(
         await supabase
           .from('notas_estudo')
           // `atualizada_em` fica de fora: o trigger carimba (resolução 10.9).
-          .update({ titulo: entrada.titulo, conteudo: entrada.conteudo, slug })
+          .update({
+            titulo: entrada.titulo,
+            conteudo: entrada.conteudo,
+            conteudo_busca: conteudoBusca,
+            slug,
+          })
           .eq('id', entrada.id)
           .select('*')
           .single(),
@@ -330,6 +373,7 @@ export async function salvarNota(entrada: EntradaNota): Promise<Nota> {
             materia_id: entrada.materiaId,
             titulo: entrada.titulo,
             conteudo: entrada.conteudo,
+            conteudo_busca: conteudoBusca,
             slug,
             ...(entrada.sessaoId ? { sessao_id: entrada.sessaoId } : {}),
           })
@@ -384,7 +428,12 @@ async function propagarRenomeacao(
     lancar(
       await supabase
         .from('notas_estudo')
-        .update({ conteudo: reescrita.conteudo })
+        // `conteudo_busca` acompanha SEMPRE que `conteudo` muda. Deixar de
+        // fora aqui faria o índice guardar o texto com o link antigo.
+        .update({
+          conteudo: reescrita.conteudo,
+          conteudo_busca: removerMatematica(reescrita.conteudo),
+        })
         .eq('id', reescrita.id),
     )
     const slugDoCitante = alvos.find((nota) => nota.id === reescrita.id)?.slug

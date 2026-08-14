@@ -28,6 +28,20 @@ export type NotaListada = Nota & {
   topicos: readonly Topico[]
 }
 
+/**
+ * Nota encontrada pela busca de conteúdo (seção 8).
+ *
+ * `trecho` traz o termo entre `<<` e `>>` — é o que responde POR QUE a nota
+ * casou, sem obrigar a abrir cada resultado para descobrir.
+ */
+export type AchadoNota = {
+  id: string
+  slug: string
+  titulo: string
+  materia_nome: string
+  trecho: string
+}
+
 /** Quem aponta para esta nota. É o painel de backlinks (seção 6). */
 export type Backlink = {
   id: string

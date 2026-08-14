@@ -19,6 +19,7 @@ export const chaves = {
   quebrados: (notaId: string) => ['notas', 'quebrados', notaId] as const,
   topicos: () => ['notas', 'topicos'] as const,
   desenho: (id: string) => ['notas', 'desenho', id] as const,
+  busca: (termo: string) => ['notas', 'busca', termo] as const,
 }
 
 // --- Leitura ----------------------------------------------------------------
@@ -64,6 +65,18 @@ export function useDesenho(id: string | undefined) {
     queryKey: chaves.desenho(id ?? ''),
     queryFn: () => api.obterDesenho(id as string),
     enabled: Boolean(id),
+  })
+}
+
+/**
+ * Busca no conteúdo. Termo vazio não vai ao servidor: a lista completa já está
+ * em `useNotas`, e uma consulta para "tudo" seria trabalho jogado fora.
+ */
+export function useBuscaNotas(termo: string) {
+  return useQuery({
+    queryKey: chaves.busca(termo),
+    queryFn: () => api.buscarNotas(termo),
+    enabled: termo.trim() !== '',
   })
 }
 

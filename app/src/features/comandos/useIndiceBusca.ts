@@ -21,7 +21,7 @@ export interface ItemBusca {
 }
 
 async function carregarIndice(): Promise<ItemBusca[]> {
-  const [categorias, materias, treinos, exercicios, projetos] =
+  const [categorias, materias, treinos, exercicios, projetos, notas] =
     await Promise.all([
       supabase.from('categorias').select('id, nome').order('nome'),
       supabase.from('materias').select('id, nome').order('nome'),
@@ -30,11 +30,22 @@ async function carregarIndice(): Promise<ItemBusca[]> {
       // resultado, não um por treino que o usa (resolução 10.18)
       supabase.from('biblioteca_exercicios').select('id, nome').order('nome'),
       supabase.from('projetos').select('id, nome').order('nome'),
+      // Nota entra pelo TÍTULO, como todo o resto — a paleta filtra em memória.
+      // Buscar dentro do conteúdo é outra coisa, e mora em /notas (seção 8).
+      supabase
+        .from('notas_estudo')
+        .select('slug, titulo')
+        .order('atualizada_em', { ascending: false }),
     ])
 
-  const erro = [categorias, materias, treinos, exercicios, projetos].find(
-    (r) => r.error,
-  )?.error
+  const erro = [
+    categorias,
+    materias,
+    treinos,
+    exercicios,
+    projetos,
+    notas,
+  ].find((r) => r.error)?.error
   if (erro) throw new Error(erro.message)
 
   return [
@@ -73,6 +84,18 @@ async function carregarIndice(): Promise<ItemBusca[]> {
       tipo: 'Projeto',
       rota: `/projetos/${p.id}`,
       pilar: 'projetos' as const,
+    })),
+    /*
+     * Nota é o texto mais volumoso do sistema e estava fora do índice até
+     * 14/08. A paleta vira o modo principal de navegar entre notas: é assim
+     * que se usa Obsidian de verdade — se busca, não se navega.
+     */
+    ...(notas.data ?? []).map((n) => ({
+      id: `nota:${n.slug}`,
+      nome: n.titulo,
+      tipo: 'Nota',
+      rota: `/notas/${n.slug}`,
+      pilar: 'estudos' as const,
     })),
   ]
 }

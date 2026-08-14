@@ -8,6 +8,7 @@ import {
   GraduationCap,
   History,
   LayoutDashboard,
+  NotebookPen,
   Receipt,
   Wallet,
   type LucideIcon,
@@ -123,6 +124,15 @@ export const SUBPAGINAS: readonly SubPagina[] = [
     rota: '/financeiro/planejamento',
     icone: CalendarClock,
     classeTexto: 'text-financeiro',
+  },
+  {
+    id: 'notas',
+    nome: 'Notas',
+    termos:
+      'notas caderno anotações conhecimento resumo fórmulas wiki tópicos zettelkasten',
+    rota: '/notas',
+    icone: NotebookPen,
+    classeTexto: 'text-estudos',
   },
   {
     id: 'ritual-semanal',
