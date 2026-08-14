@@ -1,0 +1,129 @@
+/*
+ * Aparência do editor rico.
+ *
+ * CSS de arquivo, e não classes utilitárias no JSX, porque quem monta o DOM é
+ * o ProseMirror: os `h1`, `li` e `code` nascem de dentro do editor, e não há
+ * onde pendurar `className` neles. As cores saem dos mesmos tokens do resto do
+ * app, então tema claro e escuro seguem juntos sem regra duplicada.
+ */
+
+.editor-markdown {
+  min-height: 16rem;
+  padding: 0.75rem;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-md);
+  background: var(--background);
+  font-size: 0.875rem;
+  line-height: 1.65;
+  outline: none;
+}
+
+.editor-markdown:focus-visible {
+  border-color: var(--ring);
+}
+
+/*
+ * Dica de escrita na nota vazia. `placeholder` de verdade não existe em
+ * contenteditable, e o Milkdown não marca o parágrafo vazio com classe
+ * nenhuma — então o alvo é o DOM que o ProseMirror de fato produz num
+ * documento vazio: um único `p` contendo só o `br` de quebra final.
+ */
+.editor-markdown[data-placeholder]
+  > p:only-child:has(> br.ProseMirror-trailingBreak):first-child::before {
+  content: attr(data-placeholder);
+  color: var(--muted-foreground);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.editor-markdown > * + * {
+  margin-top: 0.6em;
+}
+
+.editor-markdown h1,
+.editor-markdown h2,
+.editor-markdown h3 {
+  font-weight: 600;
+  line-height: 1.3;
+  margin-top: 1.2em;
+}
+
+.editor-markdown h1 {
+  font-size: 1.35rem;
+}
+.editor-markdown h2 {
+  font-size: 1.15rem;
+}
+.editor-markdown h3 {
+  font-size: 1rem;
+}
+
+.editor-markdown ul,
+.editor-markdown ol {
+  padding-left: 1.4em;
+}
+
+.editor-markdown ul {
+  list-style: disc;
+}
+.editor-markdown ol {
+  list-style: decimal;
+}
+
+.editor-markdown blockquote {
+  border-left: 2px solid var(--border);
+  padding-left: 0.9em;
+  color: var(--muted-foreground);
+}
+
+.editor-markdown code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--muted);
+  border-radius: var(--radius-sm);
+  padding: 0.1em 0.3em;
+}
+
+.editor-markdown pre {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: var(--muted);
+  border-radius: var(--radius-md);
+  padding: 0.7em 0.9em;
+  overflow-x: auto;
+}
+
+/* Dentro da cerca o fundo já é do bloco; repetir o chip empilharia dois. */
+.editor-markdown pre code {
+  background: none;
+  padding: 0;
+}
+
+.editor-markdown a {
+  color: var(--estudos);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.editor-markdown hr {
+  border: none;
+  border-top: 1px solid var(--border);
+}
+
+.editor-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.editor-markdown th,
+.editor-markdown td {
+  border: 1px solid var(--border);
+  padding: 0.35em 0.6em;
+  text-align: left;
+}
+
+.editor-markdown th {
+  background: var(--muted);
+  font-weight: 600;
+}

@@ -21,8 +21,8 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
+import { EditorMarkdown } from '@/components/EditorMarkdown'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { useSalvarNota } from '../hooks'
 import { schemaNota, type FormularioNota } from '../schemas'
 import type { Nota } from '../types'
@@ -55,10 +55,12 @@ interface DialogNotaProps {
  * Mesmo componente para os dois modos, como `DialogMateria` — o formulário é o
  * mesmo e separar duplicaria a validação.
  *
- * O conteúdo é Markdown, escrito em `textarea` DE PROPÓSITO nesta fase (spec
- * 14/08, fase 3): o editor rico entra na fase 4, atrás do componente do kernel.
- * Escrever o editor antes do schema, dos hooks e do grafo amarraria o alicerce
- * à biblioteca; assim ele nasce como detalhe substituível.
+ * O conteúdo é Markdown, editado pelo `EditorMarkdown` do kernel — que não sabe
+ * o que é nota. No celular ele cai para `textarea` sobre o mesmo texto, de
+ * propósito (spec 14/08, restrição transversal).
+ *
+ * O editor entrou depois do schema, dos hooks e do grafo, e não antes: assim
+ * ele nasceu como detalhe substituível em vez de alicerce.
  *
  * Toda gravação passa por `useSalvarNota` → `salvarNota`, que re-deriva links e
  * tópicos. Não há caminho aqui que escreva `conteudo` por fora (seção 3).
@@ -155,11 +157,10 @@ export function DialogNota({
                 <FormItem>
                   <FormLabel>Conteúdo</FormLabel>
                   <FormControl>
-                    <Textarea
-                      rows={10}
+                    <EditorMarkdown
+                      value={field.value}
+                      onChange={field.onChange}
                       placeholder="Escreva aqui…"
-                      className="font-mono text-[13px]"
-                      {...field}
                     />
                   </FormControl>
                   <FormDescription className="text-[11px]">
