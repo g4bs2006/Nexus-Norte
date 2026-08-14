@@ -37,10 +37,14 @@ import {
   construirEventos,
   type CamadaCalendario,
   type EventoCalendario,
+  type FonteTreinoAgendado,
 } from '@/features/calendario/eventos'
 import { cargaPorDia, type DiaCarga } from '@/features/calendario/carga'
 import type { EventoLivre } from '@/features/eventos/api'
 import { useFontesCalendario } from '@/features/calendario/hooks'
+import { DialogAgendarTreino } from '@/features/treino/componentes/DialogAgendarTreino'
+import { useTreinos } from '@/features/treino/hooks'
+import type { Treino } from '@/features/treino/types'
 import { useMoverEvento } from '@/features/calendario/hooks/useMoverEvento'
 import {
   detectarConflitos,
@@ -105,6 +109,17 @@ export default function CalendarioPage() {
    * mesmo dado.
    */
   const [diaDetalhado, setDiaDetalhado] = useState<string | null>(null)
+
+  /**
+   * Treino agendado clicado na grade de Mês/Horas, para editar/excluir sem
+   * navegar para /treino (chat 2026-08-14) — mesmo papel de `diaDetalhado`
+   * para o evento avulso, só que abrindo direto no diálogo do treino em vez
+   * do detalhe do dia.
+   */
+  const [treinoEditando, setTreinoEditando] = useState<FonteTreinoAgendado | null>(
+    null,
+  )
+  const treinos = useTreinos()
 
   const { mover, pendente: movendoEvento } = useMoverEvento()
   const [pedidoConfirmacaoMovimento, setPedidoConfirmacaoMovimento] =
@@ -223,6 +238,12 @@ export default function CalendarioPage() {
   const eventosLivresPorId = useMemo(
     () => new Map(fontes.eventosLivres.map((e) => [e.id, e])),
     [fontes.eventosLivres],
+  )
+
+  /** Idem, para treino agendado — editar/excluir sem sair do Calendário. */
+  const treinosAgendadosPorId = useMemo(
+    () => new Map(fontes.treinosAgendados.map((t) => [t.id, t])),
+    [fontes.treinosAgendados],
   )
 
   const refsDia = useRef(new Map<string, HTMLLIElement>())
@@ -494,6 +515,8 @@ export default function CalendarioPage() {
                 selecionado={diaFocado}
                 refDia={registrarDia}
                 eventosLivresPorId={eventosLivresPorId}
+                treinosAgendadosPorId={treinosAgendadosPorId}
+                treinos={treinos.data}
               />
             </CardContent>
           </Card>
@@ -514,6 +537,26 @@ export default function CalendarioPage() {
                 )
               }
               onClicarEvento={(id) => {
+                /*
+                 * Treino agendado (não realizado) tem `rota: '/treino'`, mas
+                 * ir até lá só para mudar horário ou desmarcar não é
+                 * intuitivo — abre editar/excluir aqui mesmo (chat
+                 * 2026-08-14). Precisa vir ANTES do `rotaPorId`, senão a
+                 * rota vence e navega antes de checar o tipo.
+                 */
+                const evento = eventos.find((e) => e.id === id)
+                if (
+                  evento?.tipo === 'treino' &&
+                  evento.movimento === 'entidade' &&
+                  evento.origemId
+                ) {
+                  const agendado = treinosAgendadosPorId.get(evento.origemId)
+                  if (agendado) {
+                    setTreinoEditando(agendado)
+                    return
+                  }
+                }
+
                 const rota = rotaPorId.get(id)
                 if (rota) {
                   navegar(rota)
@@ -524,7 +567,6 @@ export default function CalendarioPage() {
                  * o detalhe do dia, de onde dá para editar (mesmo caminho do
                  * clique no número do dia).
                  */
-                const evento = eventos.find((e) => e.id === id)
                 if (evento?.camada === 'evento') {
                   setDiaDetalhado(evento.inicio.slice(0, 10))
                 }
@@ -627,8 +669,20 @@ export default function CalendarioPage() {
         dias={dias}
         eventosPorData={eventosPorData}
         eventosLivresPorId={eventosLivresPorId}
+        treinosAgendadosPorId={treinosAgendadosPorId}
+        treinos={treinos.data}
         onOpenChange={(aberto) => {
           if (!aberto) setDiaDetalhado(null)
+        }}
+      />
+
+      <DialogAgendarTreino
+        agendado={treinoEditando ?? undefined}
+        treinos={treinos.data ?? []}
+        trigger={null}
+        open={treinoEditando !== null}
+        onOpenChange={(aberto) => {
+          if (!aberto) setTreinoEditando(null)
         }}
       />
     </>
@@ -641,6 +695,8 @@ interface DialogDiaProps {
   dias: readonly DiaCarga[]
   eventosPorData: ReadonlyMap<string, readonly EventoCalendario[]>
   eventosLivresPorId: ReadonlyMap<string, EventoLivre>
+  treinosAgendadosPorId: ReadonlyMap<string, FonteTreinoAgendado>
+  treinos?: readonly Treino[]
   onOpenChange: (aberto: boolean) => void
 }
 
@@ -660,6 +716,8 @@ function DialogDia({
   dias,
   eventosPorData,
   eventosLivresPorId,
+  treinosAgendadosPorId,
+  treinos,
   onOpenChange,
 }: DialogDiaProps) {
   const dia = data ? dias.find((item) => item.data === data) : undefined
@@ -677,6 +735,8 @@ function DialogDia({
             dias={[dia]}
             eventosPorData={eventosPorData}
             eventosLivresPorId={eventosLivresPorId}
+            treinosAgendadosPorId={treinosAgendadosPorId}
+            treinos={treinos}
           />
         )}
       </DialogContent>

@@ -5,12 +5,15 @@ import { deISO, formatarDuracao } from '@/lib/datas'
 import { cn } from '@/lib/utils'
 import { DialogEventoLivre } from '@/features/eventos/componentes/DialogEventoLivre'
 import type { EventoLivre } from '@/features/eventos/api'
+import { DialogAgendarTreino } from '@/features/treino/componentes/DialogAgendarTreino'
+import type { Treino } from '@/features/treino/types'
 import { ordenarDoDia, type DiaCarga } from '../carga'
 import {
   corDoEvento,
   ROTULO_TIPO,
   ehImportante,
   type EventoCalendario,
+  type FonteTreinoAgendado,
 } from '../eventos'
 import { DialogCriarNoDia } from './DialogCriarNoDia'
 
@@ -28,6 +31,15 @@ interface AgendaProps {
    * inteiro (descrição incluída).
    */
   eventosLivresPorId?: ReadonlyMap<string, EventoLivre>
+  /**
+   * Registro completo por id, para treino agendado (`tipo === 'treino'`,
+   * `movimento === 'entidade'`) — mesmo motivo de `eventosLivresPorId`: o
+   * evento não carrega `treino_id`/horário completo, só o já resolvido para
+   * desenhar a linha.
+   */
+  treinosAgendadosPorId?: ReadonlyMap<string, FonteTreinoAgendado>
+  /** Lista de treinos, para o Select do diálogo de editar treino agendado. */
+  treinos?: readonly Treino[]
 }
 
 /**
@@ -51,6 +63,8 @@ export function Agenda({
   selecionado,
   refDia,
   eventosLivresPorId,
+  treinosAgendadosPorId,
+  treinos,
 }: AgendaProps) {
   return (
     <ul className="divide-border divide-y">
@@ -126,6 +140,12 @@ export function Agenda({
                           ? eventosLivresPorId?.get(evento.origemId)
                           : undefined
                       }
+                      treinoAgendado={
+                        evento.origemId
+                          ? treinosAgendadosPorId?.get(evento.origemId)
+                          : undefined
+                      }
+                      treinos={treinos}
                     />
                   ))}
                   <DialogCriarNoDia data={dia.data} />
@@ -143,11 +163,16 @@ function LinhaEvento({
   evento,
   esmaecido,
   eventoLivre,
+  treinoAgendado,
+  treinos,
 }: {
   evento: EventoCalendario
   esmaecido: boolean
   /** Só presente quando `evento.tipo === 'evento'`. */
   eventoLivre?: EventoLivre
+  /** Só presente quando `evento.tipo === 'treino'` (agendado, não realizado). */
+  treinoAgendado?: FonteTreinoAgendado
+  treinos?: readonly Treino[]
 }) {
   const prazo = ehImportante(evento)
   const cor = corDoEvento(evento)
@@ -252,6 +277,31 @@ function LinhaEvento({
     return (
       <DialogEventoLivre
         evento={eventoLivre}
+        trigger={
+          <button
+            type="button"
+            className={cn(
+              classes,
+              'hover:bg-accent/60 -mx-1.5 w-[calc(100%+0.75rem)] px-1.5 text-left',
+            )}
+          >
+            {conteudo}
+          </button>
+        }
+      />
+    )
+  }
+
+  /*
+   * Treino agendado (não realizado) também não navega — abre editar/excluir
+   * direto aqui, mesmo motivo do evento avulso: ir para /treino só para
+   * mudar um horário ou desmarcar não era intuitivo (chat 2026-08-14).
+   */
+  if (evento.tipo === 'treino' && evento.movimento === 'entidade' && treinoAgendado) {
+    return (
+      <DialogAgendarTreino
+        agendado={treinoAgendado}
+        treinos={treinos ?? []}
         trigger={
           <button
             type="button"
