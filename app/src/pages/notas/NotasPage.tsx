@@ -18,6 +18,7 @@ import { useDebounced } from '@/hooks/useDebounced'
 import { useMaterias, useSemestres } from '@/features/estudos/hooks'
 import { useBuscaNotas, useNotas, useTopicos } from '@/features/notas/hooks'
 import { TrechoBusca } from '@/features/notas/componentes/TrechoBusca'
+import { BotaoExportar } from '@/features/notas/componentes/BotaoExportar'
 
 /** Valor do `Select` para "sem filtro". String vazia não é aceita pelo shadcn. */
 const TODOS = 'todos'
@@ -117,6 +118,7 @@ export default function NotasPage() {
         titulo="Notas"
         descricao="Tudo que foi escrito, de todas as matérias e semestres."
         pilar="estudos"
+        acoes={<BotaoExportar />}
       />
 
       <div className="surgir-grupo space-y-5">

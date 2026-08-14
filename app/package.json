@@ -34,6 +34,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.4.0",
+    "fflate": "^0.8.3",
     "function-plot": "^1.25.4",
     "jsxgraph": "^1.13.1",
     "katex": "^0.16.47",

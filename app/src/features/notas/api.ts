@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase'
 import type { Referencia } from '@/components/SeletorReferencia'
 import { gerarSlug, removerMatematica } from './markdown'
 import { planejarArestas, planejarPropagacao, planejarTopicos } from './grafo'
+import type { DesenhoExportavel, NotaExportavel } from './exportacao'
 import type { Json } from '@/types/database'
 import type {
   AchadoNota,
@@ -293,6 +294,52 @@ export async function salvarDesenho(entrada: EntradaDesenho): Promise<string> {
       .single(),
   )
   return criado.id
+}
+
+/**
+ * Tudo que a exportação precisa, em duas consultas (seção 10).
+ *
+ * Traz a base inteira de propósito: um dump parcial não é rede de segurança, e
+ * esta é a única que o sistema tem — não há autenticação nem backup
+ * (resolução 10.0).
+ *
+ * Do desenho vem só o `svg`, nunca a `cena`: o JSONB do Excalidraw é grande e
+ * ilegível fora dele, e quem abre o `.zip` quer ver o desenho, não a estrutura
+ * interna de quem o desenhou.
+ */
+export async function carregarParaExportar(): Promise<{
+  notas: NotaExportavel[]
+  desenhos: DesenhoExportavel[]
+}> {
+  const [linhas, desenhos] = await Promise.all([
+    supabase
+      .from('notas_estudo')
+      .select('slug, titulo, conteudo, atualizada_em, materias(nome)')
+      .order('atualizada_em', { ascending: false }),
+    supabase.from('desenhos').select('id, svg'),
+  ])
+
+  const erro = linhas.error ?? desenhos.error
+  if (erro) throw new Error(erro.message)
+
+  return {
+    notas: (
+      (linhas.data ?? []) as {
+        slug: string
+        titulo: string
+        conteudo: string
+        atualizada_em: string
+        materias: { nome: string } | null
+      }[]
+    ).map((nota) => ({
+      slug: nota.slug,
+      titulo: nota.titulo,
+      conteudo: nota.conteudo,
+      atualizada_em: nota.atualizada_em,
+      materia_nome: nota.materias?.nome ?? 'sem-materia',
+    })),
+    desenhos: desenhos.data ?? [],
+  }
 }
 
 export async function listarTopicos(): Promise<Topico[]> {
