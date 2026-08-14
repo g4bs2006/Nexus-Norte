@@ -10,6 +10,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useMaterias, useSemestres } from '@/features/estudos/hooks'
 import { buscarReferencias, salvarDesenho } from '@/features/notas/api'
 import { fonteSimbolos } from '@/features/notas/simbolos'
+import { criarFonteBlocos } from '@/features/notas/blocos'
 import {
   useExcluirNota,
   useNota,
@@ -246,6 +247,7 @@ export default function NotaDetalhePage() {
                 renderizarBloco={renderizarBloco}
                 renderizarDesenho={renderizarDesenho}
                 simbolos={fonteSimbolos}
+                criarBlocos={criarFonteBlocos}
                 onSalvarDesenho={(cena, svg) =>
                   salvarDesenho({
                     notaId: atual.id,

@@ -1,5 +1,4 @@
-import { Suspense, lazy, useState, type ReactNode } from 'react'
-import { Sigma } from 'lucide-react'
+import { Suspense, lazy, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -8,7 +7,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
 import { Formula } from './Formula'
 
@@ -17,7 +15,15 @@ const CampoMatematico = lazy(() => import('./CampoMatematico'))
 interface DialogFormulaProps {
   /** Recebe o LaTeX pronto, sem os `$`. Quem chama decide onde inserir. */
   onInserir: (latex: string, bloco: boolean) => void
-  trigger?: ReactNode
+  /**
+   * Controlado de fora desde que o menu `/` passou a abri-lo.
+   *
+   * Antes ele trazia o próprio gatilho — um botão permanente na barra do
+   * editor. A barra saiu, e um diálogo que se abre sozinho não tem como ser
+   * chamado por um menu.
+   */
+  aberto: boolean
+  onAbertoChange: (aberto: boolean) => void
 }
 
 /**
@@ -33,8 +39,11 @@ interface DialogFormulaProps {
  *
  * MathLive entra por `lazy` porque é pesado e só serve a quem está escrevendo.
  */
-export function DialogFormula({ onInserir, trigger }: DialogFormulaProps) {
-  const [aberto, setAberto] = useState(false)
+export function DialogFormula({
+  onInserir,
+  aberto,
+  onAbertoChange,
+}: DialogFormulaProps) {
   const [latex, setLatex] = useState('')
   const [bloco, setBloco] = useState(false)
 
@@ -43,19 +52,11 @@ export function DialogFormula({ onInserir, trigger }: DialogFormulaProps) {
     if (limpo === '') return
     onInserir(limpo, bloco)
     setLatex('')
-    setAberto(false)
+    onAbertoChange(false)
   }
 
   return (
-    <Dialog open={aberto} onOpenChange={setAberto}>
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button variant="secondary" size="sm" type="button">
-            <Sigma className="size-4" />
-            Fórmula
-          </Button>
-        )}
-      </DialogTrigger>
+    <Dialog open={aberto} onOpenChange={onAbertoChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Fórmula</DialogTitle>

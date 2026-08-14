@@ -24,6 +24,13 @@ export interface EstadoGatilho {
 interface Opcoes {
   /** `//` para símbolo, `/` para bloco. */
   gatilho: string
+  /**
+   * Só dispara no começo da linha.
+   *
+   * Vale para o `/` de bloco: um diagrama não entra no meio de uma frase, e
+   * exigir a linha vazia evita que escrever "e/ou" abra o menu.
+   */
+  apenasInicioDeLinha?: boolean
   /** Chamado a cada mudança: estado ou `null` quando o menu deve fechar. */
   aoMudar: (estado: EstadoGatilho | null) => void
   /**
@@ -84,10 +91,13 @@ export function criarGatilhoMenu(opcoes: Opcoes) {
      * `(?:^|s)//([pLpN]*)$` — silenciosamente errada. Foi o lint que apontou.
      *
      * O gatilho só vale no começo do bloco ou depois de espaço: sem isso,
-     * `http://exemplo` abriria o menu no meio de uma URL.
+     * `http://exemplo` abriria o menu no meio de uma URL. Com
+     * `apenasInicioDeLinha`, nem depois de espaço — é o caso do `/` de bloco,
+     * onde ele também impede que "e/ou" abra o menu.
      */
+    const prefixo = opcoes.apenasInicioDeLinha ? '^' : '(?:^|\\s)'
     const padrao = new RegExp(
-      '(?:^|\\s)' + escapar(gatilho) + '([\\p{L}\\p{N}]*)$',
+      prefixo + escapar(gatilho) + '([\\p{L}\\p{N}]*)$',
       'u',
     )
     const achado = padrao.exec(antes)

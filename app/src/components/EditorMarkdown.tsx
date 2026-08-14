@@ -1,6 +1,4 @@
-import { Suspense, lazy, useCallback, useRef, useState } from 'react'
-import { Link2, PenLine } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Suspense, lazy, useCallback, useMemo, useRef, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -55,6 +53,14 @@ export interface EditorMarkdownProps {
   renderizarDesenho: RenderizarDesenho
   /** Catálogo do gatilho `//`. Sem ele, o gatilho simplesmente não existe. */
   simbolos?: FonteItens
+  /**
+   * Monta o catálogo do `/`, recebendo os gatilhos das telas que alguns blocos
+   * abrem. É função, e não objeto, porque as ações só existem aqui dentro.
+   */
+  criarBlocos?: (acoes: {
+    abrirDesenho: () => void
+    abrirFormula: () => void
+  }) => FonteItens
 }
 
 /**
@@ -85,10 +91,12 @@ export function EditorMarkdown({
   renderizarBloco,
   renderizarDesenho,
   simbolos,
+  criarBlocos,
 }: EditorMarkdownProps) {
   const inserirRef = useRef<Inserir | null>(null)
   const [seletorAberto, setSeletorAberto] = useState(false)
   const [desenhando, setDesenhando] = useState(false)
+  const [formulaAberta, setFormulaAberta] = useState(false)
   const escuro = resolverTema(useUIStore((estado) => estado.tema)) === 'escuro'
   /*
    * Quando o seletor abre por causa do `[[` já digitado, só falta completar o
@@ -100,6 +108,20 @@ export function EditorMarkdown({
   const inserir = useCallback<Inserir>((markdown, inline) => {
     inserirRef.current?.(markdown, inline)
   }, [])
+
+  /*
+   * O catálogo do `/` precisa das ações desta camada, então é montado aqui.
+   * `useMemo` porque recriá-lo a cada render recriaria a fonte do gatilho — o
+   * hook guarda em ref, mas depender disso seria contar com detalhe interno.
+   */
+  const blocos = useMemo(
+    () =>
+      criarBlocos?.({
+        abrirDesenho: () => setDesenhando(true),
+        abrirFormula: () => setFormulaAberta(true),
+      }),
+    [criarBlocos],
+  )
 
   /*
    * Gatilho do `[[`.
@@ -134,39 +156,11 @@ export function EditorMarkdown({
 
   return (
     <div className="space-y-2" onKeyDown={aoTeclar}>
-      <div className="flex items-center gap-1">
-        <DialogFormula
-          onInserir={(latex, bloco) =>
-            inserir(bloco ? `$$${latex}$$` : `$${latex}$`, !bloco)
-          }
-        />
-        {buscarReferencias && (
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => {
-              completando.current = false
-              setSeletorAberto(true)
-            }}
-          >
-            <Link2 className="size-4" />
-            Ligar nota
-          </Button>
-        )}
-        {onSalvarDesenho && (
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => setDesenhando(true)}
-          >
-            <PenLine className="size-4" />
-            Desenho
-          </Button>
-        )}
-      </div>
-
+      {/*
+        A barra permanente de botões saiu. Ela ocupava espaço fixo em toda nota
+        para uma ação ocasional, e empurrava o texto para baixo — agora tudo
+        entra por `//` e `/`, que custam zero pixel quando não se usa.
+      */}
       {buscarReferencias && (
         <SeletorReferencia
           aberto={seletorAberto}
@@ -207,6 +201,20 @@ export function EditorMarkdown({
         </Dialog>
       )}
 
+      {/*
+        MathLive rebaixado: saiu da barra e agora só abre pelo `/`. Continua
+        valendo para montar matriz ou algo que não se lembra de cabeça — mas o
+        símbolo do dia a dia entra pelo `//`, que é mais rápido que qualquer
+        editor visual.
+      */}
+      <DialogFormula
+        aberto={formulaAberta}
+        onAbertoChange={setFormulaAberta}
+        onInserir={(latex, bloco) =>
+          inserir(bloco ? `$$${latex}$$` : `$${latex}$`, !bloco)
+        }
+      />
+
       <Suspense
         fallback={<div className="bg-muted/40 h-64 animate-pulse rounded-md" />}
       >
@@ -218,6 +226,7 @@ export function EditorMarkdown({
           renderizarBloco={renderizarBloco}
           renderizarDesenho={renderizarDesenho}
           simbolos={simbolos}
+          blocos={blocos}
         />
       </Suspense>
     </div>

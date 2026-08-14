@@ -16,11 +16,19 @@ export interface FonteItens {
    * anda por eles — é o que separa o atalho de útil a enfeite: sem isso se
    * insere `\int_{}^{}` e ainda é preciso clicar em cada chave.
    */
-  montar: (
-    item: ItemMenu,
-    emMatematica: boolean,
-  ) => { texto: string; buracos: number[] }
+  montar: (item: ItemMenu, emMatematica: boolean) => ResultadoEscolha
 }
+
+/**
+ * O que acontece ao escolher um item.
+ *
+ * `acao` existe porque nem todo item vira texto: "Desenho" abre o Excalidraw e
+ * "Fórmula" abre o MathLive. Quem fornece a fonte cuida do efeito; o editor só
+ * apaga o gatilho digitado e sai da frente.
+ */
+export type ResultadoEscolha =
+  | { tipo: 'inserir'; texto: string; buracos: number[] }
+  | { tipo: 'acao' }
 
 /**
  * Liga o gatilho digitado ao editor: detecção, teclado, lista e inserção.
@@ -33,6 +41,7 @@ export function useGatilho(
   gatilho: string,
   fonte: FonteItens,
   obterEditor: () => Editor | undefined,
+  opcoes: { apenasInicioDeLinha?: boolean } = {},
 ) {
   const [estado, setEstado] = useState<EstadoGatilho | null>(null)
   const [indice, setIndice] = useState(0)
@@ -70,11 +79,16 @@ export function useGatilho(
 
       editor.action((ctx) => {
         const view = ctx.get(editorViewCtx)
-        const { texto, buracos } = fonteRef.current.montar(
-          item,
-          posicao.emMatematica,
-        )
+        const resultado = fonteRef.current.montar(item, posicao.emMatematica)
 
+        // Ação: o gatilho digitado sai, e o efeito é de quem forneceu a fonte.
+        if (resultado.tipo === 'acao') {
+          view.dispatch(view.state.tr.delete(posicao.de, posicao.ate))
+          view.focus()
+          return
+        }
+
+        const { texto, buracos } = resultado
         const transacao = view.state.tr.insertText(texto, posicao.de, posicao.ate)
         /*
          * O cursor vai para o primeiro buraco, ou para o fim quando não há —
@@ -134,6 +148,7 @@ export function useGatilho(
   const plugin = useRef(
     criarGatilhoMenu({
       gatilho,
+      apenasInicioDeLinha: opcoes.apenasInicioDeLinha,
       aoMudar: (novo) => {
         setEstado(novo)
         setIndice(0)

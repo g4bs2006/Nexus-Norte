@@ -35,7 +35,7 @@ import type { Inserir } from './EditorMarkdown'
 /** Catálogo vazio, para o hook existir mesmo sem símbolos injetados. */
 const FONTE_VAZIA: FonteItens = {
   filtrar: () => [],
-  montar: () => ({ texto: '', buracos: [] }),
+  montar: () => ({ tipo: 'acao' }),
 }
 
 interface EditorRicoProps {
@@ -59,6 +59,8 @@ interface EditorRicoProps {
    * ele o gatilho some, e escrever LaTeX à mão continua funcionando.
    */
   simbolos?: FonteItens
+  /** Catálogo do gatilho `/`, de bloco. */
+  blocos?: FonteItens
 }
 
 /**
@@ -94,6 +96,7 @@ function Interno({
   renderizarBloco,
   renderizarDesenho,
   simbolos,
+  blocos,
 }: EditorRicoProps) {
   /*
    * As views entram na configuração do editor, então precisam ser estáveis:
@@ -135,6 +138,17 @@ function Interno({
     () => editorRef.current ?? undefined,
   )
 
+  /*
+   * `apenasInicioDeLinha` no `/`: um diagrama não entra no meio de uma frase, e
+   * sem isso escrever "e/ou" abriria o menu.
+   */
+  const gatilhoBlocos = useGatilho(
+    '/',
+    blocos ?? FONTE_VAZIA,
+    () => editorRef.current ?? undefined,
+    { apenasInicioDeLinha: true },
+  )
+
   const { get } = useEditor((raiz) =>
     Editor.make()
       .config((ctx) => {
@@ -165,6 +179,7 @@ function Interno({
       .use(viewWikilink)
       .use(views.current.desenho)
       .use(gatilhoSimbolos.plugin)
+      .use(gatilhoBlocos.plugin)
       // Depois do gatilho: o Tab do menu tem precedência sobre o Tab que anda
       // pelos buracos, senão escolher um símbolo pularia para o buraco errado.
       .use(navegarBuracos),
@@ -191,6 +206,14 @@ function Interno({
           itens={gatilhoSimbolos.itens}
           indice={gatilhoSimbolos.indice}
           onEscolher={gatilhoSimbolos.escolher}
+        />
+      )}
+      {blocos && (
+        <MenuSimbolos
+          estado={gatilhoBlocos.estado}
+          itens={gatilhoBlocos.itens}
+          indice={gatilhoBlocos.indice}
+          onEscolher={gatilhoBlocos.escolher}
         />
       )}
     </>

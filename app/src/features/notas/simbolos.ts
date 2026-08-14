@@ -22,7 +22,8 @@ export const fonteSimbolos = {
 
   montar: (item: { chave: string }, emMatematica: boolean) => {
     const simbolo = simboloPorGatilho(item.chave)
-    if (!simbolo) return { texto: '', buracos: [] }
-    return montarInsercao(simbolo, emMatematica)
+    if (!simbolo) return { tipo: 'acao' as const }
+    const { texto, buracos } = montarInsercao(simbolo, emMatematica)
+    return { tipo: 'inserir' as const, texto, buracos }
   },
 }
