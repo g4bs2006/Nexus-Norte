@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import * as api from './api'
 import { grafoMudou } from './grafo'
-import { useSalvarConteudo, useSalvarNota } from './hooks'
+import { chaves } from './hooks'
 
 /** O que o indicador mostra. */
 export type EstadoSalvamento = 'salvo' | 'pendente' | 'salvando' | 'erro'
@@ -25,11 +28,19 @@ const ESPERA_MS = 1200
  * A invariante do spec de 14/08 fica intacta: o grafo é re-derivado **sempre**
  * que o conjunto muda. O que deixou de acontecer é re-derivar quando nada mudou.
  *
- * ## Por que os parâmetros são soltos, e não um objeto
+ * ## Por que fala com a API direto, e não pelos hooks de mutation
  *
- * Um objeto montado no JSX de quem chama muda de identidade a cada render, e o
- * efeito reagendaria o timer sem parar — o autosave nunca dispararia. Com
- * primitivos essa armadilha não existe.
+ * Esta é a correção de um laço infinito real, e vale registrar para não voltar.
+ *
+ * `useMutation` devolve um objeto NOVO a cada render. Com ele nas dependências
+ * do efeito — que foi como o linter ficou satisfeito —, cada gravação virava:
+ * salva → `isPending` muda → re-render → mutation com outra identidade →
+ * efeito re-roda → agenda outra gravação. O indicador nunca saía de "salvando"
+ * porque de fato nunca parava de salvar.
+ *
+ * Chamando `api` direto, as dependências são só dados. E há um segundo ganho:
+ * `useSalvarNota` dá um toast a cada sucesso, o que faria escrever `[[` disparar
+ * "Nota salva" no meio da frase.
  *
  * ## O que este hook não faz
  *
@@ -43,8 +54,7 @@ export function useAutosave(
   titulo: string | undefined,
   conteudo: string,
 ): EstadoSalvamento {
-  const salvarConteudo = useSalvarConteudo()
-  const salvarCompleto = useSalvarNota()
+  const queryClient = useQueryClient()
   const [estado, setEstado] = useState<EstadoSalvamento>('salvo')
 
   /*
@@ -81,20 +91,29 @@ export function useAutosave(
     const temporizador = setTimeout(() => {
       const anterior = gravado.current ?? ''
       const atual = conteudo
+      const mudouOGrafo = grafoMudou(anterior, atual)
       setEstado('salvando')
 
-      const promessa = grafoMudou(anterior, atual)
-        ? salvarCompleto.mutateAsync({
-            id: notaId,
-            materiaId,
-            titulo,
-            conteudo: atual,
-          })
-        : salvarConteudo.mutateAsync({ id: notaId, conteudo: atual })
+      const promessa = mudouOGrafo
+        ? api.salvarNota({ id: notaId, materiaId, titulo, conteudo: atual })
+        : api.salvarConteudo(notaId, atual)
 
       void promessa
         .then(() => {
           gravado.current = atual
+
+          /*
+           * Só invalida quando o grafo mudou, e só o que depende dele: backlink
+           * e tópico da OUTRA ponta. Invalidar a cada gravação refetcharia esta
+           * nota e devolveria o texto do servidor por cima do que se escreve.
+           */
+          if (mudouOGrafo) {
+            void queryClient.invalidateQueries({ queryKey: chaves.topicos() })
+            void queryClient.invalidateQueries({
+              queryKey: chaves.quebrados(notaId),
+            })
+          }
+
           /*
            * Só volta para "salvo" se nada foi digitado enquanto gravava. Sem
            * esta comparação, o indicador diria "salvo" com texto pendente na
@@ -104,18 +123,19 @@ export function useAutosave(
             anteriorEstado === 'salvando' ? 'salvo' : anteriorEstado,
           )
         })
-        .catch(() => setEstado('erro'))
+        .catch((erro: Error) => {
+          setEstado('erro')
+          toast.error(erro.message)
+        })
     }, ESPERA_MS)
 
     return () => clearTimeout(temporizador)
-  }, [
-    conteudo,
-    notaId,
-    materiaId,
-    titulo,
-    salvarConteudo,
-    salvarCompleto,
-  ])
+    /*
+     * `queryClient` é estável (vem do contexto) e `api` é módulo. As
+     * dependências são só dados — foi ter posto objetos de mutation aqui que
+     * criou o laço infinito.
+     */
+  }, [conteudo, notaId, materiaId, titulo, queryClient])
 
   return estado
 }
