@@ -2,6 +2,8 @@ import { Fragment, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Formula } from '@/components/Formula'
 import { fatiar } from '../markdown'
+import { Cerca } from './Cerca'
+import { Desenho } from './Desenho'
 
 interface ConteudoNotaProps {
   conteudo: string
@@ -46,6 +48,20 @@ export function ConteudoNota({ conteudo, existentes }: ConteudoNotaProps) {
           return (
             <Formula key={indice} latex={fatia.latex} bloco={fatia.bloco} />
           )
+        }
+
+        if (fatia.tipo === 'cerca') {
+          return (
+            <Cerca
+              key={indice}
+              linguagem={fatia.linguagem}
+              codigo={fatia.codigo}
+            />
+          )
+        }
+
+        if (fatia.tipo === 'desenho') {
+          return <Desenho key={indice} id={fatia.id} />
         }
 
         return (

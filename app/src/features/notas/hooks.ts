@@ -18,6 +18,7 @@ export const chaves = {
   backlinks: (notaId: string) => ['notas', 'backlinks', notaId] as const,
   quebrados: (notaId: string) => ['notas', 'quebrados', notaId] as const,
   topicos: () => ['notas', 'topicos'] as const,
+  desenho: (id: string) => ['notas', 'desenho', id] as const,
 }
 
 // --- Leitura ----------------------------------------------------------------
@@ -55,6 +56,14 @@ export function useLinksQuebrados(notaId: string | undefined) {
     queryKey: chaves.quebrados(notaId ?? ''),
     queryFn: () => api.listarLinksQuebrados(notaId as string),
     enabled: Boolean(notaId),
+  })
+}
+
+export function useDesenho(id: string | undefined) {
+  return useQuery({
+    queryKey: chaves.desenho(id ?? ''),
+    queryFn: () => api.obterDesenho(id as string),
+    enabled: Boolean(id),
   })
 }
 
@@ -96,6 +105,10 @@ export function useFixarNota() {
       api.fixarNota(id, fixada),
     'Nota atualizada',
   )
+}
+
+export function useSalvarDesenho() {
+  return useMutationNotas(api.salvarDesenho, 'Desenho salvo')
 }
 
 export function useExcluirNota() {

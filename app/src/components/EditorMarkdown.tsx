@@ -1,12 +1,21 @@
 import { Suspense, lazy, useCallback, useRef, useState } from 'react'
-import { Link2 } from 'lucide-react'
+import { Link2, PenLine } from 'lucide-react'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
+import { resolverTema, useUIStore } from '@/stores/ui'
 import { DialogFormula } from './DialogFormula'
 import { SeletorReferencia, type Referencia } from './SeletorReferencia'
+import type { CenaDesenho } from './EditorDesenho'
 
 const EditorRico = lazy(() => import('./EditorMarkdownRico'))
+const EditorDesenho = lazy(() => import('./EditorDesenho'))
 
 /**
  * Porta imperativa de inserção.
@@ -32,6 +41,14 @@ export interface EditorMarkdownProps {
    * `[[` volta a ser texto comum, que continua virando link ao salvar.
    */
   buscarReferencias?: (termo: string) => Promise<Referencia[]>
+  /**
+   * Grava um desenho novo e devolve o id, que vira `![[desenho:id]]`.
+   *
+   * Injetada pelo mesmo motivo de `buscarReferencias`. Ausente quando o dono
+   * do desenho ainda não existe — desenho pertence a uma nota, e uma nota que
+   * ainda não foi salva não tem id para ser dona de nada.
+   */
+  onSalvarDesenho?: (cena: CenaDesenho, svg: string) => Promise<string>
 }
 
 /**
@@ -64,11 +81,14 @@ export function EditorMarkdown({
   placeholder,
   rows = 12,
   buscarReferencias,
+  onSalvarDesenho,
 }: EditorMarkdownProps) {
   const desktop = useMediaQuery('(min-width: 768px)')
   const inserir = useRef<Inserir | null>(null)
   const campo = useRef<HTMLTextAreaElement>(null)
   const [seletorAberto, setSeletorAberto] = useState(false)
+  const [desenhando, setDesenhando] = useState(false)
+  const escuro = resolverTema(useUIStore((estado) => estado.tema)) === 'escuro'
   /*
    * Quando o seletor abre por causa do `[[` já digitado, só falta completar o
    * miolo e fechar. Quando abre pelo botão, o link inteiro precisa ser escrito.
@@ -157,6 +177,17 @@ export function EditorMarkdown({
           Ligar nota
         </Button>
       )}
+      {onSalvarDesenho && (
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => setDesenhando(true)}
+        >
+          <PenLine className="size-4" />
+          Desenho
+        </Button>
+      )}
     </div>
   )
 
@@ -181,6 +212,36 @@ export function EditorMarkdown({
           buscar={buscarReferencias}
           onEscolher={escolher}
         />
+      )}
+      {onSalvarDesenho && (
+        <Dialog open={desenhando} onOpenChange={setDesenhando}>
+          <DialogContent className="max-w-5xl!">
+            <DialogHeader>
+              <DialogTitle>Novo desenho</DialogTitle>
+            </DialogHeader>
+            {desenhando && (
+              <Suspense
+                fallback={
+                  <div className="bg-muted/40 h-[60vh] animate-pulse rounded-md" />
+                }
+              >
+                <EditorDesenho
+                  cena={null}
+                  escuro={escuro}
+                  onCancelar={() => setDesenhando(false)}
+                  onSalvar={(cena, svg) => {
+                    void onSalvarDesenho(cena, svg).then((id) => {
+                      // A referência entra em linha própria: desenho no meio de
+                      // um parágrafo não é o que ninguém quer.
+                      inserirAqui(`![[desenho:${id}]]`, false)
+                      setDesenhando(false)
+                    })
+                  }}
+                />
+              </Suspense>
+            )}
+          </DialogContent>
+        </Dialog>
       )}
       {desktop ? (
         <Suspense fallback={textarea}>

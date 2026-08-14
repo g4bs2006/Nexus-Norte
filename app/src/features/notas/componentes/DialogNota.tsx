@@ -23,8 +23,9 @@ import {
 } from '@/components/ui/form'
 import { EditorMarkdown } from '@/components/EditorMarkdown'
 import { Input } from '@/components/ui/input'
-import { buscarReferencias } from '../api'
+import { buscarReferencias, salvarDesenho } from '../api'
 import { useSalvarNota } from '../hooks'
+import type { Json } from '@/types/database'
 import { schemaNota, type FormularioNota } from '../schemas'
 import type { Nota } from '../types'
 
@@ -163,6 +164,16 @@ export function DialogNota({
                       onChange={field.onChange}
                       placeholder="Escreva aqui…"
                       buscarReferencias={buscarReferencias}
+                      {...(nota
+                        ? {
+                            onSalvarDesenho: (cena, svg) =>
+                              salvarDesenho({
+                                notaId: nota.id,
+                                cena: cena as unknown as Json,
+                                svg,
+                              }),
+                          }
+                        : {})}
                     />
                   </FormControl>
                   <FormDescription className="text-[11px]">

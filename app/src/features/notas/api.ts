@@ -2,8 +2,10 @@ import { supabase } from '@/lib/supabase'
 import type { Referencia } from '@/components/SeletorReferencia'
 import { gerarSlug } from './markdown'
 import { planejarArestas, planejarPropagacao, planejarTopicos } from './grafo'
+import type { Json } from '@/types/database'
 import type {
   Backlink,
+  Desenho,
   LinkQuebrado,
   Nota,
   NotaListada,
@@ -201,6 +203,68 @@ export async function buscarReferencias(termo: string): Promise<Referencia[]> {
     titulo: nota.titulo,
     contexto: nota.materia_nome,
   }))
+}
+
+/**
+ * Um desenho pelo id que a referência `![[desenho:uuid]]` carrega.
+ *
+ * A leitura pede as colunas todas porque quem abre o editor precisa de `cena`,
+ * e quem só lê precisa de `svg` — separar em duas consultas faria a segunda
+ * acontecer sempre no clique, que é justamente quando a espera incomoda.
+ */
+export async function obterDesenho(id: string): Promise<Desenho | null> {
+  const { data, error } = await supabase
+    .from('desenhos')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (error) throw new Error(error.message)
+  return data
+}
+
+export type EntradaDesenho = {
+  /** Ausente cria o desenho; presente atualiza. */
+  id?: string
+  notaId: string
+  titulo?: string | null
+  cena: Json
+  svg: string
+}
+
+/**
+ * Grava cena e SVG JUNTOS, sempre.
+ *
+ * `cena` é a fonte editável e `svg` é o render. Deixar os dois divergirem faria
+ * a leitura mostrar um desenho e a edição abrir outro — e como o SVG é o que
+ * sobrevive a uma troca de biblioteca e o que a exportação leva (seção 10),
+ * um SVG velho é perda de dado silenciosa.
+ */
+export async function salvarDesenho(entrada: EntradaDesenho): Promise<string> {
+  if (entrada.id) {
+    lancar(
+      await supabase
+        .from('desenhos')
+        // `atualizado_em` fica de fora: o trigger carimba.
+        .update({ cena: entrada.cena, svg: entrada.svg })
+        .eq('id', entrada.id),
+    )
+    return entrada.id
+  }
+
+  const criado = lancarSeErro(
+    await supabase
+      .from('desenhos')
+      .insert({
+        nota_id: entrada.notaId,
+        cena: entrada.cena,
+        svg: entrada.svg,
+        ...(entrada.titulo ? { titulo: entrada.titulo } : {}),
+      })
+      .select('id')
+      .single(),
+  )
+  return criado.id
 }
 
 export async function listarTopicos(): Promise<Topico[]> {
