@@ -1,10 +1,12 @@
-import { useEffect, useRef, type RefObject } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import {
   Editor,
   defaultValueCtx,
+  editorViewCtx,
   editorViewOptionsCtx,
   rootCtx,
 } from '@milkdown/kit/core'
+import { toggleMark } from '@milkdown/kit/prose/commands'
 import { commonmark } from '@milkdown/kit/preset/commonmark'
 import { gfm } from '@milkdown/kit/preset/gfm'
 import { block } from '@milkdown/kit/plugin/block'
@@ -14,9 +16,16 @@ import { insert } from '@milkdown/kit/utils'
 import { math } from '@milkdown/plugin-math'
 import {
   desenhoSchema,
+  destaqueSchema,
   dialetoRemark,
   wikilinkSchema,
 } from './editor/dialeto'
+import { BarraSelecao } from './editor/BarraSelecao'
+import {
+  criarBarraSelecao,
+  type AncoraSelecao,
+} from './editor/pluginSelecao'
+import { aplicarMarca, type MarcaEscrita } from './editor/comandos'
 import { MenuSimbolos } from './editor/MenuSimbolos'
 import { navegarBuracos } from './editor/buracos'
 import { sairDaFormula } from './editor/sairDaFormula'
@@ -152,6 +161,13 @@ function Interno({
    */
   const editorRef = useRef<ReturnType<typeof get> | null>(null)
 
+  /*
+   * A barra de seleção é criada UMA vez, como os gatilhos: recriá-la mudaria a
+   * configuração do editor, e o Milkdown responde a isso remontando tudo.
+   */
+  const [ancoraBarra, setAncoraBarra] = useState<AncoraSelecao | null>(null)
+  const barra = useRef(criarBarraSelecao(setAncoraBarra))
+
   const gatilhoSimbolos = useGatilho(
     '//',
     simbolos ?? FONTE_VAZIA,
@@ -159,14 +175,17 @@ function Interno({
   )
 
   /*
-   * `apenasInicioDeLinha` no `/`: um diagrama não entra no meio de uma frase, e
-   * sem isso escrever "e/ou" abriria o menu.
+   * O `/` vale em qualquer ponto, como no Notion — exigir linha vazia foi um
+   * erro sentido em uso: quem já escreveu meia frase e quer um gráfico não
+   * conseguia abrir o menu.
+   *
+   * A regra `(?:^|\s)` já basta contra falso positivo: em "e/ou" a barra vem
+   * colada no "e", então não dispara.
    */
   const gatilhoBlocos = useGatilho(
     '/',
     blocos ?? FONTE_VAZIA,
     () => editorRef.current ?? undefined,
-    { apenasInicioDeLinha: true },
   )
 
   const { get } = useEditor((raiz) =>
@@ -203,6 +222,8 @@ function Interno({
       .use(focoMatematica)
       // Antes de navegarBuracos: dentro da fórmula, Enter sai; Tab anda.
       .use(sairDaFormula)
+      .use(destaqueSchema)
+      .use(barra.current)
       .use(views.current.desenho)
       .use(gatilhoSimbolos.plugin)
       .use(gatilhoBlocos.plugin)
@@ -226,6 +247,25 @@ function Interno({
 
   const alca = useAlcaArrasto(() => editorRef.current ?? undefined)
 
+  function marcar(marca: MarcaEscrita) {
+    editorRef.current?.action(aplicarMarca(marca))
+  }
+
+  /*
+   * O destaque não tem comando do preset — a marca é nossa. Aplicar por
+   * `toggleMark` direto é o caminho mais curto e não precisa de um `$command`
+   * só para isso.
+   */
+  function destacar() {
+    editorRef.current?.action((ctx) => {
+      const visao = ctx.get(editorViewCtx)
+      const tipo = visao.state.schema.marks.destaque
+      if (!tipo) return
+      toggleMark(tipo)(visao.state, visao.dispatch)
+      visao.focus()
+    })
+  }
+
   return (
     <>
       {/*
@@ -245,6 +285,11 @@ function Interno({
           onEscolher={gatilhoSimbolos.escolher}
         />
       )}
+      <BarraSelecao
+        ancora={ancoraBarra}
+        onMarcar={marcar}
+        onDestacar={destacar}
+      />
       {blocos && (
         <MenuSimbolos
           estado={gatilhoBlocos.estado}

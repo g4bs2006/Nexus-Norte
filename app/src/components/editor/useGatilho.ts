@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import type { Editor } from '@milkdown/kit/core'
 import { editorViewCtx } from '@milkdown/kit/core'
 import { TextSelection } from '@milkdown/kit/prose/state'
+import { aplicarComando, type ComandoEscrita } from './comandos'
 import { criarGatilhoMenu, type EstadoGatilho } from './gatilhoMenu'
 import type { ItemMenu } from './MenuSimbolos'
 
@@ -36,6 +37,14 @@ export type ResultadoEscolha =
    * o que faz `//int` mostrar a integral desenhada na hora — que é o ponto.
    */
   | { tipo: 'formula'; latex: string; buracos: number[] }
+  /**
+   * Executa um comando de escrita — título, lista, cerca, divisor.
+   *
+   * É o que conserta o `/`: antes ele inseria a cerca como TEXTO, e texto cru
+   * nunca vira `code_block`. O gráfico não aparecia porque o bloco nunca
+   * chegava a ser bloco.
+   */
+  | { tipo: 'comando'; comando: ComandoEscrita; corpo?: string }
   | { tipo: 'acao' }
 
 /**
@@ -92,6 +101,31 @@ export function useGatilho(
         // Ação: o gatilho digitado sai, e o efeito é de quem forneceu a fonte.
         if (resultado.tipo === 'acao') {
           view.dispatch(view.state.tr.delete(posicao.de, posicao.ate))
+          view.focus()
+          return
+        }
+
+        if (resultado.tipo === 'comando') {
+          /*
+           * O gatilho digitado sai ANTES do comando: comandos como "virar
+           * título" agem sobre o bloco inteiro, e deixar `/tit` no texto o
+           * transformaria em parte do título.
+           */
+          view.dispatch(view.state.tr.delete(posicao.de, posicao.ate))
+          aplicarComando(resultado.comando)(ctx)
+
+          /*
+           * O corpo de exemplo entra depois de o bloco existir. A cerca nasce
+           * vazia, e uma cerca vazia obriga a lembrar a sintaxe de cabeça —
+           * que é justamente o que o menu veio evitar.
+           */
+          if (resultado.corpo) {
+            const depois = ctx.get(editorViewCtx)
+            const { $from } = depois.state.selection
+            depois.dispatch(
+              depois.state.tr.insertText(resultado.corpo, $from.pos),
+            )
+          }
           view.focus()
           return
         }

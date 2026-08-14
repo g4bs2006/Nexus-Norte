@@ -14,7 +14,8 @@ import type {
   RenderizarDesenho,
   SlugExiste,
 } from './editor/views'
-import type { FonteItens } from './editor/useGatilho'
+import type { FonteItens, ResultadoEscolha } from './editor/useGatilho'
+import { filtrarEscrita, CATALOGO_ESCRITA } from './editor/catalogoEscrita'
 
 const EditorRico = lazy(() => import('./EditorMarkdownRico'))
 const EditorDesenho = lazy(() => import('./EditorDesenho'))
@@ -121,14 +122,39 @@ export function EditorMarkdown({
    * `useMemo` porque recriá-lo a cada render recriaria a fonte do gatilho — o
    * hook guarda em ref, mas depender disso seria contar com detalhe interno.
    */
-  const blocos = useMemo(
-    () =>
-      criarBlocos?.({
-        abrirDesenho: () => setDesenhando(true),
-        abrirFormula: () => setFormulaAberta(true),
-      }),
-    [criarBlocos],
-  )
+  /*
+   * O `/` junta duas listas: a estrutura de texto, que é do editor, e os blocos
+   * da feature. É o que o Notion faz — ali "Heading 1" aparece ao lado de
+   * "Code", porque para quem escreve os dois são "o que vem a seguir".
+   *
+   * A do editor vem primeiro por frequência: título e lista se usam a cada
+   * três parágrafos; diagrama, uma vez por nota.
+   */
+  const blocos = useMemo<FonteItens>(() => {
+    const daFeature = criarBlocos?.({
+      abrirDesenho: () => setDesenhando(true),
+      abrirFormula: () => setFormulaAberta(true),
+    })
+
+    return {
+      filtrar: (termo) => [
+        ...filtrarEscrita(termo).map((item) => ({
+          chave: item.chave,
+          rotulo: item.rotulo,
+          amostra: item.amostra,
+        })),
+        ...(daFeature?.filtrar(termo) ?? []),
+      ],
+
+      montar: (item, emMatematica): ResultadoEscolha => {
+        const escrita = CATALOGO_ESCRITA.find(
+          (candidato) => candidato.chave === item.chave,
+        )
+        if (escrita) return { tipo: 'comando', comando: escrita.comando }
+        return daFeature?.montar(item, emMatematica) ?? { tipo: 'acao' }
+      },
+    }
+  }, [criarBlocos])
 
   /*
    * Gatilho do `[[`.

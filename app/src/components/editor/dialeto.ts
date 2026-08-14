@@ -1,6 +1,6 @@
-import { $nodeSchema, $remark } from '@milkdown/kit/utils'
+import { $markSchema, $nodeSchema, $remark } from '@milkdown/kit/utils'
 import { findAndReplace } from 'mdast-util-find-and-replace'
-import type { Data, Root } from 'mdast'
+import type { Data, PhrasingContent, Root } from 'mdast'
 import type { Processor } from 'unified'
 
 /**
@@ -27,6 +27,16 @@ import type { Processor } from 'unified'
  * que é uma nota — só o que é um link.
  */
 
+/**
+ * `==destaque==`.
+ *
+ * Markdown não tem cor, e é por isso que existe assim. Guardar cor exigiria
+ * `<span style>`, e aí o `.md` exportado deixaria de ser Markdown legível —
+ * derrubando o argumento que sustentou Milkdown, a exportação e a busca. Um
+ * marca-texto resolve o caso real ("isto cai na prova") e o Obsidian já lê.
+ */
+const RE_DESTAQUE = /==([^=\n]+)==/g
+
 /** `[[alvo]]`, `[[alvo|texto]]` e `![[desenho:uuid]]`, num casamento só. */
 const RE_DIALETO = /(!?)\[\[([^[\]|\n]+)(?:\|([^[\]\n]*))?\]\]/g
 
@@ -50,6 +60,12 @@ interface NoDesenho {
   data?: Data
 }
 
+interface NoDestaque {
+  type: 'destaque'
+  children: PhrasingContent[]
+  data?: Data
+}
+
 /*
  * Declara os dois nós para o mdast.
  *
@@ -62,10 +78,12 @@ declare module 'mdast' {
   interface PhrasingContentMap {
     wikilink: NoWikilink
     desenho: NoDesenho
+    destaque: NoDestaque
   }
   interface RootContentMap {
     wikilink: NoWikilink
     desenho: NoDesenho
+    destaque: NoDestaque
   }
 }
 
@@ -88,11 +106,27 @@ export function remarkDialeto(this: Processor): (arvore: Root) => void {
       wikilink: (no: NoWikilink) =>
         no.rotulo === null ? `[[${no.alvo}]]` : `[[${no.alvo}|${no.rotulo}]]`,
       desenho: (no: NoDesenho) => `![[desenho:${no.id}]]`,
+      destaque: (
+        no: NoDestaque,
+        _pai: unknown,
+        estado: { containerPhrasing: (no: NoDestaque, info: unknown) => string },
+        info: unknown,
+      ) => `==${estado.containerPhrasing(no, info)}==`,
     },
   })
 
   return (arvore) => {
     findAndReplace(arvore, [
+      [
+        RE_DESTAQUE,
+        (_todo: string, texto: string) => {
+          const no: NoDestaque = {
+            type: 'destaque',
+            children: [{ type: 'text', value: texto }],
+          }
+          return no
+        },
+      ],
       [
         RE_DIALETO,
         (_todo: string, bang: string, alvo: string, rotulo?: string) => {
@@ -212,6 +246,31 @@ export const desenhoSchema = $nodeSchema('desenho', () => ({
       state.addNode('desenho', undefined, undefined, {
         id: node.attrs.id as string,
       })
+    },
+  },
+}))
+
+/**
+ * A marca de destaque no editor.
+ *
+ * Marca, e não nó: destaque envolve texto que continua editável, como negrito
+ * — um nó atômico impediria escrever dentro dele.
+ */
+export const destaqueSchema = $markSchema('destaque', () => ({
+  parseDOM: [{ tag: 'mark' }],
+  toDOM: () => ['mark', { class: 'destaque' }],
+  parseMarkdown: {
+    match: (no) => no.type === 'destaque',
+    runner: (estado, no, tipo) => {
+      estado.openMark(tipo)
+      estado.next(no.children)
+      estado.closeMark(tipo)
+    },
+  },
+  toMarkdown: {
+    match: (marca) => marca.type.name === 'destaque',
+    runner: (estado, marca) => {
+      estado.withMark(marca, 'destaque')
     },
   },
 }))

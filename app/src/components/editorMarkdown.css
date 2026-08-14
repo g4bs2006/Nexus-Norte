@@ -292,3 +292,18 @@
 .editor-markdown .formula-viva.formula-editando .formula-viva-render {
     opacity: 0.75;
 }
+
+/*
+ * Destaque `==assim==`.
+ *
+ * É o que sobra de "cor" num sistema onde Markdown é a fonte de verdade: um
+ * marca-texto, não paleta. Resolve o caso real — marcar o que cai na prova —
+ * e sobrevive à exportação, que uma cor em <span style> não faria.
+ */
+.editor-markdown mark.destaque,
+.documento-leitura mark.destaque {
+    background: var(--sono-soft);
+    color: inherit;
+    border-radius: var(--radius-sm);
+    padding: 0.05em 0.15em;
+}

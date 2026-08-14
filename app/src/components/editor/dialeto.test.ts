@@ -75,6 +75,29 @@ describe('round-trip do desenho', () => {
   })
 })
 
+describe('round-trip do destaque', () => {
+  it('preserva ==destaque==', () => {
+    expect(daVolta('isto ==cai na prova== com certeza')).toBe(
+      'isto ==cai na prova== com certeza',
+    )
+  })
+
+  it('sobrevive a duas voltas', () => {
+    const uma = daVolta('==importante==')
+    expect(daVolta(uma)).toBe(uma)
+  })
+
+  it('convive com negrito na mesma linha', () => {
+    expect(daVolta('**forte** e ==destacado==')).toBe(
+      '**forte** e ==destacado==',
+    )
+  })
+
+  it('deixa == solto em paz', () => {
+    expect(daVolta('a == b')).toBe('a == b')
+  })
+})
+
 describe('o que o dialeto não pode estragar', () => {
   it('fórmula continua intacta', () => {
     expect(daVolta('formula $x^2$ inline')).toBe('formula $x^2$ inline')
