@@ -5,6 +5,7 @@ import interactionPlugin from '@fullcalendar/interaction'
 import ptBrLocale from '@fullcalendar/core/locales/pt-br'
 import type { DateClickArg, EventResizeDoneArg } from '@fullcalendar/interaction'
 import type {
+  DateSelectArg,
   DatesSetArg,
   EventClickArg,
   EventDropArg,
@@ -29,6 +30,18 @@ interface GradeMesProps {
   onClicarEvento: (id: string) => void
   /** Clique no número do dia (não num evento) — abre o detalhe daquele dia. */
   onClicarDia: (data: string) => void
+  /**
+   * Arrastar sobre um horário vazio na grade de Horas, do início ao fim
+   * desejado — estilo Google Agenda (chat 2026-08-14). Ausente = grade sem
+   * seleção de horário, só o clique no dia (`onClicarDia`) segue existindo.
+   * Só se aplica à vista de Horas: na de Mês, arrastar seleciona um
+   * intervalo de DIAS, outra interação, e não é o que foi pedido.
+   */
+  onSelecionarIntervalo?: (
+    data: string,
+    horarioInicio: string | null,
+    horarioFim: string | null,
+  ) => void
   /**
    * Arrastar ou redimensionar um evento (resolução "arrastar eventos",
    * ago/2026). Ausente = grade só de leitura, sem `editable` em nenhum
@@ -100,6 +113,7 @@ export function GradeMes({
   onClicarDia,
   onMoverEvento,
   onPedirConfirmacaoMovimento,
+  onSelecionarIntervalo,
   initialView = 'dayGridMonth',
 }: GradeMesProps) {
   const telaEstreita = useMediaQuery('(width < 40rem)')
@@ -108,6 +122,14 @@ export function GradeMes({
     initialView === 'timeGridWeek' && telaEstreita
       ? VISTA_HORAS_MOBILE
       : initialView
+
+  /*
+   * Só na grade de Horas: na de Mês, "arrastar" já significa outra coisa
+   * (marcar um intervalo de dias), e o clique isolado no dia colidiria com
+   * `onClicarDia` — os dois disparariam para o mesmo gesto.
+   */
+  const selecaoDeHorarioLigada =
+    Boolean(onSelecionarIntervalo) && initialView === 'timeGridWeek'
 
   const livresPorData = useMemo(
     () => new Map(dias.map((dia) => [dia.data, dia.minutosLivres])),
@@ -195,6 +217,20 @@ export function GradeMes({
     onClicarDia(paraISO(arg.date))
   }
 
+  /**
+   * Arrastou de um horário a outro na grade de Horas — estilo Google Agenda.
+   * `allDay` só acontece se o arrasto tocar a faixa de "dia inteiro" da
+   * vista de Horas; aí não há horário para sugerir, só a data.
+   */
+  function aoSelecionarIntervalo(arg: DateSelectArg) {
+    const data = paraISO(arg.start)
+    onSelecionarIntervalo?.(
+      data,
+      arg.allDay ? null : formatarHoraISO(arg.start),
+      arg.allDay ? null : formatarHoraISO(arg.end),
+    )
+  }
+
   async function aoSoltarEvento(arg: EventDropArg) {
     const evento = eventos.find((e) => e.id === arg.event.id)
     if (!evento) {
@@ -278,6 +314,11 @@ export function GradeMes({
           dateClick={aoClicarDia}
           eventDrop={aoSoltarEvento}
           eventResize={aoRedimensionarEvento}
+          selectable={selecaoDeHorarioLigada}
+          select={aoSelecionarIntervalo}
+          // Feedback visual do intervalo sendo arrastado — sem isto o
+          // arrasto não desenha nada até soltar o mouse.
+          selectMirror={selecaoDeHorarioLigada}
           // Imã de 15 min: sem isto o arrasto grava `14:03:27` e a agenda
           // fica ilegível.
           snapDuration="00:15:00"

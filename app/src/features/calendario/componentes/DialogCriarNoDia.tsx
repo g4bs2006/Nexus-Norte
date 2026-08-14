@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -66,7 +66,22 @@ const OPCOES: { valor: Tipo; rotulo: string }[] = [
 interface DialogCriarNoDiaProps {
   /** Data clicada, ISO — entra pré-preenchida e editável (10.48.2). */
   data: string
-  trigger?: React.ReactNode
+  /**
+   * Horário sugerido pelo arrasto na grade de Horas (estilo Google Agenda,
+   * chat 2026-08-14) — `HH:mm`. Sem eles, os campos de horário nascem no
+   * chute padrão de sempre ('09:00'–'10:00').
+   */
+  horarioInicial?: string
+  horarioFinal?: string
+  /**
+   * Controle externo do aberto/fechado — usado quando este diálogo nasce do
+   * arrasto na grade, sem um botão que o dispare. Sem eles, o diálogo
+   * controla o próprio estado com o gatilho padrão.
+   */
+  open?: boolean
+  onOpenChange?: (aberto: boolean) => void
+  /** `null` esconde o gatilho padrão — quem abre de fora não precisa dele. */
+  trigger?: React.ReactNode | null
 }
 
 /**
@@ -92,8 +107,17 @@ interface DialogCriarNoDiaProps {
  * "Evento avulso" é o único caso que nasce só aqui: `eventos_calendario` não
  * pertence a nenhum pilar (resolução "criar eventos", ago/2026).
  */
-export function DialogCriarNoDia({ data, trigger }: DialogCriarNoDiaProps) {
-  const [aberto, setAberto] = useState(false)
+export function DialogCriarNoDia({
+  data,
+  horarioInicial,
+  horarioFinal,
+  open,
+  onOpenChange,
+  trigger,
+}: DialogCriarNoDiaProps) {
+  const [abertoInterno, setAbertoInterno] = useState(false)
+  const aberto = open ?? abertoInterno
+  const setAberto = onOpenChange ?? setAbertoInterno
   const [tipo, setTipo] = useState<Tipo>('estudo')
   const [dataEditavel, setDataEditavel] = useState(data)
 
@@ -129,10 +153,14 @@ export function DialogCriarNoDia({ data, trigger }: DialogCriarNoDiaProps) {
   const criarEvento = useCriarEventoLivre()
   const criarTreinoAgendado = useCriarTreinoAgendado()
 
-  function abrir(novoEstado: boolean) {
-    setAberto(novoEstado)
-    if (novoEstado) setDataEditavel(data)
-  }
+  // Preenche data e horário sugeridos a cada abertura — sem isto, reabrir
+  // com um horário arrastado diferente manteria o do arrasto anterior.
+  useEffect(() => {
+    if (!aberto) return
+    setDataEditavel(data)
+    if (horarioInicial) setHorarioInicio(horarioInicial)
+    if (horarioFinal) setHorarioFim(horarioFinal)
+  }, [aberto, data, horarioInicial, horarioFinal])
 
   const pendente =
     criarSessao.isPending ||
@@ -196,15 +224,17 @@ export function DialogCriarNoDia({ data, trigger }: DialogCriarNoDiaProps) {
   }
 
   return (
-    <Dialog open={aberto} onOpenChange={abrir}>
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button size="sm" variant="ghost" className="text-muted-foreground h-7 gap-1 text-xs">
-            <Plus className="size-3.5" />
-            Adicionar
-          </Button>
-        )}
-      </DialogTrigger>
+    <Dialog open={aberto} onOpenChange={setAberto}>
+      {trigger !== null && (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button size="sm" variant="ghost" className="text-muted-foreground h-7 gap-1 text-xs">
+              <Plus className="size-3.5" />
+              Adicionar
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Adicionar ao dia</DialogTitle>

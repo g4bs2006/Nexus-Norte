@@ -53,6 +53,7 @@ import {
   sugerirRealocacao,
 } from '@/features/calendario/planejador'
 import { Agenda } from '@/features/calendario/componentes/Agenda'
+import { DialogCriarNoDia } from '@/features/calendario/componentes/DialogCriarNoDia'
 import { FaixaCarga } from '@/features/calendario/componentes/FaixaCarga'
 import { CardPressaoPrazos } from '@/features/calendario/componentes/CardPressaoPrazos'
 import {
@@ -120,6 +121,17 @@ export default function CalendarioPage() {
     null,
   )
   const treinos = useTreinos()
+
+  /**
+   * Intervalo arrastado na grade de Horas, estilo Google Agenda (chat
+   * 2026-08-14) — abre `DialogCriarNoDia` já com o horário do arrasto, em
+   * vez do chute padrão '09:00'–'10:00'.
+   */
+  const [selecaoIntervalo, setSelecaoIntervalo] = useState<{
+    data: string
+    horarioInicio: string | null
+    horarioFim: string | null
+  } | null>(null)
 
   const { mover, pendente: movendoEvento } = useMoverEvento()
   const [pedidoConfirmacaoMovimento, setPedidoConfirmacaoMovimento] =
@@ -572,6 +584,9 @@ export default function CalendarioPage() {
                 }
               }}
               onClicarDia={setDiaDetalhado}
+              onSelecionarIntervalo={(data, horarioInicio, horarioFim) =>
+                setSelecaoIntervalo({ data, horarioInicio, horarioFim })
+              }
               onMoverEvento={mover}
               onPedirConfirmacaoMovimento={(evento, novaData) =>
                 setPedidoConfirmacaoMovimento({ evento, novaData })
@@ -683,6 +698,17 @@ export default function CalendarioPage() {
         open={treinoEditando !== null}
         onOpenChange={(aberto) => {
           if (!aberto) setTreinoEditando(null)
+        }}
+      />
+
+      <DialogCriarNoDia
+        data={selecaoIntervalo?.data ?? hojeISO}
+        horarioInicial={selecaoIntervalo?.horarioInicio ?? undefined}
+        horarioFinal={selecaoIntervalo?.horarioFim ?? undefined}
+        trigger={null}
+        open={selecaoIntervalo !== null}
+        onOpenChange={(aberto) => {
+          if (!aberto) setSelecaoIntervalo(null)
         }}
       />
     </>
