@@ -33,7 +33,13 @@ export const navegarBuracos = $prose(
           if (!selection.empty) return false
 
           const bloco = selection.$from.parent
-          if (!bloco.isTextblock) return false
+          /*
+           * `inlineContent` e não `isTextblock`: dentro da fórmula o pai é o
+           * próprio `math_inline`, que tem conteúdo de texto mas não é bloco.
+           * Sem isto, `Tab` deixaria de andar pelos buracos exatamente onde
+           * eles mais aparecem.
+           */
+          if (!bloco.inlineContent) return false
 
           const inicio = selection.$from.start()
           const texto = bloco.textContent

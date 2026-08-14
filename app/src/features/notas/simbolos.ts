@@ -37,6 +37,16 @@ export const fonteSimbolos = {
       const { texto, buracos } = montarInsercao(simbolo, true)
       return { tipo: 'inserir' as const, texto, buracos }
     }
-    return { tipo: 'formula' as const, latex: simbolo.latex }
+    /*
+     * Os buracos são medidos no LaTeX cru, sem o `$` — dentro do nó não há
+     * delimitador, o nó É a fórmula.
+     */
+    const buracos: number[] = []
+    for (let i = 0; i < simbolo.latex.length - 1; i += 1) {
+      if (simbolo.latex[i] === '{' && simbolo.latex[i + 1] === '}') {
+        buracos.push(i + 1)
+      }
+    }
+    return { tipo: 'formula' as const, latex: simbolo.latex, buracos }
   },
 }

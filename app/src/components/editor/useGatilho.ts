@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import type { Editor } from '@milkdown/kit/core'
 import { editorViewCtx } from '@milkdown/kit/core'
-import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state'
+import { TextSelection } from '@milkdown/kit/prose/state'
 import { criarGatilhoMenu, type EstadoGatilho } from './gatilhoMenu'
 import type { ItemMenu } from './MenuSimbolos'
 
@@ -35,7 +35,7 @@ export type ResultadoEscolha =
    * disparam em digitação real, e `insertText` não é digitação. Inserir o nó é
    * o que faz `//int` mostrar a integral desenhada na hora — que é o ponto.
    */
-  | { tipo: 'formula'; latex: string }
+  | { tipo: 'formula'; latex: string; buracos: number[] }
   | { tipo: 'acao' }
 
 /**
@@ -111,16 +111,27 @@ export function useGatilho(
             posicao.ate,
             no,
           )
+
           /*
-           * Seleciona o nó recém-criado: a node view abre em edição ao ser
-           * selecionada, e o cursor cai no primeiro buraco. É o que continua a
-           * frase em vez de largar a fórmula pronta e vazia.
+           * O cursor entra DENTRO da fórmula, no primeiro buraco.
+           *
+           * Antes isto selecionava o nó, e nesse estado a próxima tecla o
+           * substituía — parecia que apagava. Como o nó deixou de ser atom, o
+           * miolo é texto comum e o cursor pode morar nele: continua-se
+           * escrevendo, com `//` e `Tab` valendo lá dentro, e `Enter` sai.
+           *
+           * `+1` entra no conteúdo do nó; o buraco é medido no LaTeX.
            */
+          const dentro = posicao.de + 1 + (resultado.buracos[0] ?? resultado.latex.length)
           transacao.setSelection(
-            NodeSelection.create(transacao.doc, posicao.de),
+            TextSelection.create(transacao.doc, dentro),
           )
           view.dispatch(transacao)
-          view.focus()
+          /*
+           * Sem `view.focus()` aqui: o editor já tem o foco (foi dele que veio
+           * a digitação), e chamá-lo depois do dispatch era o que atropelava a
+           * seleção recém-posta.
+           */
           return
         }
 

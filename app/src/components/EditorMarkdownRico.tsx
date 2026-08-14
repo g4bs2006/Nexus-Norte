@@ -19,7 +19,12 @@ import {
 } from './editor/dialeto'
 import { MenuSimbolos } from './editor/MenuSimbolos'
 import { navegarBuracos } from './editor/buracos'
-import { viewMatematica } from './editor/viewMatematica'
+import { sairDaFormula } from './editor/sairDaFormula'
+import {
+  focoMatematica,
+  mathInlineEditavel,
+  viewMatematica,
+} from './editor/viewMatematica'
 import { useAlcaArrasto } from './editor/useAlcaArrasto'
 import { useGatilho, type FonteItens } from './editor/useGatilho'
 import {
@@ -192,7 +197,12 @@ function Interno({
       .use(desenhoSchema)
       .use(views.current.cerca)
       .use(views.current.wikilink)
+      // Depois de `math`: substitui o schema do nó pelo mesmo sem `atom`.
+      .use(mathInlineEditavel)
       .use(viewMatematica)
+      .use(focoMatematica)
+      // Antes de navegarBuracos: dentro da fórmula, Enter sai; Tab anda.
+      .use(sairDaFormula)
       .use(views.current.desenho)
       .use(gatilhoSimbolos.plugin)
       .use(gatilhoBlocos.plugin)

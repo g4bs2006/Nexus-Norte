@@ -244,53 +244,51 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Fórmula viva: renderizada enquanto se escreve, editável ao clicar.
+   Fórmula viva: o render sempre; a fonte só com o cursor dentro.
 
-   Dois estados sobre o mesmo nó — o render, que é o que se lê, e a fonte, que
-   é o que se corrige. Só um aparece por vez.
+   `.formula-editando` vem de uma decoração do ProseMirror, não de `:focus-within`
+   — o editor é um contenteditable único, então o foco do DOM nunca está no
+   `span` da fórmula.
 --------------------------------------------------------------------------- */
 
 .editor-markdown .formula-viva {
     display: inline-flex;
-    align-items: center;
+    align-items: baseline;
+    gap: 0.35em;
     border-radius: var(--radius-sm);
     padding: 0 0.15em;
-    cursor: pointer;
 }
 
-.editor-markdown .formula-viva:hover {
-    background: var(--muted);
-}
-
-/* Fórmula vazia precisa de alvo clicável, senão não há como voltar a editá-la. */
+/* Fórmula vazia precisa de alvo: sem largura não há onde clicar de volta. */
 .editor-markdown .formula-viva[data-vazia='sim'] .formula-viva-render::after {
     content: 'fórmula';
     color: var(--muted-foreground);
     font-size: 0.75rem;
 }
 
+/*
+ * A fonte fica escondida enquanto o cursor está fora. `display: none` e não
+ * `visibility`: ocupar espaço para um texto que não se lê empurraria a linha
+ * inteira e a fórmula pararia de parecer parte da frase.
+ */
 .editor-markdown .formula-viva-fonte {
     display: none;
-    border: none;
-    outline: none;
-    background: transparent;
-    color: var(--estudos);
     font-family: var(--font-mono);
     font-size: 0.85em;
-    /* Acompanha o que se digita; sem largura mínima some ao esvaziar. */
-    min-width: 6ch;
-    field-sizing: content;
+    color: var(--estudos);
+    white-space: pre;
 }
 
-.editor-markdown .formula-viva[data-editando='sim'] {
+.editor-markdown .formula-viva.formula-editando {
     background: var(--muted);
-    cursor: text;
 }
 
-.editor-markdown .formula-viva[data-editando='sim'] .formula-viva-render {
-    display: none;
+.editor-markdown .formula-viva.formula-editando .formula-viva-fonte {
+    display: inline;
 }
 
-.editor-markdown .formula-viva[data-editando='sim'] .formula-viva-fonte {
-    display: inline-block;
+/* Com o cursor dentro, o render vira referência: menor, e apagado o bastante
+   para a fonte ser o que se lê — mas presente, que é o pedido. */
+.editor-markdown .formula-viva.formula-editando .formula-viva-render {
+    opacity: 0.75;
 }
