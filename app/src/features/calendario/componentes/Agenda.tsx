@@ -7,12 +7,15 @@ import { DialogEventoLivre } from '@/features/eventos/componentes/DialogEventoLi
 import type { EventoLivre } from '@/features/eventos/api'
 import { DialogAgendarTreino } from '@/features/treino/componentes/DialogAgendarTreino'
 import type { Treino } from '@/features/treino/types'
+import { DialogAgendarSessao } from '@/features/estudos/componentes/DialogAgendarSessao'
+import type { Materia } from '@/features/estudos/types'
 import { ordenarDoDia, type DiaCarga } from '../carga'
 import {
   corDoEvento,
   ROTULO_TIPO,
   ehImportante,
   type EventoCalendario,
+  type FonteSessaoPlanejada,
   type FonteTreinoAgendado,
 } from '../eventos'
 import { DialogCriarNoDia } from './DialogCriarNoDia'
@@ -40,6 +43,14 @@ interface AgendaProps {
   treinosAgendadosPorId?: ReadonlyMap<string, FonteTreinoAgendado>
   /** Lista de treinos, para o Select do diálogo de editar treino agendado. */
   treinos?: readonly Treino[]
+  /**
+   * Registro completo por id, para sessão de estudo planejada (`tipo ===
+   * 'estudo'`, `movimento === 'entidade'`, ainda sem `estado: 'feito'`) —
+   * mesmo motivo de `treinosAgendadosPorId` (chat 2026-08-14).
+   */
+  sessoesPlanejadasPorId?: ReadonlyMap<string, FonteSessaoPlanejada>
+  /** Lista de matérias, para o Select do diálogo de editar sessão planejada. */
+  materias?: readonly Materia[]
 }
 
 /**
@@ -65,6 +76,8 @@ export function Agenda({
   eventosLivresPorId,
   treinosAgendadosPorId,
   treinos,
+  sessoesPlanejadasPorId,
+  materias,
 }: AgendaProps) {
   return (
     <ul className="divide-border divide-y">
@@ -146,6 +159,12 @@ export function Agenda({
                           : undefined
                       }
                       treinos={treinos}
+                      sessaoPlanejada={
+                        evento.origemId
+                          ? sessoesPlanejadasPorId?.get(evento.origemId)
+                          : undefined
+                      }
+                      materias={materias}
                     />
                   ))}
                   <DialogCriarNoDia data={dia.data} />
@@ -165,6 +184,8 @@ function LinhaEvento({
   eventoLivre,
   treinoAgendado,
   treinos,
+  sessaoPlanejada,
+  materias,
 }: {
   evento: EventoCalendario
   esmaecido: boolean
@@ -173,6 +194,9 @@ function LinhaEvento({
   /** Só presente quando `evento.tipo === 'treino'` (agendado, não realizado). */
   treinoAgendado?: FonteTreinoAgendado
   treinos?: readonly Treino[]
+  /** Só presente quando `evento.tipo === 'estudo'` (planejada, não realizada). */
+  sessaoPlanejada?: FonteSessaoPlanejada
+  materias?: readonly Materia[]
 }) {
   const prazo = ehImportante(evento)
   const cor = corDoEvento(evento)
@@ -302,6 +326,36 @@ function LinhaEvento({
       <DialogAgendarTreino
         agendado={treinoAgendado}
         treinos={treinos ?? []}
+        trigger={
+          <button
+            type="button"
+            className={cn(
+              classes,
+              'hover:bg-accent/60 -mx-1.5 w-[calc(100%+0.75rem)] px-1.5 text-left',
+            )}
+          >
+            {conteudo}
+          </button>
+        }
+      />
+    )
+  }
+
+  /*
+   * Sessão de estudo planejada (não executada) também não navega — mesmo
+   * tratamento do treino agendado. `estado !== 'feito'` separa da sessão já
+   * registrada, que continua no `<Link>` de sempre.
+   */
+  if (
+    evento.tipo === 'estudo' &&
+    evento.movimento === 'entidade' &&
+    evento.estado !== 'feito' &&
+    sessaoPlanejada
+  ) {
+    return (
+      <DialogAgendarSessao
+        planejada={sessaoPlanejada}
+        materias={materias ?? []}
         trigger={
           <button
             type="button"

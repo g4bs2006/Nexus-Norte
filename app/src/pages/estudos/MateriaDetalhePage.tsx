@@ -26,6 +26,7 @@ import {
   useMaterias,
   useRegistroListas,
   useSessoes,
+  useSessoesPlanejadas,
 } from '@/features/estudos/hooks'
 import { useNotasDaMateria } from '@/features/notas/hooks'
 import { AbaAvaliacoes } from '@/features/estudos/componentes/AbaAvaliacoes'
@@ -61,6 +62,7 @@ export default function MateriaDetalhePage() {
   const avaliacoes = useAvaliacoes()
   const faltas = useFaltas()
   const sessoes = useSessoes()
+  const sessoesPlanejadas = useSessoesPlanejadas()
   const config = useConfigMedia(materiaId)
   const documentos = useDocumentos(materiaId)
   const registros = useRegistroListas(materiaId)
@@ -86,6 +88,14 @@ export default function MateriaDetalhePage() {
     () =>
       (sessoes.data ?? []).filter((sessao) => sessao.materia_id === materiaId),
     [sessoes.data, materiaId],
+  )
+
+  const planejadasDaMateria = useMemo(
+    () =>
+      (sessoesPlanejadas.data ?? []).filter(
+        (planejada) => planejada.materia_id === materiaId,
+      ),
+    [sessoesPlanejadas.data, materiaId],
   )
 
   /** Data por sessão, para a nota vinculada dizer de qual sessão ela é. */
@@ -272,6 +282,8 @@ export default function MateriaDetalhePage() {
             <AbaSessoes
               materiaId={materiaId}
               sessoes={sessoesDaMateria}
+              planejadas={planejadasDaMateria}
+              materiaAtual={materia}
               hoje={hoje}
               notaPorSessao={notaPorSessao}
               acaoNota={(sessaoId, data) => (

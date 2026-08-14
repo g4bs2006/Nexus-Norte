@@ -22,7 +22,11 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { deISO } from '@/lib/datas'
-import { useCriarAvaliacao, useCriarSessao, useMaterias } from '@/features/estudos/hooks'
+import {
+  useCriarAvaliacao,
+  useCriarSessaoPlanejada,
+  useMaterias,
+} from '@/features/estudos/hooks'
 import { useCriarMarco, useProjetos } from '@/features/projetos/hooks'
 import { useCriarFluxogramaLivre } from '@/features/fluxograma/hooks'
 import { useCriarEventoLivre } from '@/features/eventos/hooks'
@@ -113,6 +117,11 @@ interface DialogCriarNoDiaProps {
  * num formulário de um dia só; com data própria, o recorte mínimo passou a
  * caber aqui como os outros.
  *
+ * "Sessão de estudo" grava em `sessoes_estudo_planejadas` (chat 2026-08-14),
+ * mesma virada do treino: é intenção ("vou estudar"), não fato. Antes desta
+ * mudança criava direto em `sessoes_estudo` (a executada) — registrar o que
+ * de fato aconteceu continua exclusivo de `AbaSessoes`.
+ *
  * "Evento avulso" é o único caso que nasce só aqui: `eventos_calendario` não
  * pertence a nenhum pilar (resolução "criar eventos", ago/2026).
  */
@@ -155,7 +164,7 @@ export function DialogCriarNoDia({
   const projetos = useProjetos()
   const treinos = useTreinos()
 
-  const criarSessao = useCriarSessao()
+  const criarSessaoPlanejada = useCriarSessaoPlanejada()
   const criarFluxogramaLivre = useCriarFluxogramaLivre()
   const criarMarco = useCriarMarco()
   const criarAvaliacao = useCriarAvaliacao()
@@ -182,7 +191,7 @@ export function DialogCriarNoDia({
   }, [aberto, data, horarioInicial, horarioFinal])
 
   const pendente =
-    criarSessao.isPending ||
+    criarSessaoPlanejada.isPending ||
     criarFluxogramaLivre.isPending ||
     criarMarco.isPending ||
     criarAvaliacao.isPending ||
@@ -201,7 +210,7 @@ export function DialogCriarNoDia({
       })
     } else if (tipo === 'estudo') {
       if (!materiaId) return
-      await criarSessao.mutateAsync({
+      await criarSessaoPlanejada.mutateAsync({
         materia_id: materiaId,
         data: dataEditavel,
         hora_inicio: horaEstudo === '' ? null : `${horaEstudo}:00`,
@@ -328,8 +337,9 @@ export function DialogCriarNoDia({
                 </div>
               </div>
               <p className="text-muted-foreground text-xs">
-                Sem hora, a sessão aparece no topo do dia. Com hora, ocupa o
-                horário na agenda — o fim sai da duração.
+                Marca a intenção nesta data — sem repetir nas semanas
+                seguintes. Sem hora, aparece no topo do dia; com hora, ocupa
+                o horário na agenda e o fim sai da duração.
               </p>
             </>
           )}

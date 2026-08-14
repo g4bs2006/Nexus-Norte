@@ -14,6 +14,8 @@ export const chaves = {
   faltas: () => ['estudos', 'faltas'] as const,
   sessoes: (de?: string, ate?: string) =>
     ['estudos', 'sessoes', de ?? 'todas', ate ?? 'todas'] as const,
+  sessoesPlanejadas: (de?: string, ate?: string) =>
+    ['estudos', 'sessoes-planejadas', de ?? 'todas', ate ?? 'todas'] as const,
   configMedia: (materiaId: string) =>
     ['estudos', 'config-media', materiaId] as const,
   documentos: (materiaId: string) =>
@@ -50,6 +52,14 @@ export function useSessoes(de?: string, ate?: string) {
   return useQuery({
     queryKey: chaves.sessoes(de, ate),
     queryFn: () => api.listarSessoes(de, ate),
+  })
+}
+
+/** Sessões planejadas — o "vou estudar", data própria, sem repetição (chat 2026-08-14). */
+export function useSessoesPlanejadas(de?: string, ate?: string) {
+  return useQuery({
+    queryKey: chaves.sessoesPlanejadas(de, ate),
+    queryFn: () => api.listarSessoesPlanejadas(de, ate),
   })
 }
 
@@ -207,6 +217,72 @@ export function useAtualizarSessao() {
 
 export function useExcluirSessao() {
   return useMutationEstudos(api.excluirSessao, 'Sessão removida')
+}
+
+// --- Sessões planejadas (chat 2026-08-14) -----------------------------------
+
+export function useCriarSessaoPlanejada() {
+  return useMutationEstudos(api.criarSessaoPlanejada, 'Sessão agendada')
+}
+
+export function useAtualizarSessaoPlanejada() {
+  return useMutationEstudos(
+    ({
+      id,
+      dados,
+    }: {
+      id: string
+      dados: Parameters<typeof api.atualizarSessaoPlanejada>[1]
+    }) => api.atualizarSessaoPlanejada(id, dados),
+    'Sessão atualizada',
+  )
+}
+
+export function useExcluirSessaoPlanejada() {
+  return useMutationEstudos(api.excluirSessaoPlanejada, 'Sessão removida da agenda')
+}
+
+/**
+ * Toggle "feita" de uma sessão planejada (chat 2026-08-14).
+ *
+ * Não é uma flag separada: marcar CRIA a sessão executada de verdade, com os
+ * dados da planejada como valor inicial (editável depois, igual qualquer
+ * sessão registrada). Desmarcar apaga a(s) execução(ões) daquela
+ * matéria+data — reconciliação por chave, sem FK entre as duas tabelas,
+ * mesma ideia de `chaveTreinoData` no calendário.
+ *
+ * Sem toast de sucesso: mesmo raciocínio de `useDefinirConclusao` — é um
+ * check de rotina, marcado várias vezes ao dia.
+ */
+export function useAlternarSessaoPlanejada() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      planejada,
+      concluido,
+    }: {
+      planejada: Pick<
+        Parameters<typeof api.criarSessaoPlanejada>[0],
+        'materia_id' | 'data' | 'duracao_minutos' | 'hora_inicio'
+      >
+      concluido: boolean
+    }) =>
+      concluido
+        ? api.criarSessao({
+            materia_id: planejada.materia_id,
+            data: planejada.data,
+            duracao_minutos: planejada.duracao_minutos,
+            hora_inicio: planejada.hora_inicio ?? null,
+            meta_diaria_minutos: null,
+          })
+        : api.excluirSessoesDoDia(planejada.materia_id, planejada.data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: chaves.raiz })
+      void queryClient.invalidateQueries({ queryKey: ['calendario'] })
+    },
+    onError: (erro: Error) => toast.error(erro.message),
+  })
 }
 
 export function useCriarRegistroLista() {

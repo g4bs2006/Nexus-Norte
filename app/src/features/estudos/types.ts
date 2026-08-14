@@ -23,6 +23,14 @@ export type RegistroLista = Tables<'registro_listas'>
 export type SessaoEstudo = Tables<'sessoes_estudo'>
 
 /**
+ * Sessão de estudo marcada numa data concreta — o "planejado" (chat
+ * 2026-08-14), irmã de `TreinoAgendado`. `SessaoEstudo` continua sendo o
+ * "executado"; as duas não têm FK entre si, a reconciliação é por
+ * matéria + data (mesma ideia de `chaveTreinoData` no calendário).
+ */
+export type SessaoEstudoPlanejada = Tables<'sessoes_estudo_planejadas'>
+
+/**
  * Nota de estudo — documento vivo, não entrada datada.
  *
  * Entidade própria desde 13/08. Antes era a coluna `materias.notas_estudo`, e

@@ -7,6 +7,7 @@ import type {
   FonteMarco,
   FontePlanejamentoSono,
   FonteSessaoEstudo,
+  FonteSessaoPlanejada,
   FonteTreinoAgendado,
 } from './eventos'
 import type { FonteSonoRealizado } from './carga'
@@ -189,6 +190,23 @@ export async function sessoesEstudoNoIntervalo(
 ): Promise<FonteSessaoEstudo[]> {
   const { data, error } = await supabase
     .from('sessoes_estudo')
+    .select('id, materia_id, data, hora_inicio, duracao_minutos')
+    .gte('data', de)
+    .lte('data', ate)
+  if (error) throw new Error(error.message)
+  return data ?? []
+}
+
+/**
+ * Sessões de estudo planejadas no intervalo (chat 2026-08-14) — cada linha já
+ * tem a própria data, sem regra semanal para expandir.
+ */
+export async function sessoesEstudoPlanejadasNoIntervalo(
+  de: string,
+  ate: string,
+): Promise<FonteSessaoPlanejada[]> {
+  const { data, error } = await supabase
+    .from('sessoes_estudo_planejadas')
     .select('id, materia_id, data, hora_inicio, duracao_minutos')
     .gte('data', de)
     .lte('data', ate)

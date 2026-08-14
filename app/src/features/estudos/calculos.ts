@@ -161,6 +161,35 @@ export function frequenciaEstudoSemana(
   }
 }
 
+export interface AderenciaSessoes {
+  realizadas: number
+  planejadas: number
+  /** Percentual do planejado cumprido; `null` quando nada foi planejado. */
+  percentual: number | null
+}
+
+/**
+ * Sessões realizadas contra sessões planejadas na semana (chat 2026-08-14).
+ *
+ * Pergunta diferente de `frequenciaEstudoSemana`: aquela mede minutos contra
+ * uma meta autodeclarada ("estudei o suficiente?"); esta mede contagem contra
+ * o que foi de fato planejado ("o que eu disse que ia fazer eu fiz?") — mesmo
+ * par previsto × realizado que `frequenciaSemana` já calcula pra Treino.
+ *
+ * Diferente de treino, sessão de estudo não tem "abandonada no meio": toda
+ * sessão registrada conta como realizada.
+ */
+export function aderenciaSessoesSemana(
+  realizadas: number,
+  planejadas: number,
+): AderenciaSessoes {
+  return {
+    realizadas,
+    planejadas,
+    percentual: planejadas > 0 ? (realizadas / planejadas) * 100 : null,
+  }
+}
+
 export interface ProximaAvaliacao {
   avaliacao: Avaliacao
   dias: number

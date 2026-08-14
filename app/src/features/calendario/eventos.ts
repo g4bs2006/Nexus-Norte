@@ -329,6 +329,18 @@ export interface FonteSessaoEstudo {
   duracao_minutos: number
 }
 
+/**
+ * Sessão de estudo planejada numa data concreta (chat 2026-08-14) — irmã de
+ * `FonteTreinoAgendado`. Sem `dia_semana`: a data já é a própria ocorrência.
+ */
+export interface FonteSessaoPlanejada {
+  id: string
+  materia_id: string
+  data: string
+  hora_inicio: string | null
+  duracao_minutos: number
+}
+
 export interface FontesCalendario {
   avaliacoes: readonly FonteAvaliacao[]
   fluxograma: readonly FonteFluxograma[]
@@ -339,6 +351,7 @@ export interface FontesCalendario {
   execucoesTreino: readonly FonteExecucaoTreino[]
   treinosAgendados: readonly FonteTreinoAgendado[]
   sessoesEstudo: readonly FonteSessaoEstudo[]
+  sessoesEstudoPlanejadas: readonly FonteSessaoPlanejada[]
   eventosLivres: readonly FonteEventoLivre[]
   /** Rótulos para resolver os ids do fluxograma. */
   nomePorMateria: ReadonlyMap<string, string>
@@ -403,6 +416,15 @@ export function eventosAvaliacoes(
 /** Chave de reconciliação entre o treino previsto e o treino que aconteceu. */
 export function chaveTreinoData(treinoId: string, data: string): string {
   return `${treinoId}@${data}`
+}
+
+/**
+ * Chave de reconciliação entre a sessão de estudo planejada e a executada
+ * (chat 2026-08-14) — mesma ideia de `chaveTreinoData`, por matéria em vez de
+ * treino: as duas tabelas não têm FK entre si.
+ */
+export function chaveSessaoData(materiaId: string, data: string): string {
+  return `${materiaId}@${data}`
 }
 
 export interface PeriodoMateria {
@@ -659,6 +681,69 @@ export function eventosSessoesEstudo(
         // hora o `fim` foi derivado justamente deste numero
         minutos: sessao.duracao_minutos,
         rota: `/estudos/${sessao.materia_id}`,
+        movimento: 'entidade' as const,
+        ...(cor ? { cor } : {}),
+      },
+    ]
+  })
+}
+
+/**
+ * Sessões de estudo planejadas numa data concreta (chat 2026-08-14).
+ *
+ * Irmã de `eventosTreinoAgendado`: não passa por `expandirRecorrencia` — a
+ * data já está na linha, sem regra semanal para expandir. `origemId` é o id
+ * da própria linha planejada (não a matéria, diferente de
+ * `eventosSessoesEstudo`) — é o que permite editar/excluir direto no
+ * calendário, igual treino agendado.
+ *
+ * Sem `hora_inicio`, o fim não é derivável e o evento é de dia inteiro —
+ * mesma regra de `eventosSessoesEstudo`.
+ */
+export function eventosSessaoPlanejada(
+  planejadas: readonly FonteSessaoPlanejada[],
+  intervalo: Intervalo,
+  nomePorMateria: ReadonlyMap<string, string>,
+  corPorMateria: ReadonlyMap<string, string | null> = new Map(),
+  /** Mesmo papel de `treinosFeitos` em `eventosTreinoAgendado`: a sessão
+   * realizada substitui a planejada no mesmo dia. */
+  sessoesFeitas: ReadonlySet<string> = new Set(),
+): EventoCalendario[] {
+  return planejadas.flatMap((planejada) => {
+    if (planejada.data < intervalo.de || planejada.data > intervalo.ate) {
+      return []
+    }
+    if (
+      sessoesFeitas.has(chaveSessaoData(planejada.materia_id, planejada.data))
+    ) {
+      return []
+    }
+
+    const nome = nomePorMateria.get(planejada.materia_id) ?? 'Estudo'
+    const cor = corPorMateria.get(planejada.materia_id)
+    const comHora = Boolean(planejada.hora_inicio)
+
+    return [
+      {
+        id: `sessao-planejada:${planejada.id}`,
+        origemId: planejada.id,
+        titulo: `${nome} · ${planejada.duracao_minutos} min`,
+        inicio: comHora
+          ? comHorario(planejada.data, planejada.hora_inicio as string)
+          : planejada.data,
+        ...(comHora
+          ? {
+              fim: somarMinutos(
+                comHorario(planejada.data, planejada.hora_inicio as string),
+                planejada.duracao_minutos,
+              ),
+            }
+          : {}),
+        diaInteiro: !comHora,
+        camada: 'estudos' as const,
+        tipo: 'estudo' as const,
+        rotina: true,
+        rota: `/estudos/${planejada.materia_id}`,
         movimento: 'entidade' as const,
         ...(cor ? { cor } : {}),
       },
@@ -954,6 +1039,24 @@ export function construirEventos(
     ),
   )
 
+  const sessoesRegistradas = eventosSessoesEstudo(
+    fontes.sessoesEstudo,
+    intervalo,
+    fontes.nomePorMateria,
+    fontes.corPorMateria,
+  )
+
+  /*
+   * Mesma reconciliação do treino, por matéria + data (chat 2026-08-14):
+   * a sessão planejada cede lugar quando existe execução da mesma matéria
+   * no mesmo dia.
+   */
+  const sessoesFeitas = new Set(
+    sessoesRegistradas.map((evento) =>
+      chaveSessaoData(evento.origemId as string, evento.inicio.slice(0, 10)),
+    ),
+  )
+
   return [
     ...eventosAvaliacoes(
       fontes.avaliacoes,
@@ -977,11 +1080,13 @@ export function construirEventos(
       treinosFeitos,
     ),
     ...feitos,
-    ...eventosSessoesEstudo(
-      fontes.sessoesEstudo,
+    ...sessoesRegistradas,
+    ...eventosSessaoPlanejada(
+      fontes.sessoesEstudoPlanejadas,
       intervalo,
       fontes.nomePorMateria,
       fontes.corPorMateria,
+      sessoesFeitas,
     ),
     ...eventosCancelados(
       fontes.fluxograma,

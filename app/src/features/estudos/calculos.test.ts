@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  aderenciaSessoesSemana,
   dentroDoPeriodoMateria,
   faltasRestantes,
   frequenciaEstudoSemana,
@@ -213,6 +214,24 @@ describe('frequenciaEstudoSemana', () => {
       metaMinutos: 0,
       percentual: null,
     })
+  })
+})
+
+describe('aderenciaSessoesSemana', () => {
+  it('calcula o percentual de sessões planejadas cumpridas', () => {
+    expect(aderenciaSessoesSemana(3, 4)).toEqual({
+      realizadas: 3,
+      planejadas: 4,
+      percentual: 75,
+    })
+  })
+
+  it('devolve percentual null quando nada foi planejado', () => {
+    expect(aderenciaSessoesSemana(2, 0).percentual).toBeNull()
+  })
+
+  it('aceita mais realizadas que planejadas — estudou além do combinado', () => {
+    expect(aderenciaSessoesSemana(5, 2).percentual).toBe(250)
   })
 })
 

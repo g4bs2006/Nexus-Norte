@@ -1483,6 +1483,41 @@ export type Database = {
           },
         ]
       }
+      sessoes_estudo_planejadas: {
+        Row: {
+          created_at: string
+          data: string
+          duracao_minutos: number
+          hora_inicio: string | null
+          id: string
+          materia_id: string
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          duracao_minutos: number
+          hora_inicio?: string | null
+          id?: string
+          materia_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          duracao_minutos?: number
+          hora_inicio?: string | null
+          id?: string
+          materia_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessoes_estudo_planejadas_materia_id_fkey"
+            columns: ["materia_id"]
+            isOneToOne: false
+            referencedRelation: "materias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sugestoes_investimento: {
         Row: {
           created_at: string

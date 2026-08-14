@@ -14,12 +14,14 @@ import {
   eventosSessoesEstudo,
   eventosSono,
   eventosTreinoAgendado,
+  eventosSessaoPlanejada,
   eventosComPrazo,
   ehBlocoCheio,
   ehImportante,
   idRealEntidade,
   precisaConfirmarMovimento,
   chaveTreinoData,
+  chaveSessaoData,
   type EventoCalendario,
   type FontesCalendario,
 } from './eventos'
@@ -577,6 +579,7 @@ describe('construirEventos', () => {
       execucoesTreino: [],
       treinosAgendados: [],
       sessoesEstudo: [],
+      sessoesEstudoPlanejadas: [],
       eventosLivres: [],
       nomePorMateria: MATERIAS,
       nomePorTreino: TREINOS,
@@ -602,6 +605,7 @@ describe('construirEventos', () => {
       execucoesTreino: [],
       treinosAgendados: [],
       sessoesEstudo: [],
+      sessoesEstudoPlanejadas: [],
       eventosLivres: [],
       nomePorMateria: new Map(),
       nomePorTreino: new Map(),
@@ -916,6 +920,61 @@ describe('eventosSessoesEstudo', () => {
   })
 })
 
+describe('eventosSessaoPlanejada', () => {
+  const planejada = {
+    id: 'sp1',
+    materia_id: 'm1',
+    data: '2026-08-05',
+    hora_inicio: '19:00:00',
+    duracao_minutos: 90,
+  }
+
+  it('monta o evento a partir da data própria, sem regra semanal', () => {
+    const [evento] = eventosSessaoPlanejada([planejada], SEMANA, MATERIAS)
+
+    expect(evento?.titulo).toBe('Cálculo II · 90 min')
+    expect(evento?.camada).toBe('estudos')
+    expect(evento?.tipo).toBe('estudo')
+    expect(evento?.inicio).toBe('2026-08-05T19:00:00')
+    expect(evento?.fim).toBe('2026-08-05T20:30:00')
+    expect(evento?.rotina).toBe(true)
+    expect(evento?.movimento).toBe('entidade')
+    expect(evento?.estado).toBeUndefined()
+  })
+
+  it('sem hora, vira dia inteiro', () => {
+    const [evento] = eventosSessaoPlanejada(
+      [{ ...planejada, hora_inicio: null }],
+      SEMANA,
+      MATERIAS,
+    )
+    expect(evento?.diaInteiro).toBe(true)
+    expect(evento?.fim).toBeUndefined()
+  })
+
+  it('ignora planejada fora do intervalo', () => {
+    expect(
+      eventosSessaoPlanejada(
+        [{ ...planejada, data: '2026-09-01' }],
+        SEMANA,
+        MATERIAS,
+      ),
+    ).toEqual([])
+  })
+
+  it('cede lugar à sessão realizada na mesma matéria e dia', () => {
+    const feitas = new Set([chaveSessaoData('m1', '2026-08-05')])
+    expect(
+      eventosSessaoPlanejada([planejada], SEMANA, MATERIAS, new Map(), feitas),
+    ).toEqual([])
+  })
+
+  it('usa "Estudo" quando a matéria não é conhecida', () => {
+    const [evento] = eventosSessaoPlanejada([planejada], SEMANA, new Map())
+    expect(evento?.titulo).toBe('Estudo · 90 min')
+  })
+})
+
 describe('eventosCancelados', () => {
   const regra = {
     id: 'f1',
@@ -1081,6 +1140,7 @@ describe('eventosRemarcadosNaOrigem', () => {
         execucoesTreino: [],
         treinosAgendados: [],
         sessoesEstudo: [],
+        sessoesEstudoPlanejadas: [],
         eventosLivres: [],
         nomePorMateria: MATERIAS,
         nomePorTreino: TREINOS,
@@ -1117,6 +1177,7 @@ describe('reconciliação entre previsto e realizado', () => {
     planejamentoSono: [],
     marcos: [],
     sessoesEstudo: [],
+    sessoesEstudoPlanejadas: [],
     eventosLivres: [],
     nomePorMateria: MATERIAS,
     nomePorTreino: TREINOS,
@@ -1207,6 +1268,83 @@ describe('reconciliação entre previsto e realizado', () => {
 
     const doDia = eventos.filter((e) => e.inicio.startsWith('2026-08-05'))
     expect(doDia.map((e) => [e.titulo, e.estado])).toEqual([['Pull', 'feito']])
+  })
+})
+
+describe('reconciliação entre sessão planejada e executada (chat 2026-08-14)', () => {
+  const planejada = {
+    id: 'sp1',
+    materia_id: 'm1',
+    data: '2026-08-05',
+    hora_inicio: '19:00:00',
+    duracao_minutos: 90,
+  }
+
+  const vazias = {
+    avaliacoes: [],
+    fluxograma: [],
+    excecoes: [],
+    contas: [],
+    planejamentoSono: [],
+    marcos: [],
+    execucoesTreino: [],
+    treinosAgendados: [],
+    eventosLivres: [],
+    nomePorMateria: MATERIAS,
+    nomePorTreino: TREINOS,
+  } as const
+
+  it('planejou e estudou a MESMA matéria no dia: uma linha só, a realizada', () => {
+    const eventos = construirEventos(
+      {
+        ...vazias,
+        sessoesEstudoPlanejadas: [planejada],
+        sessoesEstudo: [
+          { id: 'se1', materia_id: 'm1', data: '2026-08-05', duracao_minutos: 60 },
+        ],
+      },
+      SEMANA,
+    )
+
+    const daMateria = eventos.filter((e) => e.tipo === 'estudo')
+    expect(daMateria).toHaveLength(1)
+    expect(daMateria[0]?.estado).toBe('feito')
+  })
+
+  it('planejou uma matéria e estudou OUTRA: as duas linhas aparecem', () => {
+    const eventos = construirEventos(
+      {
+        ...vazias,
+        nomePorMateria: new Map([
+          ['m1', 'Cálculo II'],
+          ['m2', 'Física IV'],
+        ]),
+        sessoesEstudoPlanejadas: [planejada],
+        sessoesEstudo: [
+          { id: 'se1', materia_id: 'm2', data: '2026-08-05', duracao_minutos: 60 },
+        ],
+      },
+      SEMANA,
+    )
+
+    const daMateria = eventos.filter((e) => e.tipo === 'estudo')
+    expect(daMateria.map((e) => [e.titulo, e.estado])).toEqual(
+      expect.arrayContaining([
+        ['Cálculo II · 90 min', undefined],
+        ['Física IV · 60 min', 'feito'],
+      ]),
+    )
+  })
+
+  it('sem execução nenhuma, a planejada aparece sozinha', () => {
+    const eventos = construirEventos(
+      { ...vazias, sessoesEstudoPlanejadas: [planejada], sessoesEstudo: [] },
+      SEMANA,
+    )
+
+    const daMateria = eventos.filter((e) => e.tipo === 'estudo')
+    expect(daMateria).toHaveLength(1)
+    expect(daMateria[0]?.estado).toBeUndefined()
   })
 })
 

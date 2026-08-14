@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react'
-import { format, subDays } from 'date-fns'
-import { Pencil, Plus } from 'lucide-react'
+import { addDays, format, subDays } from 'date-fns'
+import { CheckCheck, Pencil, Plus } from 'lucide-react'
+import { CheckDia } from '@/components/CheckDia'
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import {
   Bar,
@@ -12,23 +13,36 @@ import {
   YAxis,
 } from 'recharts'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { BarraProgresso } from '@/components/BarraProgresso'
 import { ESTILO_TOOLTIP } from '@/components/Grafico'
 import { cn } from '@/lib/utils'
-import { deISO, paraISO } from '@/lib/datas'
+import { deISO, inicioSemana, paraISO } from '@/lib/datas'
 import { comportamentoRolagem } from '@/lib/movimento'
-import { useCriarSessao, useAtualizarSessao, useExcluirSessao } from '../hooks'
-import { frequenciaEstudoSemana } from '../calculos'
-import type { SessaoEstudo } from '../types'
+import {
+  useAlternarSessaoPlanejada,
+  useCriarSessao,
+  useAtualizarSessao,
+  useExcluirSessao,
+} from '../hooks'
+import { aderenciaSessoesSemana, frequenciaEstudoSemana } from '../calculos'
+import { DialogAgendarSessao } from './DialogAgendarSessao'
+import type { Materia, SessaoEstudo, SessaoEstudoPlanejada } from '../types'
 
 const DIAS_GRAFICO = 14
 
 interface AbaSessoesProps {
   materiaId: string
   sessoes: readonly SessaoEstudo[]
+  /** Sessões planejadas da matéria (chat 2026-08-14) — qualquer data, o filtro
+   * de "desta semana" é feito aqui dentro, igual ao resto da aba. */
+  planejadas: readonly SessaoEstudoPlanejada[]
+  /** A própria matéria, só pro Select do diálogo de agendar — já vem travada
+   * nesta matéria, sem escolha (diferente do calendário, que agenda pra
+   * qualquer uma). */
+  materiaAtual: Materia | undefined
   hoje: Date
   /**
    * Primeira nota de cada sessão, quando existe.
@@ -52,6 +66,8 @@ interface AbaSessoesProps {
 export function AbaSessoes({
   materiaId,
   sessoes,
+  planejadas,
+  materiaAtual,
   hoje,
   notaPorSessao,
   acaoNota,
@@ -59,6 +75,7 @@ export function AbaSessoes({
   const criar = useCriarSessao()
   const atualizar = useAtualizarSessao()
   const excluir = useExcluirSessao()
+  const alternarPlanejada = useAlternarSessaoPlanejada()
 
   const [data, setData] = useState(paraISO(hoje))
   const [hora, setHora] = useState('')
@@ -74,6 +91,29 @@ export function AbaSessoes({
     const daSemana = sessoes.filter((sessao) => sessao.data >= limite)
     return frequenciaEstudoSemana(daSemana, 7)
   }, [sessoes, hoje])
+
+  /**
+   * Sessões planejadas da semana corrente, e quais delas já viraram execução
+   * (chat 2026-08-14) — mesmo par previsto × realizado que Treino calcula.
+   * "Feita" aqui é por matéria+data: como as sessões já vêm filtradas por
+   * `materiaId`, a chave simplifica pra só a data.
+   */
+  const { planejadasDaSemana, feitasHoje, aderencia } = useMemo(() => {
+    const inicio = paraISO(inicioSemana(hoje))
+    const fim = paraISO(addDays(inicioSemana(hoje), 6))
+    const daSemana = planejadas
+      .filter((p) => p.data >= inicio && p.data <= fim)
+      .sort((a, b) => a.data.localeCompare(b.data))
+
+    const datasFeitas = new Set(sessoes.map((s) => s.data))
+    const realizadas = daSemana.filter((p) => datasFeitas.has(p.data)).length
+
+    return {
+      planejadasDaSemana: daSemana,
+      feitasHoje: datasFeitas,
+      aderencia: aderenciaSessoesSemana(realizadas, daSemana.length),
+    }
+  }, [planejadas, sessoes, hoje])
 
   // Minutos por dia nos últimos 14 dias, incluindo dias sem estudo
   const dadosGrafico = useMemo(() => {
@@ -189,6 +229,80 @@ export function AbaSessoes({
               classeCor="bg-estudos"
               rotulo="Meta de estudo da semana"
             />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Sessões planejadas da semana (chat 2026-08-14) */}
+      <Card>
+        <CardHeader className="flex-row items-center justify-between gap-2 space-y-0">
+          <CardTitle className="text-base">Sessões planejadas</CardTitle>
+          <DialogAgendarSessao
+            materias={materiaAtual ? [materiaAtual] : []}
+            dataInicial={paraISO(hoje)}
+            trigger={
+              <Button size="sm" variant="secondary" disabled={!materiaAtual}>
+                <Plus className="size-4" />
+                Agendar
+              </Button>
+            }
+          />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {aderencia.planejadas > 0 && (
+            <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
+              <CheckCheck className="size-3.5" />
+              {aderencia.realizadas}/{aderencia.planejadas} desta semana
+              {aderencia.percentual !== null &&
+                ` · ${Math.round(aderencia.percentual)}%`}
+            </p>
+          )}
+          {planejadasDaSemana.length === 0 ? (
+            <p className="text-muted-foreground text-sm">
+              Nenhuma sessão planejada nesta semana.
+            </p>
+          ) : (
+            <ul className="space-y-0.5">
+              {planejadasDaSemana.map((planejada) => (
+                <li key={planejada.id} className="flex items-center gap-1">
+                  <div className="min-w-0 flex-1">
+                    <CheckDia
+                      id={`sessao-planejada-${planejada.id}`}
+                      marcado={feitasHoje.has(planejada.data)}
+                      onAlternar={(marcado) =>
+                        alternarPlanejada.mutate({
+                          planejada,
+                          concluido: marcado,
+                        })
+                      }
+                      detalhe={
+                        planejada.hora_inicio
+                          ? `${planejada.hora_inicio.slice(0, 5)} · ${planejada.duracao_minutos} min`
+                          : `${planejada.duracao_minutos} min`
+                      }
+                    >
+                      <span className="capitalize">
+                        {format(deISO(planejada.data), 'EEEE, dd/MM')}
+                      </span>
+                    </CheckDia>
+                  </div>
+                  <DialogAgendarSessao
+                    materias={materiaAtual ? [materiaAtual] : []}
+                    planejada={planejada}
+                    trigger={
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="text-muted-foreground hover:text-foreground size-11 shrink-0 sm:size-7"
+                        aria-label="Editar sessão planejada"
+                      >
+                        <Pencil className="size-3.5" />
+                      </Button>
+                    }
+                  />
+                </li>
+              ))}
+            </ul>
           )}
         </CardContent>
       </Card>

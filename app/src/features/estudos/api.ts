@@ -9,6 +9,7 @@ import type {
   Materia,
   RegistroLista,
   SessaoEstudo,
+  SessaoEstudoPlanejada,
   Semestre,
 } from './types'
 
@@ -206,6 +207,61 @@ export async function atualizarSessao(
 
 export async function excluirSessao(id: string): Promise<void> {
   const { error } = await supabase.from('sessoes_estudo').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+/** Todas as execuções de uma matéria numa data — usado ao desmarcar o check
+ * de uma sessão planejada (chat 2026-08-14): a reconciliação é por
+ * matéria + data, sem FK para uma linha específica. */
+export async function excluirSessoesDoDia(
+  materiaId: string,
+  data: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('sessoes_estudo')
+    .delete()
+    .eq('materia_id', materiaId)
+    .eq('data', data)
+  if (error) throw new Error(error.message)
+}
+
+// --- Sessões de estudo planejadas (chat 2026-08-14) -------------------------
+
+export async function listarSessoesPlanejadas(
+  de?: string,
+  ate?: string,
+): Promise<SessaoEstudoPlanejada[]> {
+  let consulta = supabase.from('sessoes_estudo_planejadas').select('*')
+  if (de) consulta = consulta.gte('data', de)
+  if (ate) consulta = consulta.lte('data', ate)
+  return lancarSeErro(await consulta.order('data'))
+}
+
+export async function criarSessaoPlanejada(
+  dados: TablesInsert<'sessoes_estudo_planejadas'>,
+): Promise<void> {
+  const { error } = await supabase
+    .from('sessoes_estudo_planejadas')
+    .insert(dados)
+  if (error) throw new Error(error.message)
+}
+
+export async function atualizarSessaoPlanejada(
+  id: string,
+  dados: TablesUpdate<'sessoes_estudo_planejadas'>,
+): Promise<void> {
+  const { error } = await supabase
+    .from('sessoes_estudo_planejadas')
+    .update(dados)
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+export async function excluirSessaoPlanejada(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('sessoes_estudo_planejadas')
+    .delete()
+    .eq('id', id)
   if (error) throw new Error(error.message)
 }
 

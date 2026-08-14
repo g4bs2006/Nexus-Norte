@@ -2,6 +2,7 @@ import { useRemarcarOcorrencia } from '@/features/fluxograma/hooks'
 import {
   useAtualizarAvaliacao,
   useAtualizarSessao,
+  useAtualizarSessaoPlanejada,
 } from '@/features/estudos/hooks'
 import { useAtualizarEventoLivre } from '@/features/eventos/hooks'
 import { useAtualizarMarco } from '@/features/projetos/hooks'
@@ -23,6 +24,7 @@ import { idRealEntidade, type EventoCalendario } from '../eventos'
 export function useMoverEvento() {
   const remarcarOcorrencia = useRemarcarOcorrencia()
   const atualizarSessao = useAtualizarSessao()
+  const atualizarSessaoPlanejada = useAtualizarSessaoPlanejada()
   const atualizarAvaliacao = useAtualizarAvaliacao()
   const atualizarEventoLivre = useAtualizarEventoLivre()
   const atualizarMarco = useAtualizarMarco()
@@ -31,6 +33,7 @@ export function useMoverEvento() {
   const pendente =
     remarcarOcorrencia.isPending ||
     atualizarSessao.isPending ||
+    atualizarSessaoPlanejada.isPending ||
     atualizarAvaliacao.isPending ||
     atualizarEventoLivre.isPending ||
     atualizarMarco.isPending ||
@@ -71,10 +74,23 @@ export function useMoverEvento() {
         return
       }
       case 'estudo':
-        await atualizarSessao.mutateAsync({
-          id: idRealEntidade(evento),
-          dados: { data: novaData, hora_inicio: novoInicio },
-        })
+        /*
+         * Sessão registrada (`estado: 'feito'`) grava em `sessoes_estudo`;
+         * planejada (chat 2026-08-14) tem linha própria em
+         * `sessoes_estudo_planejadas`, sem regra recorrente — mesma
+         * separação de treino/treino agendado.
+         */
+        if (evento.estado === 'feito') {
+          await atualizarSessao.mutateAsync({
+            id: idRealEntidade(evento),
+            dados: { data: novaData, hora_inicio: novoInicio },
+          })
+        } else {
+          await atualizarSessaoPlanejada.mutateAsync({
+            id: idRealEntidade(evento),
+            dados: { data: novaData, hora_inicio: novoInicio },
+          })
+        }
         return
       case 'evento':
         await atualizarEventoLivre.mutateAsync({

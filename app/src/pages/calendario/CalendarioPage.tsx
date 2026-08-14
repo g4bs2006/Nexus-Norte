@@ -37,6 +37,7 @@ import {
   construirEventos,
   type CamadaCalendario,
   type EventoCalendario,
+  type FonteSessaoPlanejada,
   type FonteTreinoAgendado,
 } from '@/features/calendario/eventos'
 import { cargaPorDia, type DiaCarga } from '@/features/calendario/carga'
@@ -45,6 +46,9 @@ import { useFontesCalendario } from '@/features/calendario/hooks'
 import { DialogAgendarTreino } from '@/features/treino/componentes/DialogAgendarTreino'
 import { useTreinos } from '@/features/treino/hooks'
 import type { Treino } from '@/features/treino/types'
+import { DialogAgendarSessao } from '@/features/estudos/componentes/DialogAgendarSessao'
+import { useMaterias } from '@/features/estudos/hooks'
+import type { Materia } from '@/features/estudos/types'
 import { useMoverEvento } from '@/features/calendario/hooks/useMoverEvento'
 import {
   detectarConflitos,
@@ -121,6 +125,12 @@ export default function CalendarioPage() {
     null,
   )
   const treinos = useTreinos()
+
+  /** Idem, para sessão de estudo planejada (chat 2026-08-14). */
+  const [sessaoEditando, setSessaoEditando] = useState<FonteSessaoPlanejada | null>(
+    null,
+  )
+  const materias = useMaterias()
 
   /**
    * Intervalo arrastado na grade de Horas, estilo Google Agenda (chat
@@ -256,6 +266,12 @@ export default function CalendarioPage() {
   const treinosAgendadosPorId = useMemo(
     () => new Map(fontes.treinosAgendados.map((t) => [t.id, t])),
     [fontes.treinosAgendados],
+  )
+
+  /** Idem, para sessão de estudo planejada. */
+  const sessoesPlanejadasPorId = useMemo(
+    () => new Map(fontes.sessoesEstudoPlanejadas.map((s) => [s.id, s])),
+    [fontes.sessoesEstudoPlanejadas],
   )
 
   const refsDia = useRef(new Map<string, HTMLLIElement>())
@@ -529,6 +545,8 @@ export default function CalendarioPage() {
                 eventosLivresPorId={eventosLivresPorId}
                 treinosAgendadosPorId={treinosAgendadosPorId}
                 treinos={treinos.data}
+                sessoesPlanejadasPorId={sessoesPlanejadasPorId}
+                materias={materias.data}
               />
             </CardContent>
           </Card>
@@ -565,6 +583,23 @@ export default function CalendarioPage() {
                   const agendado = treinosAgendadosPorId.get(evento.origemId)
                   if (agendado) {
                     setTreinoEditando(agendado)
+                    return
+                  }
+                }
+                /*
+                 * Mesma coisa pra sessão de estudo planejada — `estado !==
+                 * 'feito'` separa da sessão já registrada, que segue por
+                 * `rotaPorId` normalmente.
+                 */
+                if (
+                  evento?.tipo === 'estudo' &&
+                  evento.movimento === 'entidade' &&
+                  evento.estado !== 'feito' &&
+                  evento.origemId
+                ) {
+                  const planejada = sessoesPlanejadasPorId.get(evento.origemId)
+                  if (planejada) {
+                    setSessaoEditando(planejada)
                     return
                   }
                 }
@@ -686,6 +721,8 @@ export default function CalendarioPage() {
         eventosLivresPorId={eventosLivresPorId}
         treinosAgendadosPorId={treinosAgendadosPorId}
         treinos={treinos.data}
+        sessoesPlanejadasPorId={sessoesPlanejadasPorId}
+        materias={materias.data}
         onOpenChange={(aberto) => {
           if (!aberto) setDiaDetalhado(null)
         }}
@@ -698,6 +735,16 @@ export default function CalendarioPage() {
         open={treinoEditando !== null}
         onOpenChange={(aberto) => {
           if (!aberto) setTreinoEditando(null)
+        }}
+      />
+
+      <DialogAgendarSessao
+        planejada={sessaoEditando ?? undefined}
+        materias={materias.data ?? []}
+        trigger={null}
+        open={sessaoEditando !== null}
+        onOpenChange={(aberto) => {
+          if (!aberto) setSessaoEditando(null)
         }}
       />
 
@@ -723,6 +770,8 @@ interface DialogDiaProps {
   eventosLivresPorId: ReadonlyMap<string, EventoLivre>
   treinosAgendadosPorId: ReadonlyMap<string, FonteTreinoAgendado>
   treinos?: readonly Treino[]
+  sessoesPlanejadasPorId: ReadonlyMap<string, FonteSessaoPlanejada>
+  materias?: readonly Materia[]
   onOpenChange: (aberto: boolean) => void
 }
 
@@ -744,6 +793,8 @@ function DialogDia({
   eventosLivresPorId,
   treinosAgendadosPorId,
   treinos,
+  sessoesPlanejadasPorId,
+  materias,
   onOpenChange,
 }: DialogDiaProps) {
   const dia = data ? dias.find((item) => item.data === data) : undefined
@@ -763,6 +814,8 @@ function DialogDia({
             eventosLivresPorId={eventosLivresPorId}
             treinosAgendadosPorId={treinosAgendadosPorId}
             treinos={treinos}
+            sessoesPlanejadasPorId={sessoesPlanejadasPorId}
+            materias={materias}
           />
         )}
       </DialogContent>
