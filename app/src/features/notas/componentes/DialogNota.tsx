@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Plus } from 'lucide-react'
@@ -21,27 +22,15 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import { EditorMarkdown } from '@/components/EditorMarkdown'
 import { Input } from '@/components/ui/input'
-import { buscarReferencias, salvarDesenho } from '../api'
-import { renderizarBloco, renderizarDesenho } from './renderizadores'
 import { useSalvarNota } from '../hooks'
-import type { Json } from '@/types/database'
 import { schemaNota, type FormularioNota } from '../schemas'
-import type { Nota } from '../types'
 
 const VAZIO: FormularioNota = { titulo: '', conteudo: '' }
 
 interface DialogNotaProps {
   materiaId: string
-  /** Se passada, o dialog abre em modo de edição. */
-  nota?: Nota
-  /**
-   * Sessão a que a nota se refere, quando ela nasce de uma sessão de estudo.
-   * Só vale na criação — mudar o vínculo de uma nota existente não é um caso
-   * que apareceu, e um seletor de sessão no formulário custaria mais do que
-   * resolve.
-   */
+  /** Sessão a que a nota se refere, quando ela nasce de uma sessão de estudo. */
   sessaoId?: string
   /**
    * Gatilho próprio, para os pontos de entrada fora da aba Notas — o card da
@@ -53,31 +42,30 @@ interface DialogNotaProps {
 }
 
 /**
- * Criação e edição de nota.
+ * Criação de nota. **Só criação.**
  *
- * Mesmo componente para os dois modos, como `DialogMateria` — o formulário é o
- * mesmo e separar duplicaria a validação.
+ * Este diálogo já foi o lugar onde se escrevia — e era o defeito que o spec de
+ * 14/08 (nota como página) veio corrigir: `DialogContent` tem 384px, mais
+ * estreito que um celular deitado, e ali dentro se esperava escrever fórmula,
+ * diagrama e desenho.
  *
- * O conteúdo é Markdown, editado pelo `EditorMarkdown` do kernel — que não sabe
- * o que é nota. No celular ele cai para `textarea` sobre o mesmo texto, de
- * propósito (spec 14/08, restrição transversal).
+ * Agora ele faz o que um diálogo faz bem: pergunta o mínimo e sai da frente.
+ * Pede o título, cria a nota e **navega para `/notas/:slug`**, que é a
+ * superfície de escrita de verdade. Não há campo de conteúdo aqui, e não há
+ * modo de edição — editar é abrir a nota.
  *
- * O editor entrou depois do schema, dos hooks e do grafo, e não antes: assim
- * ele nasceu como detalhe substituível em vez de alicerce.
- *
- * Toda gravação passa por `useSalvarNota` → `salvarNota`, que re-deriva links e
- * tópicos. Não há caminho aqui que escreva `conteudo` por fora (seção 3).
+ * O título é o mínimo porque dele sai o slug, que é a identidade do wikilink.
+ * Nota sem título seria nota sem endereço.
  */
 export function DialogNota({
   materiaId,
-  nota,
   sessaoId,
   trigger,
   tituloInicial,
 }: DialogNotaProps) {
-  const modoEdicao = Boolean(nota)
   const [aberto, setAberto] = useState(false)
   const salvar = useSalvarNota()
+  const navigate = useNavigate()
 
   const form = useForm<FormularioNota>({
     resolver: zodResolver(schemaNota),
@@ -86,23 +74,20 @@ export function DialogNota({
 
   useEffect(() => {
     if (!aberto) return
-    if (nota) {
-      form.reset({ titulo: nota.titulo, conteudo: nota.conteudo })
-    } else {
-      form.reset({ ...VAZIO, titulo: tituloInicial ?? '' })
-    }
-  }, [aberto, nota, tituloInicial, form])
+    form.reset({ ...VAZIO, titulo: tituloInicial ?? '' })
+  }, [aberto, tituloInicial, form])
 
   async function submeter(valores: FormularioNota) {
-    await salvar.mutateAsync({
-      ...(nota ? { id: nota.id } : {}),
+    const nota = await salvar.mutateAsync({
       materiaId,
       titulo: valores.titulo,
-      conteudo: valores.conteudo,
+      // Nasce vazia de propósito: escrever é na página, não aqui.
+      conteudo: '',
       ...(sessaoId ? { sessaoId } : {}),
     })
     form.reset(VAZIO)
     setAberto(false)
+    navigate(`/notas/${nota.slug}`)
   }
 
   return (
@@ -117,11 +102,11 @@ export function DialogNota({
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{modoEdicao ? 'Editar nota' : 'Nova nota'}</DialogTitle>
+          <DialogTitle>Nova nota</DialogTitle>
           <DialogDescription>
             {sessaoId
               ? 'Fica vinculada à sessão de estudo, e aparece junto dela.'
-              : 'Anotação da matéria — resumo, dúvida, o que revisar.'}
+              : 'Dê um nome e comece a escrever.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -145,43 +130,8 @@ export function DialogNota({
                     />
                   </FormControl>
                   <FormDescription className="text-[11px]">
-                    É de onde sai o endereço da nota. Renomear reescreve quem
-                    aponta para ela.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="conteudo"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Conteúdo</FormLabel>
-                  <FormControl>
-                    <EditorMarkdown
-                      value={field.value}
-                      onChange={field.onChange}
-                      placeholder="Escreva aqui…"
-                      buscarReferencias={buscarReferencias}
-                      renderizarBloco={renderizarBloco}
-                      renderizarDesenho={renderizarDesenho}
-                      {...(nota
-                        ? {
-                            onSalvarDesenho: (cena, svg) =>
-                              salvarDesenho({
-                                notaId: nota.id,
-                                cena: cena as unknown as Json,
-                                svg,
-                              }),
-                          }
-                        : {})}
-                    />
-                  </FormControl>
-                  <FormDescription className="text-[11px]">
-                    Markdown. <code>[[outra-nota]]</code> liga a outra nota,{' '}
-                    <code>#topico</code> marca o assunto.
+                    É de onde sai o endereço da nota. Renomear depois reescreve
+                    quem aponta para ela.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
@@ -190,7 +140,7 @@ export function DialogNota({
 
             <DialogFooter>
               <Button type="submit" disabled={salvar.isPending}>
-                {salvar.isPending ? 'Salvando…' : 'Salvar'}
+                {salvar.isPending ? 'Criando…' : 'Criar e escrever'}
               </Button>
             </DialogFooter>
           </form>

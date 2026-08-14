@@ -1,6 +1,5 @@
 import { Suspense, lazy, useCallback, useRef, useState } from 'react'
 import { Link2, PenLine } from 'lucide-react'
-import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -8,7 +7,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Textarea } from '@/components/ui/textarea'
 import { resolverTema, useUIStore } from '@/stores/ui'
 import { DialogFormula } from './DialogFormula'
 import { SeletorReferencia, type Referencia } from './SeletorReferencia'
@@ -21,10 +19,9 @@ const EditorDesenho = lazy(() => import('./EditorDesenho'))
 /**
  * Porta imperativa de inserção.
  *
- * O editor rico é não controlado, então não dá para inserir mexendo na prop
- * `value` — o texto tem que entrar por onde o cursor está. Cada modo preenche
- * esta ref com o seu jeito de inserir, e a barra de ferramentas chama sem saber
- * qual está montado.
+ * O editor é não controlado, então não dá para inserir mexendo na prop `value`
+ * — o texto tem que entrar por onde o cursor está. O editor preenche esta ref
+ * ao montar, e a barra chama sem saber nada de ProseMirror.
  */
 export type Inserir = (markdown: string, inline: boolean) => void
 
@@ -32,8 +29,6 @@ export interface EditorMarkdownProps {
   value: string
   onChange: (markdown: string) => void
   placeholder?: string
-  /** Linhas do `textarea` de fallback. O editor rico cresce com o conteúdo. */
-  rows?: number
   /**
    * Busca as notas que o `[[` pode citar.
    *
@@ -45,58 +40,49 @@ export interface EditorMarkdownProps {
   /**
    * Grava um desenho novo e devolve o id, que vira `![[desenho:id]]`.
    *
-   * Injetada pelo mesmo motivo de `buscarReferencias`. Ausente quando o dono
-   * do desenho ainda não existe — desenho pertence a uma nota, e uma nota que
-   * ainda não foi salva não tem id para ser dona de nada.
+   * Ausente quando o dono do desenho ainda não existe — desenho pertence a uma
+   * nota, e uma nota que ainda não foi salva não tem id para ser dona de nada.
    */
   onSalvarDesenho?: (cena: CenaDesenho, svg: string) => Promise<string>
   /**
    * Como desenhar cerca e desenho dentro do editor.
    *
-   * Injetados porque o kernel não conhece nota. Quem passa usa os mesmos
-   * componentes da leitura, então editar e ler mostram a mesma coisa.
+   * Quem passa usa os mesmos componentes da leitura, então editar e ler
+   * mostram a mesma coisa.
    */
   renderizarBloco: RenderizarBloco
   renderizarDesenho: RenderizarDesenho
 }
 
 /**
- * Editor de Markdown do kernel.
+ * Editor de Markdown do kernel. **Desktop.**
  *
  * Mora aqui, e não em `features/notas`, porque duas features precisam dele:
  * Notas agora e as reuniões da camada de fé depois (README — o que duas
  * features precisam sobe para o kernel). Por isso ele não conhece nota, não
  * conhece matéria e não busca nada sozinho: o que precisar de dado de feature
- * entra por prop, injetado pela camada de composição.
+ * entra por prop, injetado por quem o compõe.
  *
- * Duas decisões de carga, ambas por causa do celular (spec 14/08, restrição
- * transversal):
+ * **No celular não se edita** (spec de 14/08 — nota como página). A versão
+ * anterior caía para `textarea` ali, o que custava dois caminhos de inserção,
+ * uma porta imperativa com dois donos e uma decisão de mobile em cada
+ * afordância nova — sem uso real por trás, porque escrever fórmula, arrastar
+ * bloco e desenhar não são tarefas de polegar. Quem renderiza a nota no
+ * celular é a leitura, que é outra coisa e continua funcionando sempre.
  *
- * - **No mobile a edição cai para `textarea` sobre o mesmo Markdown.** Não é
- *   degradação acidental: escrever fórmula e desenhar diagrama não são tarefas
- *   de tela de 6 polegadas, e forçar paridade encareceria tudo sem uso real.
- *   Corrigir uma frase continua possível, e o conteúdo nunca fica refém do
- *   desktop porque os dois lados escrevem o mesmo texto.
- * - **O editor rico e o campo de fórmula entram por `lazy`.** Quem só lê no
- *   celular não baixa o ProseMirror nem o MathLive.
- *
- * A fonte de verdade é a string Markdown, nos dois modos. É o que permite o
- * editor ser trocado sem migração de dado — e o que torna a camada pura de
- * `markdown.ts` independente desta escolha.
+ * A fonte de verdade é a string Markdown. É o que permite trocar o editor sem
+ * migração de dado, e o que torna `markdown.ts` independente desta escolha.
  */
 export function EditorMarkdown({
   value,
   onChange,
   placeholder,
-  rows = 12,
   buscarReferencias,
   onSalvarDesenho,
   renderizarBloco,
   renderizarDesenho,
 }: EditorMarkdownProps) {
-  const desktop = useMediaQuery('(min-width: 768px)')
-  const inserir = useRef<Inserir | null>(null)
-  const campo = useRef<HTMLTextAreaElement>(null)
+  const inserirRef = useRef<Inserir | null>(null)
   const [seletorAberto, setSeletorAberto] = useState(false)
   const [desenhando, setDesenhando] = useState(false)
   const escuro = resolverTema(useUIStore((estado) => estado.tema)) === 'escuro'
@@ -107,42 +93,17 @@ export function EditorMarkdown({
   const completando = useRef(false)
   const ultimoColchete = useRef(0)
 
-  /* Inserção no `textarea`: na seleção, como qualquer editor de texto faria. */
-  const inserirNoCampo = useCallback<Inserir>(
-    (markdown, inline) => {
-      const elemento = campo.current
-      const trecho = inline ? markdown : `\n${markdown}\n`
-
-      if (!elemento) {
-        onChange(value + trecho)
-        return
-      }
-
-      const { selectionStart, selectionEnd } = elemento
-      onChange(
-        value.slice(0, selectionStart) + trecho + value.slice(selectionEnd),
-      )
-    },
-    [value, onChange],
-  )
-
-  /** O jeito de inserir do modo que está montado. */
-  const inserirAqui = useCallback<Inserir>(
-    (markdown, inline) => {
-      if (desktop) inserir.current?.(markdown, inline)
-      else inserirNoCampo(markdown, inline)
-    },
-    [desktop, inserirNoCampo],
-  )
+  const inserir = useCallback<Inserir>((markdown, inline) => {
+    inserirRef.current?.(markdown, inline)
+  }, [])
 
   /*
    * Gatilho do `[[`.
    *
-   * O `keydown` fica no contêiner, e não no editor: assim o mesmo código serve
-   * ao `textarea` e ao ProseMirror, que não compartilham API nenhuma mas
-   * borbulham o evento igual.
+   * O `keydown` fica no contêiner porque o editor é DOM do ProseMirror — daqui
+   * se escuta sem precisar da API dele.
    *
-   * O segundo `[` é deixado entrar antes de abrir — completar o que já está na
+   * O segundo `[` é deixado entrar antes de abrir: completar o que já está na
    * tela é como o Obsidian se comporta, e cancelar deixando `[[` escrito é o
    * resultado esperado, não um resto.
    */
@@ -160,62 +121,48 @@ export function EditorMarkdown({
   }
 
   function escolher(referencia: Referencia) {
-    inserirAqui(
+    inserir(
       completando.current ? `${referencia.slug}]]` : `[[${referencia.slug}]]`,
       true,
     )
     completando.current = false
   }
 
-  const barra = (
-    <div className="flex items-center gap-1">
-      <DialogFormula
-        onInserir={(latex, bloco) =>
-          inserirAqui(bloco ? `$$${latex}$$` : `$${latex}$`, !bloco)
-        }
-      />
-      {buscarReferencias && (
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={() => {
-            completando.current = false
-            setSeletorAberto(true)
-          }}
-        >
-          <Link2 className="size-4" />
-          Ligar nota
-        </Button>
-      )}
-      {onSalvarDesenho && (
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={() => setDesenhando(true)}
-        >
-          <PenLine className="size-4" />
-          Desenho
-        </Button>
-      )}
-    </div>
-  )
-
-  const textarea = (
-    <Textarea
-      ref={campo}
-      value={value}
-      onChange={(evento) => onChange(evento.target.value)}
-      placeholder={placeholder}
-      rows={rows}
-      className="font-mono text-[13px]"
-    />
-  )
-
   return (
     <div className="space-y-2" onKeyDown={aoTeclar}>
-      {barra}
+      <div className="flex items-center gap-1">
+        <DialogFormula
+          onInserir={(latex, bloco) =>
+            inserir(bloco ? `$$${latex}$$` : `$${latex}$`, !bloco)
+          }
+        />
+        {buscarReferencias && (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              completando.current = false
+              setSeletorAberto(true)
+            }}
+          >
+            <Link2 className="size-4" />
+            Ligar nota
+          </Button>
+        )}
+        {onSalvarDesenho && (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setDesenhando(true)}
+          >
+            <PenLine className="size-4" />
+            Desenho
+          </Button>
+        )}
+      </div>
+
       {buscarReferencias && (
         <SeletorReferencia
           aberto={seletorAberto}
@@ -224,6 +171,7 @@ export function EditorMarkdown({
           onEscolher={escolher}
         />
       )}
+
       {onSalvarDesenho && (
         <Dialog open={desenhando} onOpenChange={setDesenhando}>
           <DialogContent className="max-w-5xl!">
@@ -244,7 +192,7 @@ export function EditorMarkdown({
                     void onSalvarDesenho(cena, svg).then((id) => {
                       // A referência entra em linha própria: desenho no meio de
                       // um parágrafo não é o que ninguém quer.
-                      inserirAqui(`![[desenho:${id}]]`, false)
+                      inserir(`![[desenho:${id}]]`, false)
                       setDesenhando(false)
                     })
                   }}
@@ -254,20 +202,19 @@ export function EditorMarkdown({
           </DialogContent>
         </Dialog>
       )}
-      {desktop ? (
-        <Suspense fallback={textarea}>
-          <EditorRico
-            value={value}
-            onChange={onChange}
-            placeholder={placeholder}
-            inserirRef={inserir}
-            renderizarBloco={renderizarBloco}
-            renderizarDesenho={renderizarDesenho}
-          />
-        </Suspense>
-      ) : (
-        textarea
-      )}
+
+      <Suspense
+        fallback={<div className="bg-muted/40 h-64 animate-pulse rounded-md" />}
+      >
+        <EditorRico
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          inserirRef={inserirRef}
+          renderizarBloco={renderizarBloco}
+          renderizarDesenho={renderizarDesenho}
+        />
+      </Suspense>
     </div>
   )
 }

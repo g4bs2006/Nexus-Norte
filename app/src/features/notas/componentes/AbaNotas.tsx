@@ -32,8 +32,9 @@ interface AbaNotasProps {
  * backlinks. Escrever numa aba dentro de um card dentro de uma página era o
  * que fazia a nota parecer um campo de ficha.
  *
- * Editar pelo diálogo continua existindo para o retoque rápido — corrigir uma
- * frase sem sair da matéria é fluxo real.
+ * Nada se edita aqui. O título e o lápis levam para a página; o diálogo só
+ * cria, e também leva. Um segundo lugar de escrita seria um segundo lugar para
+ * o autosave e o grafo divergirem.
  */
 export function AbaNotas({
   materiaId,
@@ -114,20 +115,21 @@ export function AbaNotas({
                           <Pin className="size-3.5" />
                         )}
                       </Button>
-                      <DialogNota
-                        materiaId={materiaId}
-                        nota={nota}
-                        trigger={
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-muted-foreground hover:text-foreground size-11 sm:size-7"
-                            aria-label="Editar nota"
-                          >
-                            <Pencil className="size-3.5" />
-                          </Button>
-                        }
-                      />
+                      {/*
+                        Editar é abrir a nota. O lápis leva para a página, que
+                        desde 14/08 é a superfície de escrita — antes ele abria
+                        um diálogo de 384px sobre esta mesma lista.
+                      */}
+                      <Button
+                        asChild
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-foreground size-11 sm:size-7"
+                      >
+                        <Link to={`/notas/${nota.slug}`} aria-label="Abrir nota">
+                          <Pencil className="size-3.5" />
+                        </Link>
+                      </Button>
                       <DialogConfirmarExclusao
                         titulo="Excluir nota"
                         mensagem={`"${nota.titulo}" será apagada. Quem aponta para ela fica com um link quebrado, e o texto do link continua lá.`}

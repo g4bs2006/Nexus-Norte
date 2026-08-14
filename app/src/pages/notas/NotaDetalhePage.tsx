@@ -1,36 +1,80 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
-import { PageHeader } from '@/components/PageHeader'
 import { SkeletonPagina } from '@/components/Skeletons'
+import { EditorMarkdown } from '@/components/EditorMarkdown'
+import { PageHeader } from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { useExcluirNota, useNota, useNotas } from '@/features/notas/hooks'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { buscarReferencias, salvarDesenho } from '@/features/notas/api'
+import {
+  useExcluirNota,
+  useNota,
+  useNotas,
+  useSalvarNota,
+} from '@/features/notas/hooks'
 import { ConteudoNota } from '@/features/notas/componentes/ConteudoNota'
-import { DialogNota } from '@/features/notas/componentes/DialogNota'
 import { PainelConhecimento } from '@/features/notas/componentes/PainelConhecimento'
+import {
+  renderizarBloco,
+  renderizarDesenho,
+} from '@/features/notas/componentes/renderizadores'
+import type { Json } from '@/types/database'
 
 /**
- * A nota em largura de leitura, com o painel de conhecimento ao lado.
+ * A nota. **A página é o editor.**
  *
- * Página, e não diálogo dentro de uma aba (spec 14/08, seção 9). Uma nota de
- * cinco anos de curso é o objeto principal do pilar; abrir em modal a mantinha
- * como acessório da matéria, e modal não tem endereço para linkar.
+ * Antes de 14/08 esta rota era só leitura, com um lápis que jogava de volta num
+ * diálogo de 384px — ler e escrever eram duas superfícies, e a de escrever era
+ * a menor. Agora são a mesma, separadas só pelo foco, como no Notion e no
+ * AFFiNE.
+ *
+ * **No celular só se lê** (decisão do spec). Ali entra `ConteudoNota`, que
+ * renderiza tudo e não carrega o ProseMirror — 458 kB que ninguém precisa
+ * baixar para consultar uma fórmula antes da aula.
+ *
+ * O botão de salvar é **provisório**: a fase 4 troca por autosave, e aí ele
+ * some. Está aqui para esta fase não deixar o sistema sem como gravar.
  */
 export default function NotaDetalhePage() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
+  const desktop = useMediaQuery('(min-width: 768px)')
 
   const nota = useNota(slug)
   const todas = useNotas()
+  const salvar = useSalvarNota()
   const excluir = useExcluirNota()
+
+  const [titulo, setTitulo] = useState('')
+  const [conteudo, setConteudo] = useState('')
+
+  const atual = nota.data ?? null
+
+  /*
+   * O rascunho é semeado do servidor UMA VEZ por nota.
+   *
+   * A guarda por id é o ponto: o objeto muda de identidade a cada refetch do
+   * React Query, e semear de novo apagaria o que estivesse sendo escrito no
+   * exato momento em que outra aba invalidasse o cache.
+   */
+  const carregada = useRef<string | null>(null)
+  useEffect(() => {
+    if (!atual || carregada.current === atual.id) return
+    carregada.current = atual.id
+    setTitulo(atual.titulo)
+    setConteudo(atual.conteudo)
+  }, [atual])
 
   /** Slugs que já existem, para o link a escrever se distinguir do resolvido. */
   const existentes = useMemo(
     () => new Set((todas.data ?? []).map((item) => item.slug)),
     [todas.data],
   )
+
+  const sujo =
+    atual !== null && (titulo !== atual.titulo || conteudo !== atual.conteudo)
 
   if (nota.isPending) {
     return (
@@ -43,10 +87,10 @@ export default function NotaDetalhePage() {
 
   /*
    * Slug sem nota não é erro: é o link quebrado do outro lado, e a resposta
-   * certa é oferecer escrever. Só que criar exige uma matéria, e esta rota não
-   * sabe qual — então manda para o índice, onde a escolha existe.
+   * certa é oferecer escrever. Criar exige uma matéria, e esta rota não sabe
+   * qual — então manda para o índice, onde a escolha existe.
    */
-  if (!nota.data) {
+  if (!atual) {
     return (
       <>
         <PageHeader
@@ -64,45 +108,90 @@ export default function NotaDetalhePage() {
     )
   }
 
-  const atual = nota.data
+  async function gravar() {
+    if (!atual) return
+    await salvar.mutateAsync({
+      id: atual.id,
+      materiaId: atual.materia_id,
+      titulo,
+      conteudo,
+    })
+  }
 
   return (
-    <>
-      <PageHeader
-        titulo={atual.titulo}
-        descricao={atual.materia_nome}
-        pilar="estudos"
-        acoes={
-          <div className="flex items-center gap-1">
-            <DialogNota materiaId={atual.materia_id} nota={atual} />
-            <DialogConfirmarExclusao
-              titulo="Excluir nota"
-              mensagem={`"${atual.titulo}" será apagada. Quem aponta para ela fica com um link quebrado, e o texto do link continua lá.`}
-              onConfirmar={async () => {
-                await excluir.mutateAsync(atual.id)
-                navigate('/notas')
-              }}
-              pendente={excluir.isPending}
-            />
-            <Button asChild variant="ghost" size="sm">
-              <Link to={`/estudos/${atual.materia_id}`}>
-                <ArrowLeft className="size-4" />
-                Matéria
-              </Link>
-            </Button>
-          </div>
-        }
-      />
+    <div className="mx-auto w-full max-w-[1100px]">
+      <div className="text-muted-foreground mb-4 flex items-center gap-2 text-xs">
+        <Link to={`/estudos/${atual.materia_id}`} className="hover:text-foreground">
+          {atual.materia_nome}
+        </Link>
+        <span aria-hidden>/</span>
+        <span className="text-foreground">{atual.titulo}</span>
 
-      <div className="surgir-grupo grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
-        <Card>
-          <CardContent>
-            <ConteudoNota conteudo={atual.conteudo} existentes={existentes} />
-          </CardContent>
-        </Card>
+        <div className="ml-auto flex items-center gap-1">
+          {desktop && (
+            <Button
+              type="button"
+              size="sm"
+              disabled={!sujo || salvar.isPending}
+              onClick={() => void gravar()}
+            >
+              {salvar.isPending ? 'Salvando…' : sujo ? 'Salvar' : 'Salvo'}
+            </Button>
+          )}
+          <DialogConfirmarExclusao
+            titulo="Excluir nota"
+            mensagem={`"${atual.titulo}" será apagada. Quem aponta para ela fica com um link quebrado, e o texto do link continua lá.`}
+            onConfirmar={async () => {
+              await excluir.mutateAsync(atual.id)
+              navigate('/notas')
+            }}
+            pendente={excluir.isPending}
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
+        <article className="min-w-0">
+          {desktop ? (
+            <>
+              {/*
+                Título como âncora do documento, não campo de formulário: sem
+                borda, sem rótulo, do tamanho de um H1. É o que faz a página
+                parecer documento em vez de ficha.
+              */}
+              <input
+                value={titulo}
+                onChange={(evento) => setTitulo(evento.target.value)}
+                aria-label="Título da nota"
+                placeholder="Sem título"
+                className="placeholder:text-muted-foreground/50 mb-4 w-full border-none bg-transparent text-3xl font-bold outline-none"
+              />
+              <EditorMarkdown
+                value={conteudo}
+                onChange={setConteudo}
+                placeholder="Escreva aqui…"
+                buscarReferencias={buscarReferencias}
+                renderizarBloco={renderizarBloco}
+                renderizarDesenho={renderizarDesenho}
+                onSalvarDesenho={(cena, svg) =>
+                  salvarDesenho({
+                    notaId: atual.id,
+                    cena: cena as unknown as Json,
+                    svg,
+                  })
+                }
+              />
+            </>
+          ) : (
+            <>
+              <h1 className="mb-4 text-2xl font-bold">{atual.titulo}</h1>
+              <ConteudoNota conteudo={atual.conteudo} existentes={existentes} />
+            </>
+          )}
+        </article>
 
         <PainelConhecimento notaId={atual.id} topicos={atual.topicos} />
       </div>
-    </>
+    </div>
   )
 }
