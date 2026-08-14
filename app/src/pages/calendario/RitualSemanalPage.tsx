@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { expandirRecorrencia } from '@/lib/recorrencia'
 import {
   corDoEvento,
+  eventosTreinoAgendado,
   resolverDonoFluxograma,
   type EventoCalendario,
 } from '@/features/calendario/eventos'
@@ -261,12 +262,11 @@ function PassoRotina({ intervalo, hojeISO }: PassoRotinaProps) {
   )
 
   const eventos: EventoCalendario[] = useMemo(
-    () =>
-      ocorrencias.map((ocorrencia) => {
+    () => [
+      ...ocorrencias.map((ocorrencia) => {
         const { nome, camada, tipo, rota, cor } = resolverDonoFluxograma(
           ocorrencia.regra,
           fontes.nomePorMateria,
-          fontes.nomePorTreino,
           fontes.corPorMateria,
         )
         return {
@@ -282,11 +282,18 @@ function PassoRotina({ intervalo, hojeISO }: PassoRotinaProps) {
           ...(cor ? { cor } : {}),
         }
       }),
+      // Treino tem data própria (chat 2026-08-14) — entra aqui só para
+      // conflito/sobrecarga verem o horário ocupado; não aparece na lista
+      // por dia abaixo, que é específica do fluxograma (aula/trabalho).
+      ...eventosTreinoAgendado(fontes.treinosAgendados, intervalo, fontes.nomePorTreino),
+    ],
     [
       ocorrencias,
       fontes.nomePorMateria,
       fontes.nomePorTreino,
       fontes.corPorMateria,
+      fontes.treinosAgendados,
+      intervalo,
     ],
   )
 
@@ -369,7 +376,6 @@ function PassoRotina({ intervalo, hojeISO }: PassoRotinaProps) {
                       const { nome, camada, cor } = resolverDonoFluxograma(
                         ocorrencia.regra,
                         fontes.nomePorMateria,
-                        fontes.nomePorTreino,
                         fontes.corPorMateria,
                       )
                       return (
@@ -434,16 +440,12 @@ function PassoEstudoTreino({
     [fontes.fluxograma, fontes.excecoes, intervalo],
   )
   const eventos = useMemo(
-    () =>
-      ocorrencias.map((o) => {
+    () => [
+      ...ocorrencias.map((o) => {
         // Só alimenta `cargaPorDia`, que soma minutos por camada — daí o título
         // vazio e a ausência de cor. Uma resolução por ocorrência: eram duas
         // chamadas idênticas, uma para `camada` e outra para `tipo`.
-        const { camada, tipo } = resolverDonoFluxograma(
-          o.regra,
-          fontes.nomePorMateria,
-          fontes.nomePorTreino,
-        )
+        const { camada, tipo } = resolverDonoFluxograma(o.regra, fontes.nomePorMateria)
         return {
           id: `f:${o.regra.id}:${o.data}`,
           titulo: '',
@@ -454,7 +456,11 @@ function PassoEstudoTreino({
           tipo,
         }
       }),
-    [ocorrencias, fontes.nomePorMateria, fontes.nomePorTreino],
+      // Treino tem data própria (chat 2026-08-14): sem ele aqui, o "minutos
+      // livres" do dia ignoraria um horário que já está ocupado de verdade.
+      ...eventosTreinoAgendado(fontes.treinosAgendados, intervalo, fontes.nomePorTreino),
+    ],
+    [ocorrencias, fontes.nomePorMateria, fontes.treinosAgendados, fontes.nomePorTreino, intervalo],
   )
   const dias = useMemo(
     () =>
@@ -566,7 +572,7 @@ function PassoEstudoTreino({
         ) : (
           <p className="text-muted-foreground text-xs">
             Nenhuma prova com meta cadastrada nesta semana para sugerir
-            encaixe. Treino segue pelo fluxograma normal.
+            encaixe. Treino é agendado direto em /treino ou pelo calendário.
           </p>
         )}
       </CardContent>

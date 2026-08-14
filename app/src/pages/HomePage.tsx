@@ -31,7 +31,7 @@ import {
   mesDeISO,
   paraISO,
 } from '@/lib/datas'
-import { expandirRecorrencia, ocorrenciasDoDia } from '@/lib/recorrencia'
+import { ocorrenciasDoDia } from '@/lib/recorrencia'
 import { canceladasDeHoje as derivarCanceladas } from '@/features/calendario/canceladas'
 import { useExcecoes, useFluxogramaLivre } from '@/features/fluxograma/hooks'
 import { cn } from '@/lib/utils'
@@ -63,9 +63,9 @@ import {
 import { frequenciaSemana } from '@/features/treino/calculos'
 import {
   useExecucoes,
-  useFluxogramaTreino,
   usePersonalRecords,
   useTreinos,
+  useTreinosAgendados,
 } from '@/features/treino/hooks'
 import {
   diasDesdeUltimaAtualizacao,
@@ -129,7 +129,9 @@ export default function HomePage() {
 
   // --- Treino ---------------------------------------------------------------
   const treinos = useTreinos()
-  const fluxogramaTreino = useFluxogramaTreino()
+  // Data própria (chat 2026-08-14) — a semana já contém hoje, mesmo padrão
+  // que a janela de exceções já usava para servir os dois cálculos.
+  const treinosAgendados = useTreinosAgendados(semana.de, semana.ate)
   const blocosLivres = useFluxogramaLivre()
   const execucoesSemana = useExecucoes(semana.de, semana.ate)
   const prs = usePersonalRecords()
@@ -149,10 +151,10 @@ export default function HomePage() {
   const concluirMeta = useConcluirMetaDoDia()
 
   /*
-   * Exceções do fluxograma (resolução 10.19). A janela da semana já contém
-   * hoje, então a mesma lista serve para os checks do dia e para a frequência —
-   * `expandirRecorrencia` filtra por regra e data internamente, e receber um
-   * superconjunto é inofensivo.
+   * Exceções do fluxograma (resolução 10.19) — hoje só aula usa. A janela da
+   * semana já contém hoje, então a mesma lista serve para os checks do dia e
+   * para as canceladas: `ocorrenciasDoDia` filtra por regra e data
+   * internamente, e receber um superconjunto é inofensivo.
    */
   const excecoes = useExcecoes(semana.de, semana.ate)
   const listaExcecoes = useMemo(() => excecoes.data ?? [], [excecoes.data])
@@ -217,13 +219,9 @@ export default function HomePage() {
   }, [materias.data, avaliacoes.data, faltas.data, hoje])
 
   const treino = useMemo(() => {
-    // Cancelado não conta como previsto: era o que fazia a frequência acusar
-    // falha numa semana de viagem
-    const previstos = expandirRecorrencia(
-      fluxogramaTreino.data ?? [],
-      semana,
-      listaExcecoes,
-    ).length
+    // Cada linha de `treinos_agendados` já é um dia real — sem exceção para
+    // filtrar, sem regra recorrente para expandir (chat 2026-08-14).
+    const previstos = (treinosAgendados.data ?? []).length
     const frequencia = frequenciaSemana(
       // Só finalizadas: a sessão nasce na primeira série e pode ser abandonada
       (execucoesSemana.data ?? []).filter(
@@ -257,14 +255,7 @@ export default function HomePage() {
       nomeExercicio,
       temDados: (treinos.data ?? []).length > 0,
     }
-  }, [
-    fluxogramaTreino.data,
-    semana,
-    listaExcecoes,
-    execucoesSemana.data,
-    prs.data,
-    treinos.data,
-  ])
+  }, [treinosAgendados.data, execucoesSemana.data, prs.data, treinos.data])
 
   const projetosResumo = useMemo(() => {
     const lista = projetos.data ?? []
@@ -306,19 +297,25 @@ export default function HomePage() {
     }
   }, [sonoOntem.data, planoSonoOntem.data])
 
-  /** Checks do dia: financeiro + aulas + treinos, em lista única (plano 7.1). */
-  /** Nomes de treino, usados pelos checks e pelo aviso de sessão em andamento. */
+  /** Nomes de treino, usados pelo aviso de sessão em andamento. */
   const nomePorTreinoHome = useMemo(
     () => new Map((treinos.data ?? []).map((item) => [item.id, item.nome])),
     [treinos.data],
   )
 
+  /**
+   * Checks do dia: só aulas (plano 7.1).
+   *
+   * Treino saiu daqui no chat 2026-08-14: com data própria em
+   * `treinos_agendados`, não há mais regra recorrente nem exceção para
+   * cruzar com este checklist — o "treino de hoje" e o cancelamento (excluir
+   * a linha) vivem em `/treino`.
+   */
   const checksFluxograma = useMemo(() => {
     const concluidos = new Set(conclusoes.data ?? [])
     const porMateria = new Map(
       (materias.data ?? []).map((materia) => [materia.id, materia]),
     )
-    const nomeTreino = nomePorTreinoHome
 
     const aulas: ItemCheckFluxograma[] = ocorrenciasDoDia(
       fluxogramaEstudos.data ?? [],
@@ -339,36 +336,16 @@ export default function HomePage() {
       }
     })
 
-    const treinosHoje: ItemCheckFluxograma[] = ocorrenciasDoDia(
-      fluxogramaTreino.data ?? [],
-      hojeISO,
-      listaExcecoes,
-    ).map((ocorrencia) => ({
-      fluxogramaId: ocorrencia.regra.id,
-      rotulo: nomeTreino.get(ocorrencia.regra.treino_id) ?? 'Treino',
-      horario: ocorrencia.regra.horario_inicio.slice(0, 5),
-      horarioFim: ocorrencia.regra.horario_fim.slice(0, 5),
-      concluido: concluidos.has(ocorrencia.regra.id),
-      remarcada: ocorrencia.remarcada,
-      dataExcecao: ocorrencia.dataOriginal ?? ocorrencia.data,
-    }))
-
-    return [...aulas, ...treinosHoje]
-  }, [
-    conclusoes.data,
-    materias.data,
-    nomePorTreinoHome,
-    fluxogramaEstudos.data,
-    fluxogramaTreino.data,
-    listaExcecoes,
-    hojeISO,
-  ])
+    return aulas
+  }, [conclusoes.data, materias.data, fluxogramaEstudos.data, listaExcecoes, hojeISO])
 
   /**
    * Canceladas de hoje, para continuarem listadas riscadas.
    *
    * Blocos livres entram junto: sem eles, cancelar o expediente por engano
-   * não tinha caminho de volta.
+   * não tinha caminho de volta. Treino não entra mais (chat 2026-08-14): sem
+   * regra recorrente, excluir a linha de `treinos_agendados` é o próprio
+   * cancelamento, sem rastro para desenhar aqui.
    */
   const canceladasDeHoje = useMemo(
     () =>
@@ -381,13 +358,6 @@ export default function HomePage() {
               (materias.data ?? []).find((m) => m.id === regra.materia_id)
                 ?.nome ?? 'Aula',
           })),
-          ...(fluxogramaTreino.data ?? []).map((regra) => ({
-            id: regra.id,
-            horario_inicio: regra.horario_inicio,
-            rotulo:
-              (treinos.data ?? []).find((t) => t.id === regra.treino_id)
-                ?.nome ?? 'Treino',
-          })),
           ...(blocosLivres.data ?? []).map((regra) => ({
             id: regra.id,
             horario_inicio: regra.horario_inicio,
@@ -397,15 +367,7 @@ export default function HomePage() {
         listaExcecoes,
         hojeISO,
       ),
-    [
-      listaExcecoes,
-      hojeISO,
-      fluxogramaEstudos.data,
-      fluxogramaTreino.data,
-      blocosLivres.data,
-      materias.data,
-      treinos.data,
-    ],
+    [listaExcecoes, hojeISO, fluxogramaEstudos.data, blocosLivres.data, materias.data],
   )
 
   /**

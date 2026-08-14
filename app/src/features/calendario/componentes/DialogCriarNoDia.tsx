@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
-import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -27,6 +26,7 @@ import { useCriarAvaliacao, useCriarSessao, useMaterias } from '@/features/estud
 import { useCriarMarco, useProjetos } from '@/features/projetos/hooks'
 import { useCriarFluxogramaLivre } from '@/features/fluxograma/hooks'
 import { useCriarEventoLivre } from '@/features/eventos/hooks'
+import { useCriarTreinoAgendado, useTreinos } from '@/features/treino/hooks'
 
 type Tipo = 'estudo' | 'treino' | 'trabalho' | 'marco' | 'avaliacao' | 'evento'
 
@@ -82,12 +82,12 @@ interface DialogCriarNoDiaProps {
  * resolvido a partir da data clicada — é o mesmo dado que `DialogFluxogramaLivre`
  * grava, só chegando por outra porta.
  *
- * "Treino" também é diferente, mas ao contrário dos outros: não tem um
- * recorte mínimo aqui. Uma execução de treino é baseada em séries e cargas
- * por exercício (`execucoes_treino` + `execucoes_exercicio`) — fabricar uma
- * execução vazia neste dialog seria um registro mentiroso, sem nenhuma série
- * de verdade. A opção existe para completar a lista do que o dia pode ter,
- * mas leva para `/treino`, onde o fluxo real (série a série) já existe.
+ * "Treino" grava em `treinos_agendados` (chat 2026-08-14): é a marcação, não
+ * a execução — série e carga continuam só em `/treino`, no fluxo real
+ * (`DialogExecucao`). Antes disto a opção só linkava para lá, porque a
+ * marcação vivia num padrão semanal (fluxograma) que não fazia sentido criar
+ * num formulário de um dia só; com data própria, o recorte mínimo passou a
+ * caber aqui como os outros.
  *
  * "Evento avulso" é o único caso que nasce só aqui: `eventos_calendario` não
  * pertence a nenhum pilar (resolução "criar eventos", ago/2026).
@@ -109,6 +109,7 @@ export function DialogCriarNoDia({ data, trigger }: DialogCriarNoDiaProps) {
   const [rotulo, setRotulo] = useState('')
   const [horarioInicio, setHorarioInicio] = useState('09:00')
   const [horarioFim, setHorarioFim] = useState('10:00')
+  const [treinoId, setTreinoId] = useState('')
   const [projetoId, setProjetoId] = useState('')
   const [nomeMarco, setNomeMarco] = useState('')
   const [nomeAvaliacao, setNomeAvaliacao] = useState('')
@@ -119,12 +120,14 @@ export function DialogCriarNoDia({ data, trigger }: DialogCriarNoDiaProps) {
 
   const materias = useMaterias()
   const projetos = useProjetos()
+  const treinos = useTreinos()
 
   const criarSessao = useCriarSessao()
   const criarFluxogramaLivre = useCriarFluxogramaLivre()
   const criarMarco = useCriarMarco()
   const criarAvaliacao = useCriarAvaliacao()
   const criarEvento = useCriarEventoLivre()
+  const criarTreinoAgendado = useCriarTreinoAgendado()
 
   function abrir(novoEstado: boolean) {
     setAberto(novoEstado)
@@ -136,7 +139,8 @@ export function DialogCriarNoDia({ data, trigger }: DialogCriarNoDiaProps) {
     criarFluxogramaLivre.isPending ||
     criarMarco.isPending ||
     criarAvaliacao.isPending ||
-    criarEvento.isPending
+    criarEvento.isPending ||
+    criarTreinoAgendado.isPending
 
   async function submeter() {
     if (tipo === 'evento') {
@@ -161,6 +165,14 @@ export function DialogCriarNoDia({ data, trigger }: DialogCriarNoDiaProps) {
       await criarFluxogramaLivre.mutateAsync({
         rotulo: rotulo.trim(),
         dia_semana: deISO(dataEditavel).getDay(),
+        horario_inicio: horarioInicio,
+        horario_fim: horarioFim,
+      })
+    } else if (tipo === 'treino') {
+      if (!treinoId || horarioFim <= horarioInicio) return
+      await criarTreinoAgendado.mutateAsync({
+        treino_id: treinoId,
+        data: dataEditavel,
         horario_inicio: horarioInicio,
         horario_fim: horarioFim,
       })
@@ -218,31 +230,23 @@ export function DialogCriarNoDia({ data, trigger }: DialogCriarNoDiaProps) {
             </Select>
           </div>
 
-          {tipo === 'treino' ? (
-            <p className="text-muted-foreground text-sm">
-              Um treino é uma sequência de séries por exercício — não dá para
-              criar isso a partir de um formulário rápido. Abra o Treino para
-              registrar a execução de verdade.
-            </p>
-          ) : (
-            <div className="space-y-1.5">
-              <Label>Data</Label>
-              <Input
-                type="date"
-                value={dataEditavel}
-                onChange={(e) => setDataEditavel(e.target.value)}
-              />
-              {tipo === 'trabalho' && (
-                <p className="text-muted-foreground text-[11px]">
-                  Bloco recorrente: vale toda{' '}
-                  {deISO(dataEditavel).toLocaleDateString('pt-BR', {
-                    weekday: 'long',
-                  })}
-                  , não só esta data.
-                </p>
-              )}
-            </div>
-          )}
+          <div className="space-y-1.5">
+            <Label>Data</Label>
+            <Input
+              type="date"
+              value={dataEditavel}
+              onChange={(e) => setDataEditavel(e.target.value)}
+            />
+            {tipo === 'trabalho' && (
+              <p className="text-muted-foreground text-[11px]">
+                Bloco recorrente: vale toda{' '}
+                {deISO(dataEditavel).toLocaleDateString('pt-BR', {
+                  weekday: 'long',
+                })}
+                , não só esta data.
+              </p>
+            )}
+          </div>
 
           {tipo === 'estudo' && (
             <>
@@ -291,6 +295,49 @@ export function DialogCriarNoDia({ data, trigger }: DialogCriarNoDiaProps) {
                   value={rotulo}
                   onChange={(e) => setRotulo(e.target.value)}
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Início</Label>
+                  <Input
+                    type="time"
+                    value={horarioInicio}
+                    onChange={(e) => setHorarioInicio(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Fim</Label>
+                  <Input
+                    type="time"
+                    value={horarioFim}
+                    onChange={(e) => setHorarioFim(e.target.value)}
+                  />
+                </div>
+              </div>
+            </>
+          )}
+
+          {tipo === 'treino' && (
+            <>
+              <div className="space-y-1.5">
+                <Label>Treino</Label>
+                <Select value={treinoId} onValueChange={setTreinoId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(treinos.data ?? []).map((treino) => (
+                      <SelectItem key={treino.id} value={treino.id}>
+                        {treino.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {(treinos.data ?? []).length === 0 && (
+                  <p className="text-muted-foreground text-[11px]">
+                    Nenhum treino cadastrado ainda — crie um em /treino.
+                  </p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
@@ -423,17 +470,9 @@ export function DialogCriarNoDia({ data, trigger }: DialogCriarNoDiaProps) {
         </div>
 
         <DialogFooter>
-          {tipo === 'treino' ? (
-            <Button asChild>
-              <Link to="/treino" onClick={() => setAberto(false)}>
-                Ir para Treino
-              </Link>
-            </Button>
-          ) : (
-            <Button onClick={() => void submeter()} disabled={pendente}>
-              {pendente ? 'Salvando…' : 'Criar'}
-            </Button>
-          )}
+          <Button onClick={() => void submeter()} disabled={pendente}>
+            {pendente ? 'Salvando…' : 'Criar'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

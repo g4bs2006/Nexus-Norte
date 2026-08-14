@@ -13,7 +13,6 @@ export const chaves = {
   prs: () => ['treino', 'prs'] as const,
   corporal: () => ['treino', 'corporal'] as const,
   lesoes: () => ['treino', 'lesoes'] as const,
-  fluxograma: () => ['treino', 'fluxograma'] as const,
   biblioteca: () => ['treino', 'biblioteca'] as const,
   tiposTreino: () => ['treino', 'tipos'] as const,
   execucaoAberta: () => ['treino', 'execucao-aberta'] as const,
@@ -21,6 +20,8 @@ export const chaves = {
     ['treino', 'execucao', id ?? 'nenhuma'] as const,
   pulados: (de?: string, ate?: string) =>
     ['treino', 'pulados', de ?? 'todas', ate ?? 'todas'] as const,
+  agendados: (de: string, ate: string) =>
+    ['treino', 'agendados', de, ate] as const,
 }
 
 // --- Leitura ----------------------------------------------------------------
@@ -83,10 +84,11 @@ export function useLesoes() {
   return useQuery({ queryKey: chaves.lesoes(), queryFn: api.listarLesoes })
 }
 
-export function useFluxogramaTreino() {
+/** Treinos marcados no intervalo — a data já vem gravada em cada linha. */
+export function useTreinosAgendados(de: string, ate: string) {
   return useQuery({
-    queryKey: chaves.fluxograma(),
-    queryFn: api.listarFluxogramaTreino,
+    queryKey: chaves.agendados(de, ate),
+    queryFn: () => api.listarTreinosAgendados(de, ate),
   })
 }
 
@@ -452,10 +454,24 @@ export function useExcluirLesao() {
   return useMutationTreino(api.excluirLesao, 'Lesão removida')
 }
 
-export function useCriarFluxogramaTreino() {
-  return useMutationTreino(api.criarFluxogramaTreino, 'Horário adicionado')
+export function useCriarTreinoAgendado() {
+  return useMutationTreino(api.criarTreinoAgendado, 'Treino agendado')
 }
 
-export function useExcluirFluxogramaTreino() {
-  return useMutationTreino(api.excluirFluxogramaTreino, 'Horário removido')
+/** Move data e/ou horário — usado pelo arrasto no Calendário. */
+export function useAtualizarTreinoAgendado() {
+  return useMutationTreino(
+    ({
+      id,
+      dados,
+    }: {
+      id: string
+      dados: Parameters<typeof api.atualizarTreinoAgendado>[1]
+    }) => api.atualizarTreinoAgendado(id, dados),
+    'Treino remarcado',
+  )
+}
+
+export function useExcluirTreinoAgendado() {
+  return useMutationTreino(api.excluirTreinoAgendado, 'Treino removido da agenda')
 }

@@ -56,9 +56,10 @@ const VAZIO: FormularioFluxogramaLivre = {
 
 /**
  * Bloco de trabalho — ou qualquer outro rótulo livre — no fluxograma
- * (resolução 10.48.0). Terceiro modo do mesmo padrão de `DialogFluxograma`
- * (matéria) e `DialogFluxogramaTreino`, trocando o Select de entidade por um
- * campo de texto: aqui não há dono, só um rótulo.
+ * (resolução 10.48.0). Mesmo padrão de `DialogFluxograma` (matéria), trocando
+ * o Select de entidade por um campo de texto: aqui não há dono, só um
+ * rótulo. Treino saiu deste padrão no chat 2026-08-14 — tem data própria em
+ * `treinos_agendados`, não mais uma regra semanal aqui.
  */
 export function DialogFluxogramaLivre({
   bloco,

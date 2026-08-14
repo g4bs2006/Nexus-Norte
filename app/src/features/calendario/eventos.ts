@@ -139,8 +139,8 @@ export interface EventoCalendario {
    * (spec 2026-08-13, seção 1).
    *
    * `'ocorrencia'` — grava uma exceção sem tocar a regra recorrente
-   * (fluxograma: aula, treino previsto, trabalho). `'entidade'` — grava
-   * direto na linha dona (sessão, evento avulso, marco, prova).
+   * (fluxograma: aula, trabalho). `'entidade'` — grava direto na linha
+   * dona (sessão, evento avulso, marco, prova, treino agendado).
    *
    * Ausente = não arrastável: conta (mudaria todos os meses), sono (mudaria
    * o dia da semana inteiro), o rastro de remarcação na origem (o que se
@@ -235,8 +235,7 @@ export interface FonteFluxograma {
   horario_inicio: string
   horario_fim: string
   materia_id: string | null
-  treino_id: string | null
-  /** Preenchido só quando nem `materia_id` nem `treino_id` estão (10.48.0). */
+  /** Preenchido só quando `materia_id` não está (10.48.0). */
   rotulo: string | null
 }
 
@@ -303,6 +302,19 @@ export interface FonteExecucaoTreino {
 }
 
 /**
+ * Treino marcado numa data concreta (chat 2026-08-14) — substitui a antiga
+ * entrada de treino no fluxograma semanal. Sem `dia_semana`: a data já é a
+ * própria ocorrência, sem recorrência para expandir.
+ */
+export interface FonteTreinoAgendado {
+  id: string
+  treino_id: string
+  data: string
+  horario_inicio: string
+  horario_fim: string
+}
+
+/**
  * Sessão de estudo registrada.
  *
  * `hora_inicio` é **informada pelo usuário** e opcional (13/08) — mesma regra de
@@ -325,6 +337,7 @@ export interface FontesCalendario {
   planejamentoSono: readonly FontePlanejamentoSono[]
   marcos: readonly FonteMarco[]
   execucoesTreino: readonly FonteExecucaoTreino[]
+  treinosAgendados: readonly FonteTreinoAgendado[]
   sessoesEstudo: readonly FonteSessaoEstudo[]
   eventosLivres: readonly FonteEventoLivre[]
   /** Rótulos para resolver os ids do fluxograma. */
@@ -380,8 +393,12 @@ export function eventosAvaliacoes(
 }
 
 /**
- * Aulas e treinos recorrentes, expandidos no cliente (resolução 10.5).
- * A camada sai de qual FK está preenchida — a tabela é compartilhada (10.6).
+ * Aulas recorrentes (e blocos de trabalho/rótulo livre), expandidas no
+ * cliente (resolução 10.5). A camada sai de qual FK está preenchida — a
+ * tabela é compartilhada com o bloco livre (10.6, 10.48.0).
+ *
+ * Treino não usa mais este caminho (chat 2026-08-14) — ver
+ * `eventosTreinoAgendado`.
  */
 /** Chave de reconciliação entre o treino previsto e o treino que aconteceu. */
 export function chaveTreinoData(treinoId: string, data: string): string {
@@ -398,21 +415,10 @@ export function eventosFluxograma(
   excecoes: readonly ExcecaoRecorrencia[],
   intervalo: Intervalo,
   nomePorMateria: ReadonlyMap<string, string>,
-  nomePorTreino: ReadonlyMap<string, string>,
-  /**
-   * Chaves `treinoId@data` que já têm execução registrada, para a ocorrência
-   * prevista **não** sair como segunda linha.
-   *
-   * Sem isso, todo dia em que o treino previsto foi feito mostraria duas linhas
-   * do mesmo treino — a prevista e a realizada. Quem sobrevive é a realizada,
-   * porque ela é o fato e carrega a hora que o usuário informou.
-   */
-  treinosFeitos: ReadonlySet<string> = new Set(),
   /**
    * Início/fim das aulas de cada matéria (discussão em uso, 06/08). Matéria
    * ausente do mapa, ou com os dois lados nulos, não tem limite — mesmo
-   * comportamento de antes desta resolução. Só se aplica a `ehAula`; treino
-   * não tem período aqui (o id não bate com nenhuma chave do mapa).
+   * comportamento de antes desta resolução.
    */
   periodoPorMateria: ReadonlyMap<string, PeriodoMateria> = new Map(),
   /** Cor própria por matéria; ausente cai na cor da camada. */
@@ -431,13 +437,6 @@ export function eventosFluxograma(
   feitosFluxograma: ReadonlySet<string> = new Set(),
 ): EventoCalendario[] {
   return expandirRecorrencia(fluxograma, intervalo, excecoes)
-    .filter(
-      (ocorrencia) =>
-        ocorrencia.regra.treino_id === null ||
-        !treinosFeitos.has(
-          chaveTreinoData(ocorrencia.regra.treino_id, ocorrencia.data),
-        ),
-    )
     .filter((ocorrencia) => {
       const materiaId = ocorrencia.regra.materia_id
       if (materiaId === null) return true
@@ -456,7 +455,6 @@ export function eventosFluxograma(
       const { nome, camada, tipo, rota, cor } = resolverDonoFluxograma(
         regra,
         nomePorMateria,
-        nomePorTreino,
         corPorMateria,
       )
 
@@ -484,22 +482,24 @@ export function eventosFluxograma(
 
 /**
  * Resolve nome/camada/tipo/rota a partir de qual "dono" a linha do
- * fluxograma tem — matéria, treino, ou nenhum (rótulo livre, 10.48.0).
+ * fluxograma tem — matéria, ou nenhum (rótulo livre, 10.48.0).
+ *
+ * Treino saiu daqui no chat 2026-08-14: passou a ter data própria em
+ * `treinos_agendados`, e não usa mais o fluxograma semanal.
  *
  * Trabalho não tem sub-página: `rota` fica `undefined` de propósito, o
  * modelo já prevê essa ausência.
  */
 export function resolverDonoFluxograma(
-  regra: Pick<FonteFluxograma, 'materia_id' | 'treino_id' | 'rotulo'>,
+  regra: Pick<FonteFluxograma, 'materia_id' | 'rotulo'>,
   nomePorMateria: ReadonlyMap<string, string>,
-  nomePorTreino: ReadonlyMap<string, string>,
   corPorMateria: ReadonlyMap<string, string | null> = new Map(),
 ): {
   nome: string
   camada: CamadaCalendario
   tipo: TipoEvento
   rota: string | undefined
-  /** Só matéria tem cor própria; treino e trabalho ficam na cor da camada. */
+  /** Só matéria tem cor própria; trabalho fica na cor da camada. */
   cor: string | undefined
 } {
   if (regra.materia_id !== null) {
@@ -509,16 +509,6 @@ export function resolverDonoFluxograma(
       tipo: 'aula',
       rota: `/estudos/${regra.materia_id}`,
       cor: corPorMateria.get(regra.materia_id) ?? undefined,
-    }
-  }
-  if (regra.treino_id !== null) {
-    return {
-      nome: nomePorTreino.get(regra.treino_id) ?? 'Treino',
-      camada: 'treino',
-      tipo: 'treino',
-      // Treino não tem sub-página própria; leva para a listagem do pilar
-      rota: '/treino',
-      cor: undefined,
     }
   }
   return {
@@ -570,6 +560,48 @@ export function eventosExecucoesTreino(
         ...(execucao.duracao_minutos !== null
           ? { minutos: execucao.duracao_minutos }
           : {}),
+      },
+    ]
+  })
+}
+
+/**
+ * Treinos agendados numa data concreta (chat 2026-08-14).
+ *
+ * Diferente de `eventosFluxograma`, não passa por `expandirRecorrencia`: a
+ * data já está na linha, não há regra semanal para expandir. `movimento` é
+ * `'entidade'`, não `'ocorrencia'` — mover na grade grava direto em
+ * `treinos_agendados`, sem exceção nenhuma envolvida.
+ */
+export function eventosTreinoAgendado(
+  agendados: readonly FonteTreinoAgendado[],
+  intervalo: Intervalo,
+  nomePorTreino: ReadonlyMap<string, string>,
+  /** Mesmo papel de `treinosFeitos` em `eventosFluxograma`: a execução real
+   * substitui a marcação prevista no mesmo dia. */
+  treinosFeitos: ReadonlySet<string> = new Set(),
+): EventoCalendario[] {
+  return agendados.flatMap((agendado) => {
+    if (agendado.data < intervalo.de || agendado.data > intervalo.ate) return []
+    if (treinosFeitos.has(chaveTreinoData(agendado.treino_id, agendado.data))) {
+      return []
+    }
+
+    const nome = nomePorTreino.get(agendado.treino_id) ?? 'Treino'
+
+    return [
+      {
+        id: `treino-agendado:${agendado.id}`,
+        origemId: agendado.id,
+        titulo: nome,
+        inicio: comHorario(agendado.data, agendado.horario_inicio),
+        fim: comHorario(agendado.data, agendado.horario_fim),
+        diaInteiro: false,
+        camada: 'treino' as const,
+        tipo: 'treino' as const,
+        rota: '/treino',
+        rotina: true,
+        movimento: 'entidade' as const,
       },
     ]
   })
@@ -678,7 +710,6 @@ export function eventosCancelados(
   excecoes: readonly ExcecaoRecorrencia[],
   intervalo: Intervalo,
   nomePorMateria: ReadonlyMap<string, string>,
-  nomePorTreino: ReadonlyMap<string, string>,
   corPorMateria: ReadonlyMap<string, string | null> = new Map(),
 ): EventoCalendario[] {
   const porId = new Map(fluxograma.map((regra) => [regra.id, regra]))
@@ -693,7 +724,6 @@ export function eventosCancelados(
     const { nome, camada, tipo, cor } = resolverDonoFluxograma(
       regra,
       nomePorMateria,
-      nomePorTreino,
       corPorMateria,
     )
 
@@ -736,7 +766,6 @@ export function eventosRemarcadosNaOrigem(
   excecoes: readonly ExcecaoRecorrencia[],
   intervalo: Intervalo,
   nomePorMateria: ReadonlyMap<string, string>,
-  nomePorTreino: ReadonlyMap<string, string>,
   corPorMateria: ReadonlyMap<string, string | null> = new Map(),
 ): EventoCalendario[] {
   const porId = new Map(fluxograma.map((regra) => [regra.id, regra]))
@@ -753,7 +782,6 @@ export function eventosRemarcadosNaOrigem(
     const { nome, camada, tipo, cor } = resolverDonoFluxograma(
       regra,
       nomePorMateria,
-      nomePorTreino,
       corPorMateria,
     )
 
@@ -938,11 +966,15 @@ export function construirEventos(
       fontes.excecoes,
       intervalo,
       fontes.nomePorMateria,
-      fontes.nomePorTreino,
-      treinosFeitos,
       fontes.periodoPorMateria,
       fontes.corPorMateria,
       new Set(fontes.conclusoes ?? []),
+    ),
+    ...eventosTreinoAgendado(
+      fontes.treinosAgendados,
+      intervalo,
+      fontes.nomePorTreino,
+      treinosFeitos,
     ),
     ...feitos,
     ...eventosSessoesEstudo(
@@ -956,7 +988,6 @@ export function construirEventos(
       fontes.excecoes,
       intervalo,
       fontes.nomePorMateria,
-      fontes.nomePorTreino,
       fontes.corPorMateria,
     ),
     ...eventosRemarcadosNaOrigem(
@@ -964,7 +995,6 @@ export function construirEventos(
       fontes.excecoes,
       intervalo,
       fontes.nomePorMateria,
-      fontes.nomePorTreino,
       fontes.corPorMateria,
     ),
     ...eventosContas(fontes.contas, intervalo),

@@ -49,17 +49,12 @@ export interface TipoTreinoComUso extends TipoTreino {
 }
 
 /**
- * Entrada de fluxograma que representa um TREINO.
+ * Treino marcado numa data concreta (chat 2026-08-14).
  *
- * A tabela é compartilhada com Estudos (resolução 10.6); este tipo estreita
- * `treino_id` para não-nulo nas consultas já filtradas.
+ * Substitui a antiga entrada de fluxograma (dia_semana recorrente): aqui
+ * `data` é um dia real, sem repetição implícita nas semanas seguintes.
  */
-export type FluxogramaTreino = Omit<
-  Tables<'fluxograma_semanal'>,
-  'treino_id'
-> & {
-  treino_id: string
-}
+export type TreinoAgendado = Tables<'treinos_agendados'>
 
 /**
  * Série executada com os dados do exercício, como vem do join usado pelas

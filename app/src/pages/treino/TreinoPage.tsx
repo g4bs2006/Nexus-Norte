@@ -1,13 +1,10 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Dumbbell } from 'lucide-react'
+import { Dumbbell, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
 import { EstadoVazio } from '@/components/EstadoVazio'
 import { SkeletonPagina } from '@/components/Skeletons'
-import {
-  GradeFluxograma,
-  type ItemFluxograma,
-} from '@/features/fluxograma/componentes/GradeFluxograma'
+import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
@@ -17,10 +14,7 @@ import {
 } from '@/components/ui/card'
 import { BarraProgresso } from '@/components/BarraProgresso'
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
-import { inicioSemana, paraISO } from '@/lib/datas'
-import { expandirRecorrencia } from '@/lib/recorrencia'
-import { useExcecoes } from '@/features/fluxograma/hooks'
-import { MenuOcorrencia } from '@/features/fluxograma/componentes/MenuOcorrencia'
+import { deISO, inicioSemana, paraISO } from '@/lib/datas'
 import { addDays } from 'date-fns'
 import {
   frequenciaSemana,
@@ -29,22 +23,22 @@ import {
 } from '@/features/treino/calculos'
 import {
   useExcluirExercicio,
-  useExcluirFluxogramaTreino,
   useExcluirTreino,
+  useExcluirTreinoAgendado,
   useExecucoes,
   useExercicios,
-  useFluxogramaTreino,
   usePersonalRecords,
   useLesoes,
   useRegistroCorporal,
   usePulados,
   useSeries,
   useTreinos,
+  useTreinosAgendados,
 } from '@/features/treino/hooks'
+import { DialogAgendarTreino } from '@/features/treino/componentes/DialogAgendarTreino'
 import { DialogBiblioteca } from '@/features/treino/componentes/DialogBiblioteca'
 import { DialogExecucao } from '@/features/treino/componentes/DialogExecucao'
 import { DialogExercicio } from '@/features/treino/componentes/DialogExercicio'
-import { DialogFluxogramaTreino } from '@/features/treino/componentes/DialogFluxogramaTreino'
 import { DialogTreino } from '@/features/treino/componentes/DialogTreino'
 import { SecaoCorporal } from '@/features/treino/componentes/SecaoCorporal'
 import { SecaoLesoes } from '@/features/treino/componentes/SecaoLesoes'
@@ -62,81 +56,65 @@ export default function TreinoPage() {
 
   const treinos = useTreinos()
   const exercicios = useExercicios()
-  const fluxograma = useFluxogramaTreino()
+  const agendados = useTreinosAgendados(semana.de, semana.ate)
   const execucoesSemana = useExecucoes(semana.de, semana.ate)
   const seriesSemana = useSeries(semana.de, semana.ate)
   const puladosSemana = usePulados(semana.de, semana.ate)
   const prs = usePersonalRecords()
   const corporal = useRegistroCorporal()
   const lesoes = useLesoes()
-  // A janela da semana cobre hoje: serve para o card do dia e para a frequência
-  const excecoes = useExcecoes(semana.de, semana.ate)
 
   const excluirTreino = useExcluirTreino()
   const excluirExercicio = useExcluirExercicio()
-  const excluirFluxograma = useExcluirFluxogramaTreino()
+  const excluirAgendado = useExcluirTreinoAgendado()
 
   const listaTreinos = useMemo(() => treinos.data ?? [], [treinos.data])
   const listaExercicios = useMemo(
     () => exercicios.data ?? [],
     [exercicios.data],
   )
-  const listaFluxograma = useMemo(
-    () => fluxograma.data ?? [],
-    [fluxograma.data],
-  )
-  const listaExcecoes = useMemo(() => excecoes.data ?? [], [excecoes.data])
+  const listaAgendados = useMemo(() => agendados.data ?? [], [agendados.data])
 
   const nomePorTreino = useMemo(
     () => new Map(listaTreinos.map((treino) => [treino.id, treino.nome])),
     [listaTreinos],
   )
-  /** Treinos previstos para hoje, derivados do fluxograma (plano 4.3). */
+
+  const treinoPorId = useMemo(
+    () => new Map(listaTreinos.map((treino) => [treino.id, treino])),
+    [listaTreinos],
+  )
+
+  /** Treinos agendados para hoje (chat 2026-08-14: data própria, sem regra semanal). */
   const treinosDeHoje = useMemo(() => {
-    const ocorrencias = expandirRecorrencia(
-      listaFluxograma,
-      { de: hojeISO, ate: hojeISO },
-      listaExcecoes,
-    )
-    return ocorrencias.flatMap((ocorrencia) => {
-      const treino = listaTreinos.find(
-        (item) => item.id === ocorrencia.regra.treino_id,
-      )
+    return listaAgendados.flatMap((agendado) => {
+      if (agendado.data !== hojeISO) return []
+      const treino = treinoPorId.get(agendado.treino_id)
       return treino
         ? [
             {
+              id: agendado.id,
               treino,
-              horario: ocorrencia.regra.horario_inicio,
-              horarioFim: ocorrencia.regra.horario_fim,
-              fluxogramaId: ocorrencia.regra.id,
-              remarcada: ocorrencia.remarcada,
-              // A exceção é identificada pela data de origem (10.19)
-              dataExcecao: ocorrencia.dataOriginal ?? ocorrencia.data,
+              horario: agendado.horario_inicio,
+              horarioFim: agendado.horario_fim,
             },
           ]
         : []
     })
-  }, [listaFluxograma, hojeISO, listaExcecoes, listaTreinos])
+  }, [listaAgendados, hojeISO, treinoPorId])
 
   /**
-   * Frequência da semana: execuções reais contra ocorrências previstas no
-   * fluxograma (resolução 10.17).
+   * Frequência da semana: execuções reais contra treinos agendados
+   * (resolução 10.17, adaptada ao chat 2026-08-14).
    */
   const frequencia = useMemo(() => {
-    // Cancelado sai do denominador: a frequência mede aderência ao que estava
-    // de pé, não ao padrão que a semana desmentiu
-    const previstos = expandirRecorrencia(
-      listaFluxograma,
-      semana,
-      listaExcecoes,
-    ).length
     // Só sessões finalizadas contam: a linha nasce na primeira série gravada, e
     // um treino abandonado no meio não é um treino feito (resolução 10.21)
     const realizados = (execucoesSemana.data ?? []).filter(
       (execucao) => execucao.finalizado_em !== null,
     ).length
-    return frequenciaSemana(realizados, previstos)
-  }, [listaFluxograma, semana, listaExcecoes, execucoesSemana.data])
+    return frequenciaSemana(realizados, listaAgendados.length)
+  }, [listaAgendados, execucoesSemana.data])
 
   const volume = useMemo(
     () => volumeGrupoMuscular(seriesSemana.data ?? []),
@@ -152,18 +130,6 @@ export default function TreinoPage() {
         puladosSemana.data ?? [],
       ),
     [seriesSemana.data, prs.data, puladosSemana.data],
-  )
-
-  const itensGrade: ItemFluxograma[] = useMemo(
-    () =>
-      listaFluxograma.map((item) => ({
-        id: item.id,
-        dia_semana: item.dia_semana,
-        horario_inicio: item.horario_inicio,
-        horario_fim: item.horario_fim,
-        rotulo: nomePorTreino.get(item.treino_id) ?? 'Treino',
-      })),
-    [listaFluxograma, nomePorTreino],
   )
 
   if (treinos.isPending) {
@@ -200,7 +166,7 @@ export default function TreinoPage() {
         acoes={
           <>
             <DialogBiblioteca />
-            <DialogFluxogramaTreino treinos={listaTreinos} />
+            <DialogAgendarTreino treinos={listaTreinos} />
             <DialogTreino />
           </>
         }
@@ -212,33 +178,31 @@ export default function TreinoPage() {
           classeCor="text-treino"
           classeFundo="bg-treino-soft"
           titulo="Monte o primeiro treino"
-          descricao="Crie o treino, adicione os exercícios e agende-o no fluxograma — é o fluxograma que define o treino de hoje e a frequência da semana."
+          descricao="Crie o treino, adicione os exercícios e agende-o numa data — é o agendamento que define o treino de hoje e a frequência da semana."
           acao={<DialogTreino />}
         />
       ) : (
         <div className="surgir-grupo space-y-6">
-          {/* Treino de hoje (plano 4.3) */}
+          {/* Treino de hoje (plano 4.3, com data própria desde o chat 2026-08-14) */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Treino de hoje</CardTitle>
-              <CardDescription>Derivado do fluxograma semanal.</CardDescription>
+              <CardDescription>Agendado nesta data.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {treinosDeHoje.length === 0 ? (
                 <p className="text-muted-foreground text-sm">
-                  Nenhum treino previsto para hoje.
+                  Nenhum treino agendado para hoje.
                 </p>
               ) : (
-                treinosDeHoje.map((previsto) => {
-                  const { treino, horario } = previsto
-                  const doTreino = listaExercicios.filter
-                    ? listaExercicios.filter(
-                        (item) => item.treino_id === treino.id,
-                      )
-                    : []
+                treinosDeHoje.map((agendado) => {
+                  const { treino, horario } = agendado
+                  const doTreino = listaExercicios.filter(
+                    (item) => item.treino_id === treino.id,
+                  )
                   return (
                     <div
-                      key={treino.id}
+                      key={agendado.id}
                       className="border-border flex flex-wrap items-center justify-between gap-3 rounded-md border p-3"
                     >
                       <div className="min-w-0">
@@ -248,11 +212,6 @@ export default function TreinoPage() {
                           <span className="text-muted-foreground text-xs tabular-nums">
                             {horario.slice(0, 5)}
                           </span>
-                          {previsto.remarcada && (
-                            <span className="text-status-atencao text-xs">
-                              remarcado
-                            </span>
-                          )}
                         </p>
                         <p className="text-muted-foreground text-xs">
                           {doTreino.length === 0
@@ -267,18 +226,19 @@ export default function TreinoPage() {
                           hoje={hoje}
                         />
                         {/*
-                          Mesmo menu do check na Home: viajou, lesionou, mudou o
-                          horário da academia — resolve na data, sem mexer no
-                          padrão da semana.
+                          Cancelar hoje é excluir a linha: sem regra semanal
+                          por baixo, não há padrão para "voltar a seguir".
                         */}
-                        <MenuOcorrencia
-                          fluxogramaId={previsto.fluxogramaId}
-                          data={previsto.dataExcecao}
-                          rotulo={treino.nome}
-                          horarioInicio={previsto.horario.slice(0, 5)}
-                          horarioFim={previsto.horarioFim.slice(0, 5)}
-                          remarcada={previsto.remarcada}
-                        />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="text-muted-foreground size-8"
+                          onClick={() => excluirAgendado.mutate(agendado.id)}
+                          disabled={excluirAgendado.isPending}
+                          title="Remover da agenda"
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
                       </div>
                     </div>
                   )
@@ -310,7 +270,7 @@ export default function TreinoPage() {
               </div>
               {frequencia.percentual === null ? (
                 <p className="text-muted-foreground text-xs">
-                  Agende treinos no fluxograma para acompanhar a aderência.
+                  Agende treinos nesta semana para acompanhar a aderência.
                 </p>
               ) : (
                 <BarraProgresso
@@ -476,22 +436,50 @@ export default function TreinoPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Fluxograma semanal</CardTitle>
+              <CardTitle className="text-base">Agenda da semana</CardTitle>
               <CardDescription>
-                Treinos planejados — fonte única da frequência.
+                Treinos marcados nesta semana — fonte única da frequência.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {itensGrade.length === 0 ? (
+              {listaAgendados.length === 0 ? (
                 <p className="text-muted-foreground text-sm">
-                  Nenhum horário cadastrado. Use "Horário" para adicionar.
+                  Nenhum treino agendado. Use "Agendar" para marcar um.
                 </p>
               ) : (
-                <GradeFluxograma
-                  itens={itensGrade}
-                  classeCorPadrao="bg-treino"
-                  onExcluir={(id) => excluirFluxograma.mutate(id)}
-                />
+                <ul className="divide-border divide-y">
+                  {listaAgendados.map((agendado) => (
+                    <li
+                      key={agendado.id}
+                      className="flex items-center justify-between gap-3 py-2 text-sm first:pt-0 last:pb-0"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium">
+                          {nomePorTreino.get(agendado.treino_id) ?? 'Treino'}
+                        </p>
+                        <p className="text-muted-foreground text-xs tabular-nums capitalize">
+                          {deISO(agendado.data).toLocaleDateString('pt-BR', {
+                            weekday: 'short',
+                            day: '2-digit',
+                            month: '2-digit',
+                          })}{' '}
+                          · {agendado.horario_inicio.slice(0, 5)}–
+                          {agendado.horario_fim.slice(0, 5)}
+                        </p>
+                      </div>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="text-muted-foreground size-8 shrink-0"
+                        onClick={() => excluirAgendado.mutate(agendado.id)}
+                        disabled={excluirAgendado.isPending}
+                        title="Remover da agenda"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
               )}
             </CardContent>
           </Card>

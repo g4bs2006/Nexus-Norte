@@ -22,6 +22,8 @@ export const chaves = {
   marcos: () => ['calendario', 'marcos'] as const,
   execucoesTreino: (de: string, ate: string) =>
     ['calendario', 'execucoes-treino', de, ate] as const,
+  treinosAgendados: (de: string, ate: string) =>
+    ['calendario', 'treinos-agendados', de, ate] as const,
   sessoesEstudo: (de: string, ate: string) =>
     ['calendario', 'sessoes-estudo', de, ate] as const,
   eventosLivres: (de: string, ate: string) =>
@@ -90,6 +92,11 @@ export function useFontesCalendario(
     queryKey: chaves.execucoesTreino(de, ate),
     queryFn: () => api.execucoesTreinoNoIntervalo(de, ate),
   })
+  /** Treino agendado numa data concreta (chat 2026-08-14). */
+  const treinosAgendados = useQuery({
+    queryKey: chaves.treinosAgendados(de, ate),
+    queryFn: () => api.treinosAgendadosNoIntervalo(de, ate),
+  })
   const sessoesEstudo = useQuery({
     queryKey: chaves.sessoesEstudo(de, ate),
     queryFn: () => api.sessoesEstudoNoIntervalo(de, ate),
@@ -141,6 +148,7 @@ export function useFontesCalendario(
     sono,
     marcos,
     execucoesTreino,
+    treinosAgendados,
     sessoesEstudo,
     eventosLivres,
     materias,
@@ -157,6 +165,7 @@ export function useFontesCalendario(
       planejamentoSono: sono.data ?? [],
       marcos: marcos.data ?? [],
       execucoesTreino: execucoesTreino.data ?? [],
+      treinosAgendados: treinosAgendados.data ?? [],
       sessoesEstudo: sessoesEstudo.data ?? [],
       eventosLivres: eventosLivres.data ?? [],
       nomePorMateria: mapasMateria.nomePorMateria,

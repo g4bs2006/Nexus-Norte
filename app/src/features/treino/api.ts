@@ -6,12 +6,12 @@ import type {
   ExercicioBaseComUso,
   ExercicioComBase,
   ExercicioPulado,
-  FluxogramaTreino,
   PersonalRecordComNome,
   RegistroCorporal,
   RegistroLesao,
   SerieExecutada,
   TipoTreinoComUso,
+  TreinoAgendado,
   TreinoComTipo,
 } from './types'
 
@@ -593,29 +593,50 @@ export async function excluirLesao(id: string): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
-// --- Fluxograma de treinos --------------------------------------------------
+// --- Treinos agendados (data concreta, chat 2026-08-14) ---------------------
 
-/** Só as entradas de treino — a tabela é compartilhada com Estudos (10.6). */
-export async function listarFluxogramaTreino(): Promise<FluxogramaTreino[]> {
+/**
+ * Agendados num intervalo de datas — substitui a antiga leitura do
+ * fluxograma (dia_semana). Sem intervalo não há como paginar: a tabela cresce
+ * um pouco a cada treino marcado, então quem lê sempre recorta por período
+ * (a semana corrente, no caso da página de Treino).
+ */
+export async function listarTreinosAgendados(
+  de: string,
+  ate: string,
+): Promise<TreinoAgendado[]> {
   const resultado = await supabase
-    .from('fluxograma_semanal')
+    .from('treinos_agendados')
     .select('*')
-    .not('treino_id', 'is', null)
-    .order('dia_semana')
+    .gte('data', de)
+    .lte('data', ate)
+    .order('data')
     .order('horario_inicio')
-  return lancarSeErro(resultado) as FluxogramaTreino[]
+  return lancarSeErro(resultado) as TreinoAgendado[]
 }
 
-export async function criarFluxogramaTreino(
-  dados: TablesInsert<'fluxograma_semanal'>,
+export async function criarTreinoAgendado(
+  dados: TablesInsert<'treinos_agendados'>,
 ): Promise<void> {
-  const { error } = await supabase.from('fluxograma_semanal').insert(dados)
+  const { error } = await supabase.from('treinos_agendados').insert(dados)
   if (error) throw new Error(error.message)
 }
 
-export async function excluirFluxogramaTreino(id: string): Promise<void> {
+/** Move a data e/ou o horário — mesmo caminho do arrasto no Calendário. */
+export async function atualizarTreinoAgendado(
+  id: string,
+  dados: TablesUpdate<'treinos_agendados'>,
+): Promise<void> {
   const { error } = await supabase
-    .from('fluxograma_semanal')
+    .from('treinos_agendados')
+    .update(dados)
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+export async function excluirTreinoAgendado(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('treinos_agendados')
     .delete()
     .eq('id', id)
   if (error) throw new Error(error.message)

@@ -7,6 +7,7 @@ import type {
   FonteMarco,
   FontePlanejamentoSono,
   FonteSessaoEstudo,
+  FonteTreinoAgendado,
 } from './eventos'
 import type { FonteSonoRealizado } from './carga'
 
@@ -27,13 +28,16 @@ export async function avaliacoesComData(): Promise<FonteAvaliacao[]> {
   return data ?? []
 }
 
-/** Aulas e treinos — a tabela é compartilhada (resolução 10.6). */
+/**
+ * Aulas e blocos de trabalho/rótulo livre — a tabela é compartilhada
+ * (resolução 10.6, 10.48.0).
+ *
+ * Treino não lê mais daqui (chat 2026-08-14): ver `treinosAgendadosNoIntervalo`.
+ */
 export async function fluxogramaCompleto(): Promise<FonteFluxograma[]> {
   const { data, error } = await supabase
     .from('fluxograma_semanal')
-    .select(
-      'id, dia_semana, horario_inicio, horario_fim, materia_id, treino_id, rotulo',
-    )
+    .select('id, dia_semana, horario_inicio, horario_fim, materia_id, rotulo')
     .order('dia_semana')
   if (error) throw new Error(error.message)
   return data ?? []
@@ -155,6 +159,23 @@ export async function execucoesTreinoNoIntervalo(
   const { data, error } = await supabase
     .from('execucoes_treino')
     .select('id, treino_id, data, finalizado_em, hora_inicio, duracao_minutos')
+    .gte('data', de)
+    .lte('data', ate)
+  if (error) throw new Error(error.message)
+  return data ?? []
+}
+
+/**
+ * Treinos agendados no intervalo (chat 2026-08-14) — cada linha já tem a
+ * própria data, sem regra semanal para expandir.
+ */
+export async function treinosAgendadosNoIntervalo(
+  de: string,
+  ate: string,
+): Promise<FonteTreinoAgendado[]> {
+  const { data, error } = await supabase
+    .from('treinos_agendados')
+    .select('id, treino_id, data, horario_inicio, horario_fim')
     .gte('data', de)
     .lte('data', ate)
   if (error) throw new Error(error.message)

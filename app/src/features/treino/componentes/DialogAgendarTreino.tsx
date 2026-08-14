@@ -19,58 +19,88 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { DIAS_SEMANA } from '@/lib/constants'
-import { ORDEM_DIAS_SEMANA as ORDEM_DIAS } from '@/lib/fluxograma'
-import { useCriarFluxogramaTreino } from '../hooks'
+import { paraISO } from '@/lib/datas'
+import { useCriarTreinoAgendado } from '../hooks'
 import type { Treino } from '../types'
 
-interface DialogFluxogramaTreinoProps {
+interface DialogAgendarTreinoProps {
   treinos: readonly Treino[]
+  /** Data pré-preenchida, ISO. Sem ela, começa em hoje. */
+  dataInicial?: string
+  /**
+   * Controle externo do aberto/fechado — usado quando este diálogo nasce de
+   * dentro de outro (ex.: "Adicionar ao dia" do Calendário). Sem eles, o
+   * diálogo controla o próprio estado com o gatilho padrão.
+   */
+  open?: boolean
+  onOpenChange?: (aberto: boolean) => void
+  /** `null` esconde o gatilho padrão — quem abre de fora não precisa dele. */
+  trigger?: React.ReactNode | null
+  onCriado?: () => void
 }
 
 /**
- * Agenda um treino recorrente no fluxograma.
+ * Agenda um treino numa data concreta (chat 2026-08-14).
  *
- * O fluxograma é a fonte única do que estava planejado na semana (resolução
- * 10.17) — é ele que alimenta o card "treino de hoje" e o cálculo de frequência.
+ * Antes disto o treino nascia no fluxograma semanal (dia_semana) e se
+ * repetia toda semana, sem jeito de marcar só um dia. Aqui cada agendamento é
+ * uma linha de `treinos_agendados` com data própria — repetir significa abrir
+ * este diálogo de novo, não uma regra recorrente por baixo.
  */
-export function DialogFluxogramaTreino({
+export function DialogAgendarTreino({
   treinos,
-}: DialogFluxogramaTreinoProps) {
-  const [aberto, setAberto] = useState(false)
-  const criar = useCriarFluxogramaTreino()
+  dataInicial,
+  open,
+  onOpenChange,
+  trigger,
+  onCriado,
+}: DialogAgendarTreinoProps) {
+  const [abertoInterno, setAbertoInterno] = useState(false)
+  const aberto = open ?? abertoInterno
+  const setAberto = onOpenChange ?? setAbertoInterno
+
+  const criar = useCriarTreinoAgendado()
 
   const [treinoId, setTreinoId] = useState('')
-  const [dia, setDia] = useState('1')
+  const [data, setData] = useState(dataInicial ?? paraISO(new Date()))
   const [inicio, setInicio] = useState('18:00')
   const [fim, setFim] = useState('19:30')
+
+  function abrir(novoEstado: boolean) {
+    setAberto(novoEstado)
+    if (novoEstado) setData(dataInicial ?? paraISO(new Date()))
+  }
 
   async function submeter() {
     if (treinoId === '' || fim <= inicio) return
     await criar.mutateAsync({
       treino_id: treinoId,
-      dia_semana: Number(dia),
+      data,
       horario_inicio: inicio,
       horario_fim: fim,
     })
     setTreinoId('')
     setAberto(false)
+    onCriado?.()
   }
 
   return (
-    <Dialog open={aberto} onOpenChange={setAberto}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="secondary" disabled={treinos.length === 0}>
-          <Plus className="size-4" />
-          Horário
-        </Button>
-      </DialogTrigger>
+    <Dialog open={aberto} onOpenChange={abrir}>
+      {trigger !== null && (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button size="sm" variant="secondary" disabled={treinos.length === 0}>
+              <Plus className="size-4" />
+              Agendar
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Treino no fluxograma</DialogTitle>
+          <DialogTitle>Agendar treino</DialogTitle>
           <DialogDescription>
-            Define o que estava previsto na semana — base do card "treino de
-            hoje" e da frequência.
+            Marca o treino só nesta data — sem repetir nas semanas seguintes.
           </DialogDescription>
         </DialogHeader>
 
@@ -92,35 +122,24 @@ export function DialogFluxogramaTreino({
           </div>
 
           <div className="space-y-1.5">
-            <Label>Dia da semana</Label>
-            <Select value={dia} onValueChange={setDia}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ORDEM_DIAS.map((valor) => (
-                  <SelectItem key={valor} value={String(valor)}>
-                    {DIAS_SEMANA[valor]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Data</Label>
+            <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="flx-inicio">Início</Label>
+              <Label htmlFor="agenda-inicio">Início</Label>
               <Input
-                id="flx-inicio"
+                id="agenda-inicio"
                 type="time"
                 value={inicio}
                 onChange={(evento) => setInicio(evento.target.value)}
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="flx-fim">Fim</Label>
+              <Label htmlFor="agenda-fim">Fim</Label>
               <Input
-                id="flx-fim"
+                id="agenda-fim"
                 type="time"
                 value={fim}
                 onChange={(evento) => setFim(evento.target.value)}
@@ -136,7 +155,7 @@ export function DialogFluxogramaTreino({
 
         <DialogFooter>
           <Button onClick={() => void submeter()} disabled={criar.isPending}>
-            {criar.isPending ? 'Salvando…' : 'Adicionar'}
+            {criar.isPending ? 'Salvando…' : 'Agendar'}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -13,11 +13,13 @@ import {
   eventosRemarcadosNaOrigem,
   eventosSessoesEstudo,
   eventosSono,
+  eventosTreinoAgendado,
   eventosComPrazo,
   ehBlocoCheio,
   ehImportante,
   idRealEntidade,
   precisaConfirmarMovimento,
+  chaveTreinoData,
   type EventoCalendario,
   type FontesCalendario,
 } from './eventos'
@@ -80,16 +82,6 @@ describe('eventosFluxograma', () => {
     horario_inicio: '08:00:00',
     horario_fim: '10:00:00',
     materia_id: 'm1',
-    treino_id: null,
-    rotulo: null,
-  }
-  const treino = {
-    id: 'f2',
-    dia_semana: 3,
-    horario_inicio: '18:00:00',
-    horario_fim: '19:30:00',
-    materia_id: null,
-    treino_id: 't1',
     rotulo: null,
   }
   const trabalho = {
@@ -98,17 +90,16 @@ describe('eventosFluxograma', () => {
     horario_inicio: '09:00:00',
     horario_fim: '18:00:00',
     materia_id: null,
-    treino_id: null,
     rotulo: 'Escritório',
   }
 
   it('marca rotina: true — e o que separa previsto de registrado na carga', () => {
-    const [evento] = eventosFluxograma([aula], [], SEMANA, MATERIAS, TREINOS)
+    const [evento] = eventosFluxograma([aula], [], SEMANA, MATERIAS)
     expect(evento?.rotina).toBe(true)
   })
 
   it('sem conclusoes, a rotina toda sai como prevista', () => {
-    const [evento] = eventosFluxograma([aula], [], SEMANA, MATERIAS, TREINOS)
+    const [evento] = eventosFluxograma([aula], [], SEMANA, MATERIAS)
     expect(evento?.estado).toBeUndefined()
   })
 
@@ -118,8 +109,6 @@ describe('eventosFluxograma', () => {
       [],
       SEMANA,
       MATERIAS,
-      TREINOS,
-      new Set(),
       new Map(),
       new Map(),
       new Set(['f1@2026-08-03']),
@@ -136,8 +125,6 @@ describe('eventosFluxograma', () => {
       [],
       SEMANA,
       MATERIAS,
-      TREINOS,
-      new Set(),
       new Map(),
       new Map(),
       new Set(['f1@2026-08-10']),
@@ -146,29 +133,8 @@ describe('eventosFluxograma', () => {
     expect(evento?.estado).toBeUndefined()
   })
 
-  it('classifica a camada pela FK preenchida', () => {
-    const eventos = eventosFluxograma(
-      [aula, treino],
-      [],
-      SEMANA,
-      MATERIAS,
-      TREINOS,
-    )
-
-    expect(eventos.map((e) => [e.titulo, e.camada])).toEqual([
-      ['Cálculo II', 'estudos'],
-      ['Treino A', 'treino'],
-    ])
-  })
-
   it('sem nenhuma FK preenchida, usa o rótulo livre — camada trabalho, sem rota (resolução 10.48.0)', () => {
-    const eventos = eventosFluxograma(
-      [trabalho],
-      [],
-      SEMANA,
-      MATERIAS,
-      TREINOS,
-    )
+    const eventos = eventosFluxograma([trabalho], [], SEMANA, MATERIAS)
 
     expect(eventos).toHaveLength(1)
     expect(eventos[0]?.titulo).toBe('Escritório')
@@ -178,7 +144,7 @@ describe('eventosFluxograma', () => {
   })
 
   it('monta horários ISO com data e hora', () => {
-    const eventos = eventosFluxograma([aula], [], SEMANA, MATERIAS, TREINOS)
+    const eventos = eventosFluxograma([aula], [], SEMANA, MATERIAS)
 
     expect(eventos[0]?.inicio).toBe('2026-08-03T08:00:00')
     expect(eventos[0]?.fim).toBe('2026-08-03T10:00:00')
@@ -191,7 +157,6 @@ describe('eventosFluxograma', () => {
       [{ fluxograma_id: 'f1', data: '2026-08-03', status: 'cancelado' }],
       SEMANA,
       MATERIAS,
-      TREINOS,
     )
     expect(eventos).toEqual([])
   })
@@ -209,7 +174,6 @@ describe('eventosFluxograma', () => {
       ],
       SEMANA,
       MATERIAS,
-      TREINOS,
     )
 
     expect(eventos).toHaveLength(1)
@@ -234,7 +198,6 @@ describe('eventosFluxograma', () => {
       ],
       SEMANA,
       MATERIAS,
-      TREINOS,
     )
 
     expect(eventos[0]?.inicio).toContain('14:00')
@@ -256,7 +219,6 @@ describe('eventosFluxograma', () => {
       ],
       { de: '2026-08-03', ate: '2026-08-16' },
       MATERIAS,
-      TREINOS,
     )
 
     const ids = eventos.map((evento) => evento.id)
@@ -270,8 +232,6 @@ describe('eventosFluxograma', () => {
         [],
         SEMANA,
         MATERIAS,
-        TREINOS,
-        new Set(),
         new Map([['m1', { data_inicio: '2026-08-04', data_fim: null }]]),
       )
       // A única ocorrência de `aula` na semana é 03/08 (segunda) — antes do início
@@ -284,8 +244,6 @@ describe('eventosFluxograma', () => {
         [],
         SEMANA,
         MATERIAS,
-        TREINOS,
-        new Set(),
         new Map([['m1', { data_inicio: null, data_fim: '2026-08-02' }]]),
       )
       expect(eventos).toEqual([])
@@ -297,8 +255,6 @@ describe('eventosFluxograma', () => {
         [],
         SEMANA,
         MATERIAS,
-        TREINOS,
-        new Set(),
         new Map([
           ['m1', { data_inicio: '2026-08-01', data_fim: '2026-08-31' }],
         ]),
@@ -312,26 +268,54 @@ describe('eventosFluxograma', () => {
         [],
         SEMANA,
         MATERIAS,
-        TREINOS,
-        new Set(),
         new Map(), // m1 não está aqui — sem período, sem limite
       )
       expect(eventos).toHaveLength(1)
     })
+  })
+})
 
-    it('não afeta treino, que não tem materia_id', () => {
-      const eventos = eventosFluxograma(
-        [treino],
-        [],
+describe('eventosTreinoAgendado', () => {
+  const agendado = {
+    id: 'ta1',
+    treino_id: 't1',
+    data: '2026-08-05',
+    horario_inicio: '18:00:00',
+    horario_fim: '19:30:00',
+  }
+
+  it('monta o evento a partir da data própria, sem regra semanal', () => {
+    const [evento] = eventosTreinoAgendado([agendado], SEMANA, TREINOS)
+
+    expect(evento?.titulo).toBe('Treino A')
+    expect(evento?.camada).toBe('treino')
+    expect(evento?.tipo).toBe('treino')
+    expect(evento?.inicio).toBe('2026-08-05T18:00:00')
+    expect(evento?.fim).toBe('2026-08-05T19:30:00')
+    expect(evento?.rotina).toBe(true)
+    expect(evento?.movimento).toBe('entidade')
+  })
+
+  it('ignora agendado fora do intervalo', () => {
+    expect(
+      eventosTreinoAgendado(
+        [{ ...agendado, data: '2026-09-01' }],
         SEMANA,
-        MATERIAS,
         TREINOS,
-        new Set(),
-        new Map([['t1', { data_inicio: '2099-01-01', data_fim: null }]]),
-      )
-      // A chave 't1' não é um materia_id — o filtro nunca olha para ela
-      expect(eventos).toHaveLength(1)
-    })
+      ),
+    ).toEqual([])
+  })
+
+  it('cede lugar à execução realizada no mesmo dia', () => {
+    const feitos = new Set([chaveTreinoData('t1', '2026-08-05')])
+    expect(eventosTreinoAgendado([agendado], SEMANA, TREINOS, feitos)).toEqual(
+      [],
+    )
+  })
+
+  it('usa "Treino" quando o nome não é conhecido', () => {
+    const [evento] = eventosTreinoAgendado([agendado], SEMANA, new Map())
+    expect(evento?.titulo).toBe('Treino')
   })
 })
 
@@ -557,7 +541,6 @@ describe('construirEventos', () => {
           horario_inicio: '08:00:00',
           horario_fim: '10:00:00',
           materia_id: 'm1',
-          treino_id: null,
           rotulo: null,
         },
       ],
@@ -592,6 +575,7 @@ describe('construirEventos', () => {
         },
       ],
       execucoesTreino: [],
+      treinosAgendados: [],
       sessoesEstudo: [],
       eventosLivres: [],
       nomePorMateria: MATERIAS,
@@ -616,6 +600,7 @@ describe('construirEventos', () => {
       planejamentoSono: [],
       marcos: [],
       execucoesTreino: [],
+      treinosAgendados: [],
       sessoesEstudo: [],
       eventosLivres: [],
       nomePorMateria: new Map(),
@@ -647,8 +632,10 @@ describe('tipo e rota dos eventos', () => {
     expect(eventos[0]?.rota).toBe('/estudos/m1')
   })
 
-  it('separa aula de treino pelo tipo, não só pela camada', () => {
-    const eventos = eventosFluxograma(
+  it('aula aponta para a matéria; treino não tem sub-página própria', () => {
+    const intervalo = { de: '2026-08-03', ate: '2026-08-03' }
+
+    const [aula] = eventosFluxograma(
       [
         {
           id: 'f1',
@@ -656,30 +643,29 @@ describe('tipo e rota dos eventos', () => {
           horario_inicio: '08:00:00',
           horario_fim: '10:00:00',
           materia_id: 'm1',
-          treino_id: null,
-          rotulo: null,
-        },
-        {
-          id: 'f2',
-          dia_semana: 1,
-          horario_inicio: '19:00:00',
-          horario_fim: '20:00:00',
-          materia_id: null,
-          treino_id: 't1',
           rotulo: null,
         },
       ],
       [],
-      { de: '2026-08-03', ate: '2026-08-03' },
+      intervalo,
       MATERIAS,
+    )
+    expect([aula?.tipo, aula?.rota]).toEqual(['aula', '/estudos/m1'])
+
+    const [treino] = eventosTreinoAgendado(
+      [
+        {
+          id: 'ta1',
+          treino_id: 't1',
+          data: '2026-08-03',
+          horario_inicio: '19:00:00',
+          horario_fim: '20:00:00',
+        },
+      ],
+      intervalo,
       TREINOS,
     )
-
-    expect(eventos.map((e) => [e.tipo, e.rota])).toEqual([
-      ['aula', '/estudos/m1'],
-      // Treino não tem sub-página própria
-      ['treino', '/treino'],
-    ])
+    expect([treino?.tipo, treino?.rota]).toEqual(['treino', '/treino'])
   })
 
   it('conta aponta para a categoria', () => {
@@ -936,8 +922,7 @@ describe('eventosCancelados', () => {
     dia_semana: 3,
     horario_inicio: '18:00:00',
     horario_fim: '19:00:00',
-    materia_id: null,
-    treino_id: 't1',
+    materia_id: 'm1',
     rotulo: null,
   }
 
@@ -947,11 +932,10 @@ describe('eventosCancelados', () => {
       [{ fluxograma_id: 'f1', data: '2026-08-05', status: 'cancelado' }],
       SEMANA,
       MATERIAS,
-      TREINOS,
     )
 
     expect(evento?.estado).toBe('cancelado')
-    expect(evento?.titulo).toBe('Treino A')
+    expect(evento?.titulo).toBe('Cálculo II')
     expect(evento?.inicio).toBe('2026-08-05T18:00:00')
   })
 
@@ -962,7 +946,6 @@ describe('eventosCancelados', () => {
       horario_inicio: '09:00:00',
       horario_fim: '18:00:00',
       materia_id: null,
-      treino_id: null,
       rotulo: 'Escritório',
     }
     const [evento] = eventosCancelados(
@@ -970,7 +953,6 @@ describe('eventosCancelados', () => {
       [{ fluxograma_id: 'f3', data: '2026-08-05', status: 'cancelado' }],
       SEMANA,
       MATERIAS,
-      TREINOS,
     )
 
     expect(evento?.estado).toBe('cancelado')
@@ -979,10 +961,10 @@ describe('eventosCancelados', () => {
   })
 
   /*
-   * A 10.31 recortava em `<= hoje`. Caiu quando o Ritual Semanal e a página de
-   * Treino passaram a cancelar dias à frente: ali o item sumia do calendário
-   * sem deixar rastro, que é o defeito que a própria 10.31 tinha corrigido para
-   * o passado.
+   * A 10.31 recortava em `<= hoje`. Caiu quando o Ritual Semanal passou a
+   * cancelar dias à frente: ali o item sumia do calendário sem deixar
+   * rastro, que é o defeito que a própria 10.31 tinha corrigido para o
+   * passado.
    */
   it('mostra o cancelado de um dia que ainda não chegou', () => {
     const [evento] = eventosCancelados(
@@ -990,7 +972,6 @@ describe('eventosCancelados', () => {
       [{ fluxograma_id: 'f1', data: '2026-08-08', status: 'cancelado' }],
       SEMANA,
       MATERIAS,
-      TREINOS,
     )
 
     expect(evento?.estado).toBe('cancelado')
@@ -1012,7 +993,6 @@ describe('eventosCancelados', () => {
         ],
         SEMANA,
         MATERIAS,
-        TREINOS,
       ),
     ).toEqual([])
   })
@@ -1024,8 +1004,7 @@ describe('eventosRemarcadosNaOrigem', () => {
     dia_semana: 3,
     horario_inicio: '18:00:00',
     horario_fim: '19:00:00',
-    materia_id: null,
-    treino_id: 't1',
+    materia_id: 'm1',
     rotulo: null,
   }
 
@@ -1042,13 +1021,12 @@ describe('eventosRemarcadosNaOrigem', () => {
       [remarcacao],
       SEMANA,
       MATERIAS,
-      TREINOS,
     )
 
     expect(evento?.estado).toBe('remarcado')
     expect(evento?.remarcadoPara).toBe('2026-08-06')
     expect(evento?.inicio).toBe('2026-08-05T18:00:00')
-    expect(evento?.titulo).toBe('Treino A')
+    expect(evento?.titulo).toBe('Cálculo II')
   })
 
   it('não duplica quando a remarcação só muda o horário do mesmo dia', () => {
@@ -1065,7 +1043,6 @@ describe('eventosRemarcadosNaOrigem', () => {
         ],
         SEMANA,
         MATERIAS,
-        TREINOS,
       ),
     ).toEqual([])
   })
@@ -1077,7 +1054,6 @@ describe('eventosRemarcadosNaOrigem', () => {
         [{ fluxograma_id: 'f1', data: '2026-08-05', status: 'cancelado' }],
         SEMANA,
         MATERIAS,
-        TREINOS,
       ),
     ).toEqual([])
   })
@@ -1089,7 +1065,6 @@ describe('eventosRemarcadosNaOrigem', () => {
         [{ ...remarcacao, data: '2026-07-29', nova_data: '2026-08-05' }],
         SEMANA,
         MATERIAS,
-        TREINOS,
       ),
     ).toEqual([])
   })
@@ -1104,6 +1079,7 @@ describe('eventosRemarcadosNaOrigem', () => {
         planejamentoSono: [],
         marcos: [],
         execucoesTreino: [],
+        treinosAgendados: [],
         sessoesEstudo: [],
         eventosLivres: [],
         nomePorMateria: MATERIAS,
@@ -1112,31 +1088,31 @@ describe('eventosRemarcadosNaOrigem', () => {
       SEMANA,
     )
 
-    const doTreino = eventos.filter((e) => e.camada === 'treino')
-    expect(doTreino).toHaveLength(2)
-    expect(new Set(doTreino.map((e) => e.id)).size).toBe(2)
+    const daMateria = eventos.filter((e) => e.camada === 'estudos')
+    expect(daMateria).toHaveLength(2)
+    expect(new Set(daMateria.map((e) => e.id)).size).toBe(2)
 
-    const origem = doTreino.find((e) => e.estado === 'remarcado')
-    const destino = doTreino.find((e) => e.estado === undefined)
+    const origem = daMateria.find((e) => e.estado === 'remarcado')
+    const destino = daMateria.find((e) => e.estado === undefined)
     expect(origem?.inicio.slice(0, 10)).toBe('2026-08-05')
     expect(destino?.inicio.slice(0, 10)).toBe('2026-08-06')
-    expect(destino?.titulo).toBe('Treino A (remarcado)')
+    expect(destino?.titulo).toBe('Cálculo II (remarcado)')
   })
 })
 
 describe('reconciliação entre previsto e realizado', () => {
-  const regraTreino = {
-    id: 'f1',
-    dia_semana: 3,
+  const agendado = {
+    id: 'ta1',
+    treino_id: 't1',
+    data: '2026-08-05',
     horario_inicio: '18:00:00',
     horario_fim: '19:00:00',
-    materia_id: null,
-    treino_id: 't1',
-    rotulo: null,
   }
 
   const vazias = {
     avaliacoes: [],
+    fluxograma: [],
+    excecoes: [],
     contas: [],
     planejamentoSono: [],
     marcos: [],
@@ -1150,8 +1126,7 @@ describe('reconciliação entre previsto e realizado', () => {
     const eventos = construirEventos(
       {
         ...vazias,
-        fluxograma: [regraTreino],
-        excecoes: [],
+        treinosAgendados: [agendado],
         execucoesTreino: [
           {
             id: 'e1',
@@ -1179,8 +1154,7 @@ describe('reconciliação entre previsto e realizado', () => {
           ['t1', 'Legs'],
           ['t2', 'Pull'],
         ]),
-        fluxograma: [regraTreino],
-        excecoes: [],
+        treinosAgendados: [agendado],
         execucoesTreino: [
           {
             id: 'e1',
@@ -1205,10 +1179,10 @@ describe('reconciliação entre previsto e realizado', () => {
   })
 
   /*
-   * O caso real que motivou a 10.31: quarta prevista com Legs, Legs cancelado,
-   * Pull registrado. Antes a agenda mostrava ZERO linhas de treino no dia.
+   * Agendou e depois excluiu a linha (cancelamento, chat 2026-08-14): sem
+   * regra recorrente por baixo, não sobra nenhum previsto — só o realizado.
    */
-  it('cancelou o previsto e fez outro: mostra o feito E o cancelado', () => {
+  it('removeu o agendado e fez outro: mostra só o feito', () => {
     const eventos = construirEventos(
       {
         ...vazias,
@@ -1216,10 +1190,7 @@ describe('reconciliação entre previsto e realizado', () => {
           ['t1', 'Legs'],
           ['t2', 'Pull'],
         ]),
-        fluxograma: [regraTreino],
-        excecoes: [
-          { fluxograma_id: 'f1', data: '2026-08-05', status: 'cancelado' },
-        ],
+        treinosAgendados: [],
         execucoesTreino: [
           {
             id: 'e1',
@@ -1235,10 +1206,7 @@ describe('reconciliação entre previsto e realizado', () => {
     )
 
     const doDia = eventos.filter((e) => e.inicio.startsWith('2026-08-05'))
-    expect(doDia.map((e) => [e.titulo, e.estado])).toEqual([
-      ['Pull', 'feito'],
-      ['Legs', 'cancelado'],
-    ])
+    expect(doDia.map((e) => [e.titulo, e.estado])).toEqual([['Pull', 'feito']])
   })
 })
 
@@ -1256,7 +1224,6 @@ describe('cor da matéria no evento', () => {
     horario_inicio: '08:00:00',
     horario_fim: '10:00:00',
     materia_id: 'm1',
-    treino_id: null,
     rotulo: null,
   }
 
@@ -1266,8 +1233,6 @@ describe('cor da matéria no evento', () => {
       [],
       SEMANA,
       MATERIAS,
-      TREINOS,
-      new Set(),
       new Map(),
       CORES,
     )
@@ -1280,8 +1245,6 @@ describe('cor da matéria no evento', () => {
       [],
       SEMANA,
       MATERIAS,
-      TREINOS,
-      new Set(),
       new Map(),
       CORES,
     )
@@ -1289,20 +1252,23 @@ describe('cor da matéria no evento', () => {
   })
 
   it('sem o mapa de cores, nenhum evento ganha cor — comportamento anterior', () => {
-    const eventos = eventosFluxograma([aula], [], SEMANA, MATERIAS, TREINOS)
+    const eventos = eventosFluxograma([aula], [], SEMANA, MATERIAS)
     expect(eventos[0]).not.toHaveProperty('cor')
   })
 
   it('treino não recebe cor de matéria', () => {
-    const eventos = eventosFluxograma(
-      [{ ...aula, materia_id: null, treino_id: 't1' }],
-      [],
+    const eventos = eventosTreinoAgendado(
+      [
+        {
+          id: 'ta1',
+          treino_id: 't1',
+          data: '2026-08-03',
+          horario_inicio: '18:00:00',
+          horario_fim: '19:00:00',
+        },
+      ],
       SEMANA,
-      MATERIAS,
       TREINOS,
-      new Set(),
-      new Map(),
-      CORES,
     )
     expect(eventos[0]?.camada).toBe('treino')
     expect(eventos[0]).not.toHaveProperty('cor')
@@ -1332,7 +1298,6 @@ describe('cor da matéria no evento', () => {
       [{ fluxograma_id: 'f1', data: '2026-08-03', status: 'cancelado' }],
       SEMANA,
       MATERIAS,
-      TREINOS,
       CORES,
     )
     expect(eventos[0]?.estado).toBe('cancelado')
@@ -1443,16 +1408,31 @@ describe('movimento', () => {
           horario_inicio: '08:00:00',
           horario_fim: '09:00:00',
           materia_id: 'm1',
-          treino_id: null,
           rotulo: null,
         },
       ],
       [],
       SEMANA,
       MATERIAS,
-      TREINOS,
     )
     expect(aula?.movimento).toBe('ocorrencia')
+  })
+
+  it('treino agendado recebe movimento "entidade" — sem regra recorrente por baixo', () => {
+    const [treino] = eventosTreinoAgendado(
+      [
+        {
+          id: 'ta1',
+          treino_id: 't1',
+          data: '2026-08-05',
+          horario_inicio: '18:00:00',
+          horario_fim: '19:00:00',
+        },
+      ],
+      SEMANA,
+      TREINOS,
+    )
+    expect(treino?.movimento).toBe('entidade')
   })
 
   it('sessão, evento avulso, marco e prova recebem movimento "entidade"', () => {
@@ -1517,7 +1497,6 @@ describe('movimento', () => {
           horario_inicio: '08:00:00',
           horario_fim: '09:00:00',
           materia_id: 'm1',
-          treino_id: null,
           rotulo: null,
         },
       ],
@@ -1531,7 +1510,6 @@ describe('movimento', () => {
       ],
       SEMANA,
       MATERIAS,
-      TREINOS,
     )
     expect(origem?.movimento).toBeUndefined()
   })

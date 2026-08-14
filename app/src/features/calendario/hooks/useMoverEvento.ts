@@ -5,6 +5,7 @@ import {
 } from '@/features/estudos/hooks'
 import { useAtualizarEventoLivre } from '@/features/eventos/hooks'
 import { useAtualizarMarco } from '@/features/projetos/hooks'
+import { useAtualizarTreinoAgendado } from '@/features/treino/hooks'
 import { idRealEntidade, type EventoCalendario } from '../eventos'
 
 /**
@@ -25,13 +26,15 @@ export function useMoverEvento() {
   const atualizarAvaliacao = useAtualizarAvaliacao()
   const atualizarEventoLivre = useAtualizarEventoLivre()
   const atualizarMarco = useAtualizarMarco()
+  const atualizarTreinoAgendado = useAtualizarTreinoAgendado()
 
   const pendente =
     remarcarOcorrencia.isPending ||
     atualizarSessao.isPending ||
     atualizarAvaliacao.isPending ||
     atualizarEventoLivre.isPending ||
-    atualizarMarco.isPending
+    atualizarMarco.isPending ||
+    atualizarTreinoAgendado.isPending
 
   async function mover(
     evento: EventoCalendario,
@@ -41,7 +44,6 @@ export function useMoverEvento() {
   ): Promise<void> {
     switch (evento.tipo) {
       case 'aula':
-      case 'treino':
       case 'trabalho':
         // `origemId` é o id da regra do fluxograma; a data de origem é a do
         // próprio evento antes do arrasto, não `novaData`.
@@ -53,6 +55,21 @@ export function useMoverEvento() {
           novoHorarioFim: novoFim,
         })
         return
+      case 'treino': {
+        // Diferente de aula/trabalho: treino tem linha própria em
+        // `treinos_agendados` (chat 2026-08-14), sem regra recorrente por
+        // baixo — mover grava direto na linha, sem exceção nenhuma.
+        // Horário ausente = mantém o horário atual (a coluna não aceita nulo).
+        const dados: { data: string; horario_inicio?: string; horario_fim?: string } =
+          { data: novaData }
+        if (novoInicio !== null) dados.horario_inicio = novoInicio
+        if (novoFim !== null) dados.horario_fim = novoFim
+        await atualizarTreinoAgendado.mutateAsync({
+          id: idRealEntidade(evento),
+          dados,
+        })
+        return
+      }
       case 'estudo':
         await atualizarSessao.mutateAsync({
           id: idRealEntidade(evento),
