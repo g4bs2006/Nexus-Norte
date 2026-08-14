@@ -1,7 +1,8 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import JXG from 'jsxgraph'
 import './geometria.css'
 import { compile } from 'mathjs'
+import { idUnico } from '@/lib/idUnico'
 import { resolverTema, useUIStore } from '@/stores/ui'
 
 export interface GeometriaDados {
@@ -37,7 +38,11 @@ const LIMITE_PADRAO = { de: -5, ate: 5 }
 export default function Geometria({ geometria }: GeometriaProps) {
   const alvo = useRef<HTMLDivElement>(null)
   const [erro, setErro] = useState<string | null>(null)
-  const id = useId().replace(/:/g, '')
+  /*
+   * Id de módulo, e não `useId`: cada node view do editor monta um root React
+   * próprio, e `useId` só é único DENTRO de um root — dois blocos colidiriam.
+   */
+  const id = useRef(idUnico('jxg')).current
   const escuro = resolverTema(useUIStore((estado) => estado.tema)) === 'escuro'
 
   const chave = JSON.stringify(geometria)

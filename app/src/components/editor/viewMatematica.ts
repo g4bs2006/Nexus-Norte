@@ -131,9 +131,14 @@ export const viewMatematica = $view(mathInlineSchema.node, () => (node) => {
       desenhar(novo.textContent)
       return true
     },
-    // O KaTeX reescreve a prévia a cada render; sem isto o ProseMirror trataria
-    // cada render como edição do documento e entraria em laço.
-    ignoreMutation: (mutacao) => previa.contains(mutacao.target),
+    /*
+     * O KaTeX reescreve a prévia a cada render; sem isto o ProseMirror trataria
+     * cada render como edição do documento e entraria em laço.
+     *
+     * A regra é por `contentDOM`, e não por "está na prévia": `data-vazia` muda
+     * no elemento RAIZ, que não está dentro da prévia e também não é edição.
+     */
+    ignoreMutation: (mutacao) => !fonte.contains(mutacao.target),
   }
   return view
 })

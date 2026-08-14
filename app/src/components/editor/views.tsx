@@ -108,6 +108,19 @@ export function criarViewCerca(renderizar: RenderizarBloco) {
         pintar(atual)
         return true
       },
+      /*
+       * **Sem isto a página trava.**
+       *
+       * mermaid, function-plot e jsxgraph escrevem no DOM da prévia; o
+       * ProseMirror observa mutações dentro da node view e, sem uma resposta,
+       * trata cada uma como edição do documento — re-parseia o nó, chama
+       * `update`, a engine desenha de novo, e o laço não fecha. A página fica
+       * sem responder.
+       *
+       * A regra: só mutação DENTRO do `contentDOM` é edição de verdade.
+       * Prévia, e até o `data-renderizado` no elemento raiz, são desenho.
+       */
+      ignoreMutation: (mutacao) => !code.contains(mutacao.target),
       destroy: () => desmontar?.(),
     }
     return view
@@ -150,7 +163,13 @@ export function criarViewDesenho(renderizar: RenderizarDesenho) {
 
     const desmontar = montarReact(dom, renderizar(node.attrs.id as string))
 
-    const view: NodeView = { dom, destroy: desmontar }
+    const view: NodeView = {
+      dom,
+      // Não tem `contentDOM`: tudo aqui dentro é desenho, nada é edição. Sem
+      // isto o React montando o SVG faria o ProseMirror re-parsear em laço.
+      ignoreMutation: () => true,
+      destroy: desmontar,
+    }
     return view
   })
 }

@@ -1,5 +1,6 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import mermaid from 'mermaid'
+import { idUnico } from '@/lib/idUnico'
 import { resolverTema, useUIStore } from '@/stores/ui'
 
 interface DiagramaProps {
@@ -22,8 +23,11 @@ export default function Diagrama({ codigo }: DiagramaProps) {
   const tema = resolverTema(useUIStore((estado) => estado.tema))
   const [svg, setSvg] = useState('')
   const [erro, setErro] = useState<string | null>(null)
-  /* `useId` dá o id único que o mermaid exige para não colidir entre diagramas. */
-  const id = useId().replace(/:/g, '')
+  /*
+   * Id de módulo, e não `useId`: cada node view do editor monta um root React
+   * próprio, e `useId` só é único DENTRO de um root — dois diagramas colidiriam.
+   */
+  const id = useRef(idUnico('mermaid')).current
   const vivo = useRef(true)
 
   useEffect(() => {
@@ -43,7 +47,7 @@ export default function Diagrama({ codigo }: DiagramaProps) {
     })
 
     mermaid
-      .render(`mermaid-${id}`, codigo)
+      .render(id, codigo)
       .then((resultado) => {
         if (!vivo.current) return
         setSvg(resultado.svg)
