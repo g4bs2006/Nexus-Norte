@@ -307,3 +307,47 @@
     border-radius: var(--radius-sm);
     padding: 0.05em 0.15em;
 }
+
+/* ---------------------------------------------------------------------------
+   Imagens.
+
+   `<img>` não é engine imperativa — dá-se um `src` e o browser desenha. É a
+   diferença entre isto e os blocos que precisaram ser arquivados.
+--------------------------------------------------------------------------- */
+
+.editor-markdown img {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius-md);
+    display: block;
+    margin: 0.6em 0;
+}
+
+/*
+ * Marcador de upload em curso. É uma decoração do ProseMirror, então acompanha
+ * o texto sozinha enquanto se continua escrevendo — que é justamente o motivo
+ * de não ser um trecho de texto.
+ */
+.editor-markdown .imagem-enviando {
+    display: inline-block;
+    width: 1.1em;
+    height: 1.1em;
+    vertical-align: middle;
+    border: 2px solid var(--border);
+    border-top-color: var(--estudos);
+    border-radius: 50%;
+    animation: girar-envio 700ms linear infinite;
+}
+
+@keyframes girar-envio {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .editor-markdown .imagem-enviando {
+        animation: none;
+        border-top-color: var(--border);
+    }
+}

@@ -8,7 +8,11 @@ import { PageHeader } from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useMaterias, useSemestres } from '@/features/estudos/hooks'
-import { buscarReferencias, salvarDesenho } from '@/features/notas/api'
+import {
+  buscarReferencias,
+  enviarImagemNota,
+  salvarDesenho,
+} from '@/features/notas/api'
 import { fonteSimbolos } from '@/features/notas/simbolos'
 import { criarFonteBlocos } from '@/features/notas/blocos'
 import {
@@ -256,6 +260,7 @@ export default function NotaDetalhePage() {
                 simbolos={fonteSimbolos}
                 criarBlocos={criarFonteBlocos}
                 slugExiste={(slug) => existentes.has(slug)}
+                enviarImagem={enviarImagemNota}
                 onSalvarDesenho={(cena, svg) =>
                   salvarDesenho({
                     notaId: atual.id,

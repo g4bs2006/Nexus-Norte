@@ -15,6 +15,7 @@ import type {
   SlugExiste,
 } from './editor/views'
 import type { FonteItens, ResultadoEscolha } from './editor/useGatilho'
+import type { EnviarImagem } from './editor/imagens'
 import { filtrarEscrita, CATALOGO_ESCRITA } from './editor/catalogoEscrita'
 
 const EditorRico = lazy(() => import('./EditorMarkdownRico'))
@@ -68,6 +69,13 @@ export interface EditorMarkdownProps {
   }) => FonteItens
   /** O slug já tem nota? Decide o traço do wikilink. */
   slugExiste?: SlugExiste
+  /**
+   * Sobe imagem colada ou arrastada e devolve a URL pública.
+   *
+   * Injetada como o resto: o kernel não conhece Storage. Sem ela, colar imagem
+   * volta a não fazer nada — e colar texto segue funcionando.
+   */
+  enviarImagem?: EnviarImagem
 }
 
 /**
@@ -100,6 +108,7 @@ export function EditorMarkdown({
   simbolos,
   criarBlocos,
   slugExiste,
+  enviarImagem,
 }: EditorMarkdownProps) {
   const inserirRef = useRef<Inserir | null>(null)
   const [seletorAberto, setSeletorAberto] = useState(false)
@@ -261,6 +270,7 @@ export function EditorMarkdown({
           simbolos={simbolos}
           blocos={blocos}
           slugExiste={slugExiste}
+          enviarImagem={enviarImagem}
         />
       </Suspense>
     </div>

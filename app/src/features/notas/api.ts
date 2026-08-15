@@ -385,6 +385,38 @@ export async function carregarParaExportar(): Promise<{
   }
 }
 
+/** Bucket público criado na migration de 15/08. Ver o SQL para o porquê. */
+export const BUCKET_IMAGENS = 'imagens-notas'
+
+/**
+ * Envia uma imagem e devolve a URL que vai para o Markdown.
+ *
+ * URL **pública e estável**, não assinada: `![](url)` precisa continuar
+ * valendo daqui a um ano, e o `.md` exportado precisa abrir fora do app. URL
+ * assinada expira em minutos e transformaria a exportação numa pasta de links
+ * mortos.
+ *
+ * O nome é UUID mais a extensão original. Guardar o nome do arquivo do usuário
+ * não serviria a nada — ninguém procura imagem por nome — e traria acento,
+ * espaço e colisão de graça.
+ */
+export async function enviarImagemNota(arquivo: File): Promise<string> {
+  const extensao = arquivo.name.split('.').pop()?.toLowerCase() ?? 'png'
+  const caminho = `${crypto.randomUUID()}.${extensao}`
+
+  const { error } = await supabase.storage
+    .from(BUCKET_IMAGENS)
+    .upload(caminho, arquivo, {
+      contentType: arquivo.type,
+      // Sem sobrescrever: o caminho é UUID, então colidir seria bug, não caso.
+      upsert: false,
+    })
+  if (error) throw new Error(error.message)
+
+  const { data } = supabase.storage.from(BUCKET_IMAGENS).getPublicUrl(caminho)
+  return data.publicUrl
+}
+
 /**
  * Apaga o desenho.
  *

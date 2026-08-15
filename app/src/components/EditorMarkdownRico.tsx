@@ -29,6 +29,7 @@ import { aplicarMarca, type MarcaEscrita } from './editor/comandos'
 import { MenuSimbolos } from './editor/MenuSimbolos'
 import { navegarBuracos } from './editor/buracos'
 import { tipografia } from './editor/tipografia'
+import { criarPluginImagens, type EnviarImagem } from './editor/imagens'
 import { sairDaFormula } from './editor/sairDaFormula'
 import {
   focoMatematica,
@@ -82,6 +83,8 @@ interface EditorRicoProps {
   blocos?: FonteItens
   /** O slug já tem nota? Decide o traço do wikilink. */
   slugExiste?: SlugExiste
+  /** Sobe imagem colada ou arrastada e devolve a URL pública. */
+  enviarImagem?: EnviarImagem
 }
 
 /**
@@ -119,6 +122,7 @@ function Interno({
   simbolos,
   blocos,
   slugExiste,
+  enviarImagem,
 }: EditorRicoProps) {
   /*
    * As views entram na configuração do editor, então precisam ser estáveis:
@@ -168,6 +172,14 @@ function Interno({
    */
   const [ancoraBarra, setAncoraBarra] = useState<AncoraSelecao | null>(null)
   const barra = useRef(criarBarraSelecao(setAncoraBarra))
+
+  /*
+   * Criado uma vez, como os outros plugins: entrar na configuração do editor
+   * significa que recriá-lo remontaria tudo.
+   */
+  const pluginImagens = useRef(
+    enviarImagem ? criarPluginImagens(enviarImagem) : null,
+  )
 
   const gatilhoSimbolos = useGatilho(
     '//',
@@ -227,6 +239,7 @@ function Interno({
       // Depois dos presets: as regras de tipografia não competem com nenhuma
       // input rule do commonmark, mas a ordem deixa isso explícito.
       .use(tipografia)
+      .use(pluginImagens.current ?? [])
       .use(barra.current)
       .use(views.current.desenho)
       .use(gatilhoSimbolos.plugin)
