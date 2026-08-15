@@ -28,3 +28,7 @@ não roda, em vez de dar a impressão de que existe.
 | Pasta | O quê | Por quê saiu |
 | --- | --- | --- |
 | `blocos-visuais/` | mermaid, gráfico de função, geometria interativa | Travavam a página |
+
+Cada gaveta com plano de retomada traz um `PLANO-DE-RETOMADA.md`. Ele é o que
+transforma "código guardado" em "trabalho que pode recomeçar" — sem ele, quem
+voltar refaz o diagnóstico do zero.

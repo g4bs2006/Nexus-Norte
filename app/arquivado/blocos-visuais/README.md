@@ -2,6 +2,11 @@
 
 **Arquivado em 14/08/2026.** Travavam a página ao serem inseridos.
 
+> **Para retomar, comece por [`PLANO-DE-RETOMADA.md`](./PLANO-DE-RETOMADA.md).**
+> Ele traz o diagnóstico, a mudança central (tirar o React das node views) e as
+> fases — incluindo a fase 0, que descobre qual dos três blocos trava. Foi a
+> falta dessa fase que fez três correções seguidas errarem o alvo.
+
 Entregues na fase 7 do spec `2026-08-14-notas-conhecimento-design.md`:
 
 - ```` ```mermaid ```` — diagrama de fluxo e máquina de estados
