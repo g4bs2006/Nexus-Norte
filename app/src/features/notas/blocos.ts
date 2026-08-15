@@ -7,13 +7,6 @@ interface Bloco {
   amostra: string
   /** Termos extras para a busca achar. */
   sinonimos?: string
-  /**
-   * A linguagem da cerca. Ausente quando o bloco abre um diálogo — desenho e
-   * fórmula visual precisam de uma tela antes de virar bloco.
-   */
-  linguagem?: string
-  /** Exemplo mínimo que nasce dentro da cerca. */
-  corpo?: string
 }
 
 /**
@@ -26,36 +19,12 @@ interface Bloco {
  * Divisão com o `//`: aqui ficam as coisas que **ocupam a linha inteira**; lá,
  * os símbolos que entram no meio da frase.
  *
- * O corpo de cada cerca vem com um exemplo mínimo já preenchido. Cerca vazia
- * obrigaria a lembrar a sintaxe de cabeça, que é exatamente o que o menu veio
- * evitar — e um exemplo errado é mais fácil de corrigir que uma página em
- * branco.
+ * **Diagrama, gráfico e geometria saíram em 14/08** — travavam a página. Estão
+ * em `app/arquivado/blocos-visuais/`, com o relato do que se sabe e o que
+ * fazer para retomar. Escrever ```` ```mermaid ```` à mão continua válido: a
+ * cerca só aparece como código em vez de diagrama.
  */
 const BLOCOS: readonly Bloco[] = [
-  {
-    chave: 'diagrama',
-    rotulo: 'Diagrama',
-    amostra: '◇',
-    sinonimos: 'mermaid fluxo estados grafo processo',
-    linguagem: 'mermaid',
-    corpo: 'graph TD\n  A[Início] --> B[Fim]',
-  },
-  {
-    chave: 'grafico',
-    rotulo: 'Gráfico de função',
-    amostra: '∿',
-    sinonimos: 'plot curva funcao desenhar',
-    linguagem: 'plot',
-    corpo: 'x^2\n-5:5',
-  },
-  {
-    chave: 'geometria',
-    rotulo: 'Geometria interativa',
-    amostra: '⊹',
-    sinonimos: 'jsxgraph slider parametro tangente riemann',
-    linguagem: 'geometria',
-    corpo: 'slider a: -3:3 = 1\nf(x) = a*x^2\nx: -5:5',
-  },
   {
     chave: 'desenho',
     rotulo: 'Desenho',
@@ -71,7 +40,7 @@ const BLOCOS: readonly Bloco[] = [
 ]
 
 /**
- * Monta a fonte do `/`, ligada às telas que alguns blocos precisam abrir.
+ * Monta a fonte do `/`, ligada às telas que os blocos precisam abrir.
  *
  * Recebe os gatilhos por parâmetro porque abrir o Excalidraw e o MathLive é
  * decisão de quem monta a página — este arquivo sabe QUE existe um desenho,
@@ -96,29 +65,15 @@ export function criarFonteBlocos(acoes: {
       }))
     },
 
+    /*
+     * Os dois blocos restantes abrem uma tela antes de virar conteúdo, então
+     * ambos são ação. Quando os blocos visuais voltarem, aqui volta também o
+     * ramo que devolve `{ tipo: 'comando', comando: { tipo: 'cerca', … } }`.
+     */
     montar: (item: { chave: string }): ResultadoEscolha => {
-      if (item.chave === 'desenho') {
-        acoes.abrirDesenho()
-        return { tipo: 'acao' }
-      }
-      if (item.chave === 'formula') {
-        acoes.abrirFormula()
-        return { tipo: 'acao' }
-      }
-
-      const bloco = BLOCOS.find((candidato) => candidato.chave === item.chave)
-      if (bloco?.linguagem === undefined) return { tipo: 'acao' }
-
-      /*
-       * Comando, e não texto. Foi o `insertText` que quebrou o `/` antes: uma
-       * cerca escrita como texto nunca vira `code_block`, então o gráfico não
-       * chegava a existir.
-       */
-      return {
-        tipo: 'comando',
-        comando: { tipo: 'cerca', linguagem: bloco.linguagem },
-        ...(bloco.corpo ? { corpo: bloco.corpo } : {}),
-      }
+      if (item.chave === 'desenho') acoes.abrirDesenho()
+      if (item.chave === 'formula') acoes.abrirFormula()
+      return { tipo: 'acao' }
     },
   }
 }

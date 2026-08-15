@@ -1,80 +1,37 @@
-import { Suspense, lazy, type ReactNode } from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
+import type { ReactNode } from 'react'
 import { queryClient } from '@/lib/queryClient'
-import { lerGeometria } from '../geometria'
-import { lerPlot } from '../plot'
 import { Desenho } from './Desenho'
-
-const Diagrama = lazy(() => import('@/components/blocos/Diagrama'))
-const GraficoFuncao = lazy(() => import('@/components/blocos/GraficoFuncao'))
-const Geometria = lazy(() => import('@/components/blocos/Geometria'))
 
 /**
  * O que cada construção da nota vira na tela.
  *
  * **Um lugar só, usado por dois consumidores**: a leitura (`Cerca`,
  * `ConteudoNota`) e as node views do editor. Era o risco óbvio de ter editor e
- * leitura desenhando as mesmas coisas — duas listas de "mermaid vira
- * Diagrama" divergiriam na primeira linguagem nova.
+ * leitura desenhando as mesmas coisas — duas listas divergiriam na primeira
+ * linguagem nova.
  *
  * O kernel não importa nada disto: ele recebe estas funções por prop, porque
- * saber que `plot` vira gráfico é conhecimento de Notas.
+ * saber o que uma linguagem vira é conhecimento de Notas.
  */
-
-function Espera() {
-  return <div className="bg-muted/40 my-2 h-40 animate-pulse rounded-md" />
-}
 
 /**
  * A cerca renderizada, ou `null` quando a linguagem não é nossa.
  *
- * `null` é resposta legítima e importante: significa "isto é código, mostre
- * como código". Quem chama decide como — a leitura desenha um `<pre>`, e o
- * editor já tem o dele, editável.
+ * **Hoje devolve `null` sempre.** Diagrama, gráfico e geometria foram
+ * arquivados em 14/08 por travarem a página — ver `app/arquivado/`. A função
+ * fica porque o contrato com o kernel não muda, e retomar é restaurar os ramos
+ * aqui.
+ *
+ * `null` é resposta legítima: significa "isto é código, mostre como código".
+ * Quem chama decide como — a leitura desenha um `<pre>`, e o editor já tem o
+ * dele, editável. É por isso que arquivar não quebrou nota nenhuma: uma cerca
+ * ```` ```mermaid ```` continua Markdown válido, só aparece como código.
  */
 export function renderizarBloco(
-  linguagem: string,
-  codigo: string,
+  _linguagem: string,
+  _codigo: string,
 ): ReactNode | null {
-  /*
-   * Cerca vazia não desenha nada, e a guarda é importante.
-   *
-   * A node view pinta no construtor, e nesse instante a cerca criada pelo `/`
-   * ainda está vazia — o corpo de exemplo entra num dispatch seguinte. Sem
-   * isto, `mermaid.render(id, '')` era chamado em TODA cerca criada, num
-   * container que o CSS ainda mantinha sem layout. Medir texto sem layout é o
-   * travamento conhecido do mermaid.
-   */
-  if (codigo.trim() === '') return null
-
-  if (linguagem === 'mermaid') {
-    return (
-      <Suspense fallback={<Espera />}>
-        <Diagrama codigo={codigo} />
-      </Suspense>
-    )
-  }
-
-  if (linguagem === 'plot') {
-    const plot = lerPlot(codigo)
-    if (plot.expressoes.length === 0) return null
-    return (
-      <Suspense fallback={<Espera />}>
-        <GraficoFuncao plot={plot} />
-      </Suspense>
-    )
-  }
-
-  if (linguagem === 'geometria') {
-    const geometria = lerGeometria(codigo)
-    if (geometria.curvas.length === 0) return null
-    return (
-      <Suspense fallback={<Espera />}>
-        <Geometria geometria={geometria} />
-      </Suspense>
-    )
-  }
-
   return null
 }
 
