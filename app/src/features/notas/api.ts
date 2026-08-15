@@ -385,6 +385,18 @@ export async function carregarParaExportar(): Promise<{
   }
 }
 
+/**
+ * Apaga o desenho.
+ *
+ * A referência `![[desenho:uuid]]` NÃO é removida aqui — quem faz isso é o
+ * editor, apagando o nó, e antes desta chamada. A ordem é deliberada: se esta
+ * função falhar, sobra uma linha órfã invisível, em vez de uma referência
+ * quebrada bem visível no meio da nota.
+ */
+export async function excluirDesenho(id: string): Promise<void> {
+  lancar(await supabase.from('desenhos').delete().eq('id', id))
+}
+
 export async function listarTopicos(): Promise<Topico[]> {
   return lancarSeErro(await supabase.from('topicos').select('*').order('nome'))
 }

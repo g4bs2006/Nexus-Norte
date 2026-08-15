@@ -46,10 +46,13 @@ export function renderizarBloco(
  * O `queryClient` é singleton de módulo, então o cache continua sendo o mesmo:
  * salvar o desenho pelo editor invalida a leitura da página junto.
  */
-export function renderizarDesenho(id: string): ReactNode {
+export function renderizarDesenho(
+  id: string,
+  onRemoverDoTexto: () => void,
+): ReactNode {
   return (
     <QueryClientProvider client={queryClient}>
-      <Desenho id={id} />
+      <Desenho id={id} onRemoverDoTexto={onRemoverDoTexto} />
     </QueryClientProvider>
   )
 }

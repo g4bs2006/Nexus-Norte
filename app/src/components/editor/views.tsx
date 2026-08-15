@@ -33,8 +33,16 @@ export type RenderizarBloco = (
   codigo: string,
 ) => ReactNode | null
 
-/** Desenha o desenho de id conhecido. */
-export type RenderizarDesenho = (id: string) => ReactNode
+/**
+ * Desenha o desenho de id conhecido.
+ *
+ * `onRemoverDoTexto` é o que permite excluir: quem apaga a referência é o
+ * editor, tirando o nó — a feature sozinha não alcança o documento.
+ */
+export type RenderizarDesenho = (
+  id: string,
+  onRemoverDoTexto: () => void,
+) => ReactNode
 
 /** O slug já tem nota? Decide o traço do link. */
 export type SlugExiste = (slug: string) => boolean
@@ -184,20 +192,34 @@ export function criarViewWikilink(existe: SlugExiste) {
 
 /** Desenho: o mesmo componente que a leitura usa, montado dentro do editor. */
 export function criarViewDesenho(renderizar: RenderizarDesenho) {
-  return $view(desenhoSchema.node, () => (node) => {
+  return $view(desenhoSchema.node, () => (node, view, getPos) => {
     const dom = document.createElement('figure')
     dom.className = 'bloco-desenho'
     dom.dataset.desenho = node.attrs.id as string
 
-    const desmontar = montarReact(dom, renderizar(node.attrs.id as string))
+    /*
+     * Apaga o NÓ, que é o que tira a referência do Markdown. Sem isto, excluir
+     * o desenho deixaria `![[desenho:uuid]]` no texto apontando para o vazio —
+     * trocando um desenho por uma mensagem de erro.
+     */
+    function removerDoTexto() {
+      const posicao = getPos()
+      if (posicao === undefined) return
+      view.dispatch(view.state.tr.delete(posicao, posicao + node.nodeSize))
+    }
 
-    const view: NodeView = {
+    const desmontar = montarReact(
+      dom,
+      renderizar(node.attrs.id as string, removerDoTexto),
+    )
+
+    const nodeView: NodeView = {
       dom,
       // Não tem `contentDOM`: tudo aqui dentro é desenho, nada é edição. Sem
       // isto o React montando o SVG faria o ProseMirror re-parsear em laço.
       ignoreMutation: () => true,
       destroy: desmontar,
     }
-    return view
+    return nodeView
   })
 }

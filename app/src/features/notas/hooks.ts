@@ -140,6 +140,10 @@ export function useSalvarDesenho() {
   return useMutationNotas(api.salvarDesenho, 'Desenho salvo')
 }
 
+export function useExcluirDesenho() {
+  return useMutationNotas(api.excluirDesenho, 'Desenho excluído')
+}
+
 export function useExcluirNota() {
   return useMutationNotas(api.excluirNota, 'Nota excluída')
 }

@@ -28,6 +28,7 @@ import {
 import { aplicarMarca, type MarcaEscrita } from './editor/comandos'
 import { MenuSimbolos } from './editor/MenuSimbolos'
 import { navegarBuracos } from './editor/buracos'
+import { tipografia } from './editor/tipografia'
 import { sairDaFormula } from './editor/sairDaFormula'
 import {
   focoMatematica,
@@ -223,6 +224,9 @@ function Interno({
       // Antes de navegarBuracos: dentro da fórmula, Enter sai; Tab anda.
       .use(sairDaFormula)
       .use(destaqueSchema)
+      // Depois dos presets: as regras de tipografia não competem com nenhuma
+      // input rule do commonmark, mas a ordem deixa isso explícito.
+      .use(tipografia)
       .use(barra.current)
       .use(views.current.desenho)
       .use(gatilhoSimbolos.plugin)

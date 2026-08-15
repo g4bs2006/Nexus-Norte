@@ -67,8 +67,12 @@ export default function EditorDesenho({
   }
 
   return (
-    <div className="space-y-2">
-      <div className="h-[60vh] overflow-hidden rounded-md border">
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
+      {/*
+        Ocupa o que o diálogo der. Antes era `60vh` fixo dentro de um diálogo de
+        1024px — desenhar precisa de tela, e a canvas era o menor pedaço dela.
+      */}
+      <div className="min-h-0 flex-1 overflow-hidden rounded-md border">
         <Excalidraw
           excalidrawAPI={(instancia) => {
             api.current = instancia
