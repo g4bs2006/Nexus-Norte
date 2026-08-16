@@ -257,6 +257,20 @@
     gap: 0.35em;
     border-radius: var(--radius-sm);
     padding: 0 0.15em;
+    /*
+     * Destaque permanente, não só durante a edição: uma fórmula simples
+     * (`x^2`, sem integral nem derivada) merece se distinguir do texto tanto
+     * quanto uma complexa — pedido de usabilidade explícito. O tom vem do
+     * mesmo par usado no wikilink selecionado (linha ~195), então a nota
+     * ganha uma paleta e não uma cor a mais.
+     */
+    background: var(--estudos-soft);
+}
+
+/* O próprio KaTeX herda o tamanho do texto ao redor por padrão — sem isto,
+   fórmula e frase ficam do mesmo tamanho e a distinção vira só de cor. */
+.editor-markdown .formula-viva .katex {
+    font-size: 1.15em;
 }
 
 /* Fórmula vazia precisa de alvo: sem largura não há onde clicar de volta. */
@@ -291,6 +305,30 @@
    para a fonte ser o que se lê — mas presente, que é o pedido. */
 .editor-markdown .formula-viva.formula-editando .formula-viva-render {
     opacity: 0.75;
+}
+
+/*
+ * Fórmula de bloco (`$$...$$`). É o nó `math_block` do `plugin-math`, sem
+ * node view próprio neste app — por isso o seletor é o `data-type` que o
+ * pacote já escreve no `<div>`, e não uma classe nossa.
+ *
+ * Ganha o mesmo tom de `.formula-viva`, mas em linha própria e maior: é onde
+ * a distância entre "editando" e "lendo" (ver `Formula.tsx`, que já centraliza
+ * o bloco) se fecha — o `displayMode` do KaTeX aqui vem de `katexOptionsCtx`,
+ * configurado junto do plugin em `EditorMarkdownRico`.
+ */
+.editor-markdown div[data-type='math_block'] {
+    display: block;
+    margin: 0.75em 0;
+    padding: 0.6em 0.75em;
+    border-radius: var(--radius-md);
+    background: var(--estudos-soft);
+    text-align: center;
+    overflow-x: auto;
+}
+
+.editor-markdown div[data-type='math_block'] .katex {
+    font-size: 1.15em;
 }
 
 /*

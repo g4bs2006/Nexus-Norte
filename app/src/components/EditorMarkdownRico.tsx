@@ -13,7 +13,7 @@ import { block } from '@milkdown/kit/plugin/block'
 import { history } from '@milkdown/kit/plugin/history'
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
 import { insert } from '@milkdown/kit/utils'
-import { math } from '@milkdown/plugin-math'
+import { katexOptionsCtx, math } from '@milkdown/plugin-math'
 import {
   desenhoSchema,
   destaqueSchema,
@@ -215,6 +215,20 @@ function Interno({
         }))
         ctx.get(listenerCtx).markdownUpdated((_, markdown, anterior) => {
           if (markdown !== anterior) aoMudar.current(markdown)
+        })
+        /*
+         * `math_inline` ignora isto (view própria em `viewMatematica.ts`, com
+         * `displayMode: false` fixo) — só o `math_block` (`$$...$$`) lê este
+         * ctx, e sem ele o KaTeX assume `displayMode: false` por padrão mesmo
+         * dentro de um bloco. Resultado sentido em uso: a fórmula de bloco
+         * ficava do mesmo tamanho da inline enquanto se editava, e só virava
+         * "de bloco" (maior, centralizada) depois de salva — ver `Formula.tsx`,
+         * que já passa `displayMode: bloco` na leitura.
+         */
+        ctx.set(katexOptionsCtx.key, {
+          throwOnError: false,
+          trust: false,
+          displayMode: true,
         })
       })
       .use(commonmark)
