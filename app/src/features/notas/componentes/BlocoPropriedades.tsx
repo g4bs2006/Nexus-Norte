@@ -13,8 +13,12 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { deISO } from '@/lib/datas'
-import { useVincularNotaASessao } from '../hooks'
-import { gerarSlug } from '../markdown'
+import {
+  useDesvincularTopico,
+  useTopicos,
+  useVincularNotaASessao,
+  useVincularTopico,
+} from '../hooks'
 import type { Topico } from '../types'
 
 interface BlocoPropriedadesProps {
@@ -26,27 +30,9 @@ interface BlocoPropriedadesProps {
   semestre: string | null
   topicos: readonly Topico[]
   atualizadaEm: string
-  /**
-   * Marca um tópico novo. Recebe o slug; quem sabe onde a hashtag vai é a
-   * página, que é dona do conteúdo.
-   */
-  onAdicionarTopico: (slug: string) => void
   sessoesDaMateria?: readonly { id: string; data: string; duracao_minutos: number }[]
 }
 
-/**
- * As propriedades da nota, sob o título.
- *
- * Padrão Notion/AFFiNE: rótulo apagado à esquerda, valor à direita, sem card e
- * sem borda. Card aqui competiria com o título por atenção, e propriedade é
- * informação de apoio — se lê quando se procura, não enquanto se lê o texto.
- *
- * **Tópico é editável aqui, e isso é novo.** Até agora ele só existia
- * escrevendo `#hashtag` no corpo, o que é ótimo enquanto se escreve e péssimo
- * quando se quer só classificar uma nota já pronta. Adicionar por aqui escreve
- * a hashtag no conteúdo — a regra de que tópico é DERIVADO do texto continua
- * de pé, e é o que impede o vocabulário de viver em dois lugares.
- */
 export function BlocoPropriedades({
   notaId,
   sessaoId,
@@ -55,19 +41,24 @@ export function BlocoPropriedades({
   semestre,
   topicos,
   atualizadaEm,
-  onAdicionarTopico,
   sessoesDaMateria,
 }: BlocoPropriedadesProps) {
   const [adicionando, setAdicionando] = useState(false)
   const [rascunho, setRascunho] = useState('')
   const vincular = useVincularNotaASessao()
+  const vincularTopico = useVincularTopico()
+  const desvincularTopico = useDesvincularTopico()
+  const todosTopicos = useTopicos()
 
   const sessaoVinculada = sessoesDaMateria?.find((s) => s.id === sessaoId)
+  const disponiveis = (todosTopicos.data ?? []).filter(
+    (t) => !topicos.some((jaAtribuido) => jaAtribuido.id === t.id),
+  )
 
-  function confirmar() {
-    const slug = gerarSlug(rascunho)
-    // `gerarSlug` devolve 'nota' para entrada sem letra nenhuma; não vale.
-    if (rascunho.trim() !== '') onAdicionarTopico(slug)
+  function confirmarTopico(nome?: string) {
+    const nomeFinal = nome ?? rascunho.trim()
+    if (!nomeFinal || !notaId) return
+    vincularTopico.mutate({ notaId, nomeTopico: nomeFinal })
     setRascunho('')
     setAdicionando(false)
   }
@@ -130,8 +121,21 @@ export function BlocoPropriedades({
       <dt>Tópicos</dt>
       <dd className="flex flex-wrap items-center gap-1">
         {topicos.map((topico) => (
-          <Badge key={topico.id} variant="secondary" className="font-normal">
+          <Badge key={topico.id} variant="secondary" className="font-normal gap-1">
             <Link to={`/notas?topico=${topico.slug}`}>{topico.nome}</Link>
+            {notaId && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-3.5 hover:text-destructive text-muted-foreground p-0"
+                aria-label={`Remover tópico ${topico.nome}`}
+                disabled={desvincularTopico.isPending}
+                onClick={() => desvincularTopico.mutate({ notaId, topicoId: topico.id })}
+              >
+                <X className="size-2.5" />
+              </Button>
+            )}
           </Badge>
         ))}
 
@@ -144,14 +148,27 @@ export function BlocoPropriedades({
               onKeyDown={(evento) => {
                 if (evento.key === 'Enter') {
                   evento.preventDefault()
-                  confirmar()
+                  confirmarTopico()
                 }
                 if (evento.key === 'Escape') setAdicionando(false)
               }}
-              onBlur={confirmar}
-              placeholder="assunto"
+              placeholder="novo ou selecione"
               className="h-6 w-32 text-xs"
             />
+            {disponiveis.length > 0 && (
+              <Select onValueChange={(nome) => confirmarTopico(nome)}>
+                <SelectTrigger className="h-6 w-6 p-0">
+                  <SelectValue placeholder="" />
+                </SelectTrigger>
+                <SelectContent>
+                  {disponiveis.map((t) => (
+                    <SelectItem key={t.id} value={t.nome}>
+                      {t.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             <Button
               type="button"
               variant="ghost"
@@ -159,8 +176,6 @@ export function BlocoPropriedades({
               className="size-6"
               aria-label="Cancelar"
               onMouseDown={(evento) => {
-                // `onMouseDown` e não `onClick`: o blur do campo dispara antes
-                // do clique, e confirmaria o que se está tentando cancelar.
                 evento.preventDefault()
                 setRascunho('')
                 setAdicionando(false)

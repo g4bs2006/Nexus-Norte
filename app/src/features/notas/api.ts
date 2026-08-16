@@ -631,15 +631,9 @@ async function regravarArestas(
 }
 
 /**
- * Substitui os tópicos da nota pelos que o conteúdo marca.
- *
- * O tópico é criado se ainda não existir — o vocabulário nasce do uso. Quem
- * cuida de "regra da cadeia" e "Regra da Cadeia" serem a mesma coisa é a
- * unicidade do slug na tabela, e é por isso que tópico é tabela e não `text[]`.
+ * Associa tópicos extraídos de #hashtags do conteúdo sem apagar os tópicos vinculados manualmente.
  */
 async function regravarTopicos(notaId: string, conteudo: string): Promise<void> {
-  lancar(await supabase.from('notas_topicos').delete().eq('nota_id', notaId))
-
   const citados = planejarTopicos(conteudo)
   if (citados.length === 0) return
 
@@ -659,10 +653,59 @@ async function regravarTopicos(notaId: string, conteudo: string): Promise<void> 
       ),
   )
 
+  const ids = existentes.map((topico) => topico.id)
+
   lancar(
-    await supabase.from('notas_topicos').insert(
-      existentes.map((topico) => ({ nota_id: notaId, topico_id: topico.id })),
+    await supabase.from('notas_topicos').upsert(
+      ids.map((topico_id) => ({ nota_id: notaId, topico_id })),
+      { onConflict: 'nota_id,topico_id' },
     ),
+  )
+}
+
+export async function vincularTopicoANota(
+  notaId: string,
+  nomeTopico: string,
+): Promise<void> {
+  const nomeLimpo = nomeTopico.trim()
+  if (!nomeLimpo) return
+  const slug = gerarSlug(nomeLimpo)
+
+  const { data: topicoExistente } = await supabase
+    .from('topicos')
+    .select('id')
+    .eq('slug', slug)
+    .maybeSingle()
+
+  let topicoId = topicoExistente?.id
+
+  if (!topicoId) {
+    const { data: novotopico, error } = await supabase
+      .from('topicos')
+      .insert({ nome: nomeLimpo, slug })
+      .select('id')
+      .single()
+    if (error) throw new Error(error.message)
+    topicoId = novotopico.id
+  }
+
+  const { error: errorVinculo } = await supabase
+    .from('notas_topicos')
+    .upsert({ nota_id: notaId, topico_id: topicoId }, { onConflict: 'nota_id,topico_id' })
+
+  if (errorVinculo) throw new Error(errorVinculo.message)
+}
+
+export async function desvincularTopicoDaNota(
+  notaId: string,
+  topicoId: string,
+): Promise<void> {
+  lancar(
+    await supabase
+      .from('notas_topicos')
+      .delete()
+      .eq('nota_id', notaId)
+      .eq('topico_id', topicoId),
   )
 }
 

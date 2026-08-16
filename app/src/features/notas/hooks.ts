@@ -119,6 +119,22 @@ function useMutationNotas<TVariaveis, TResultado>(
   })
 }
 
+export function useVincularTopico() {
+  return useMutationNotas(
+    ({ notaId, nomeTopico }: { notaId: string; nomeTopico: string }) =>
+      api.vincularTopicoANota(notaId, nomeTopico),
+    'Tópico adicionado',
+  )
+}
+
+export function useDesvincularTopico() {
+  return useMutationNotas(
+    ({ notaId, topicoId }: { notaId: string; topicoId: string }) =>
+      api.desvincularTopicoDaNota(notaId, topicoId),
+    'Tópico removido',
+  )
+}
+
 /**
  * A única mutation que grava conteúdo. Criar e editar são o mesmo caminho —
  * `salvarNota` decide pelo `id`, e ter duas mutations aqui abriria a porta para

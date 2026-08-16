@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from 'react'
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import {
   Editor,
   defaultValueCtx,
@@ -58,6 +58,8 @@ import 'katex/dist/katex.min.css'
 import './editorMarkdown.css'
 import type { Inserir, InserirFormula } from './EditorMarkdown'
 
+import type { Referencia } from './SeletorReferencia'
+
 /** Catálogo vazio, para o hook existir mesmo sem símbolos injetados. */
 const FONTE_VAZIA: FonteItens = {
   filtrar: () => [],
@@ -70,37 +72,15 @@ interface EditorRicoProps {
   placeholder?: string
   /** Preenchida com o jeito deste editor de inserir Markdown no cursor. */
   inserirRef: RefObject<Inserir | null>
-  /**
-   * A porta da fórmula, separada de `inserirRef` de propósito.
-   *
-   * Fórmula não é um trecho de Markdown que se cola: é um nó, e o `bloco` é o
-   * tipo dele. Passar por texto obrigava a confiar em como `$$…$$` seria
-   * reinterpretado — e não era como se esperava.
-   */
   inserirFormulaRef: RefObject<InserirFormula | null>
-  /** Duplo clique numa fórmula pronta pede para reabri-la no editor visual. */
   aoEditarFormula?: AoEditarFormula
-  /**
-   * O que cada cerca vira, e como desenhar um desenho.
-   *
-   * Injetados porque o kernel não conhece nota. A feature passa os MESMOS
-   * componentes que a leitura usa, então não há duas versões da mesma regra.
-   */
   renderizarBloco: RenderizarBloco
   renderizarDesenho: RenderizarDesenho
-  /**
-   * O catálogo do gatilho `//`.
-   *
-   * Injetado como todo o resto: o kernel não sabe o que é uma integral. Sem
-   * ele o gatilho some, e escrever LaTeX à mão continua funcionando.
-   */
   simbolos?: FonteItens
-  /** Catálogo do gatilho `/`, de bloco. */
   blocos?: FonteItens
-  /** O slug já tem nota? Decide o traço do wikilink. */
   slugExiste?: SlugExiste
-  /** Sobe imagem colada ou arrastada e devolve a URL pública. */
   enviarImagem?: EnviarImagem
+  buscarReferencias?: (termo: string) => Promise<Referencia[]>
 }
 
 /**
@@ -141,15 +121,11 @@ function Interno({
   blocos,
   slugExiste,
   enviarImagem,
+  buscarReferencias,
 }: EditorRicoProps) {
-  /*
-   * As views entram na configuração do editor, então precisam ser estáveis:
-   * recriá-las a cada render remontaria o editor inteiro e apagaria o undo.
-   */
-  /*
-   * `slugExiste` por ref: a lista de notas muda enquanto se escreve, e trocar
-   * a view por causa disso remontaria o editor. A view lê o valor atual.
-   */
+  const buscarRef = useRef(buscarReferencias)
+  buscarRef.current = buscarReferencias
+
   const existeRef = useRef(slugExiste)
   existeRef.current = slugExiste
 
@@ -158,52 +134,19 @@ function Interno({
     desenho: criarViewDesenho(renderizarDesenho),
     wikilink: criarViewWikilink((slug) => existeRef.current?.(slug) ?? true),
   })
-  /*
-   * `onChange` por ref, e não na dependência do editor.
-   *
-   * O Milkdown recria o editor inteiro quando a config muda, o que apagaria o
-   * histórico de undo e a posição do cursor a cada render do pai. A ref mantém
-   * o callback sempre atual sem entrar na identidade da configuração.
-   */
   const aoMudar = useRef(onChange)
   aoMudar.current = onChange
 
-  /*
-   * `value` também sai da dependência: o editor é NÃO CONTROLADO depois de
-   * montar. Empurrar o valor de volta a cada tecla faria o documento ser
-   * reconstruído enquanto se digita — cursor no começo, acento quebrado, undo
-   * perdido. Quem manda no texto durante a edição é o editor; quem manda no
-   * texto entre montagens é a prop.
-   */
   const inicial = useRef(value)
-
-  /*
-   * O gatilho precisa do editor para inserir, e o editor precisa do plugin do
-   * gatilho para existir. A ref quebra o ciclo: o hook recebe um getter que só
-   * é chamado depois, quando alguém escolhe um símbolo.
-   */
   const editorRef = useRef<ReturnType<typeof get> | null>(null)
 
-  /*
-   * A barra de seleção é criada UMA vez, como os gatilhos: recriá-la mudaria a
-   * configuração do editor, e o Milkdown responde a isso remontando tudo.
-   */
   const [ancoraBarra, setAncoraBarra] = useState<AncoraSelecao | null>(null)
   const barra = useRef(criarBarraSelecao(setAncoraBarra))
 
-  /*
-   * Criado uma vez, como os outros plugins: entrar na configuração do editor
-   * significa que recriá-lo remontaria tudo.
-   */
   const pluginImagens = useRef(
     enviarImagem ? criarPluginImagens(enviarImagem) : null,
   )
 
-  /*
-   * Como a barra de seleção: o plugin nasce UMA vez e fala com o React por
-   * ref. Recriá-lo mudaria a configuração do editor, e o Milkdown responde a
-   * isso remontando tudo — cursor no começo, undo perdido.
-   */
   const editarFormulaRef = useRef(aoEditarFormula)
   editarFormulaRef.current = aoEditarFormula
   const pluginEditarFormula = useRef(
@@ -216,19 +159,51 @@ function Interno({
     () => editorRef.current ?? undefined,
   )
 
-  /*
-   * O `/` vale em qualquer ponto, como no Notion — exigir linha vazia foi um
-   * erro sentido em uso: quem já escreveu meia frase e quer um gráfico não
-   * conseguia abrir o menu.
-   *
-   * A regra `(?:^|\s)` já basta contra falso positivo: em "e/ou" a barra vem
-   * colada no "e", então não dispara.
-   */
   const gatilhoBlocos = useGatilho(
     '/',
     blocos ?? FONTE_VAZIA,
     () => editorRef.current ?? undefined,
   )
+
+  const [referenciasEncontradas, setReferenciasEncontradas] = useState<Referencia[]>([])
+
+  const fonteReferencias = useMemo<FonteItens>(
+    () => ({
+      filtrar: () =>
+        referenciasEncontradas.map((ref) => ({
+          chave: ref.slug,
+          rotulo: ref.titulo,
+          amostra: ref.contexto,
+          id: ref.slug,
+          nome: ref.titulo,
+          detalhe: ref.contexto,
+          sinonimos: ref.slug,
+        })),
+      montar: (item: { chave: string }) => ({
+        tipo: 'inserir',
+        texto: `[[${item.chave}]]`,
+        buracos: [],
+      }),
+    }),
+    [referenciasEncontradas],
+  )
+
+  const gatilhoReferencias = useGatilho(
+    '[[',
+    fonteReferencias,
+    () => editorRef.current ?? undefined,
+  )
+
+  useEffect(() => {
+    if (!gatilhoReferencias.estado || !buscarRef.current) return
+    let cancelado = false
+    void buscarRef.current(gatilhoReferencias.estado.termo).then((achados) => {
+      if (!cancelado) setReferenciasEncontradas(achados ?? [])
+    })
+    return () => {
+      cancelado = true
+    }
+  }, [gatilhoReferencias.estado?.termo])
 
   const { get } = useEditor((raiz) =>
     Editor.make()
@@ -429,6 +404,14 @@ function Interno({
           itens={gatilhoBlocos.itens}
           indice={gatilhoBlocos.indice}
           onEscolher={gatilhoBlocos.escolher}
+        />
+      )}
+      {buscarReferencias && (
+        <MenuSimbolos
+          estado={gatilhoReferencias.estado}
+          itens={gatilhoReferencias.itens}
+          indice={gatilhoReferencias.indice}
+          onEscolher={gatilhoReferencias.escolher}
         />
       )}
     </>

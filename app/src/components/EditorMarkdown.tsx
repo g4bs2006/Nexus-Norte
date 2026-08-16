@@ -313,6 +313,7 @@ export function EditorMarkdown({
           blocos={blocos}
           slugExiste={slugExiste}
           enviarImagem={enviarImagem}
+          buscarReferencias={buscarReferencias}
         />
       </Suspense>
     </div>

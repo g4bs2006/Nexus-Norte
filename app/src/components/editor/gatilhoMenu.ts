@@ -99,7 +99,7 @@ export function criarGatilhoMenu(opcoes: Opcoes) {
      */
     const prefixo = opcoes.apenasInicioDeLinha ? '^' : '(?:^|\\s)'
     const padrao = new RegExp(
-      prefixo + escapar(gatilho) + '([\\p{L}\\p{N}]*)$',
+      prefixo + escapar(gatilho) + '([^\\n\\]]*)$',
       'u',
     )
     const achado = padrao.exec(antes)

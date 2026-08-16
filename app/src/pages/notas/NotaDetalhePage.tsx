@@ -179,23 +179,7 @@ export default function NotaDetalhePage() {
     )
   }
 
-  /**
-   * Marca um tópico escrevendo a hashtag no fim do conteúdo.
-   *
-   * Não há tabela a tocar: `notas_topicos` é DERIVADO do texto, e `salvarNota`
-   * re-deriva. Gravar o tópico direto criaria um vocabulário que o conteúdo
-   * não explica — e some no próximo salvamento.
-   */
-  function adicionarTopico(slugTopico: string) {
-    if (conteudo.includes(`#${slugTopico}`)) return
-    setConteudo((atualConteudo) =>
-      atualConteudo.trimEnd() === ''
-        ? `#${slugTopico}`
-        : `${atualConteudo.trimEnd()}
 
-#${slugTopico}`,
-    )
-  }
 
   /**
    * Renomeia, e só quando o campo perde o foco.
@@ -285,7 +269,6 @@ export default function NotaDetalhePage() {
                 semestre={semestre}
                 topicos={atual.topicos}
                 atualizadaEm={atual.atualizada_em}
-                onAdicionarTopico={adicionarTopico}
                 sessoesDaMateria={sessoesDaMateria}
               />
               <EditorMarkdown
@@ -324,8 +307,6 @@ export default function NotaDetalhePage() {
                 semestre={semestre}
                 topicos={atual.topicos}
                 atualizadaEm={atual.atualizada_em}
-                /* Celular é leitura: marcar tópico exige escrever. */
-                onAdicionarTopico={() => undefined}
               />
               <div className="documento-leitura">
                 <ConteudoNota
