@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Check, Plus } from 'lucide-react'
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { Button } from '@/components/ui/button'
 import {
@@ -25,6 +25,7 @@ import {
   useAtualizarSessaoPlanejada,
   useCriarSessaoPlanejada,
   useExcluirSessaoPlanejada,
+  useMarcarSessaoComoFeita,
 } from '../hooks'
 import type { Materia } from '../types'
 
@@ -91,6 +92,7 @@ export function DialogAgendarSessao({
   const criar = useCriarSessaoPlanejada()
   const atualizar = useAtualizarSessaoPlanejada()
   const excluir = useExcluirSessaoPlanejada()
+  const marcarComoFeita = useMarcarSessaoComoFeita()
 
   const [materiaId, setMateriaId] = useState('')
   const [data, setData] = useState(dataInicial ?? paraISO(new Date()))
@@ -211,20 +213,34 @@ export function DialogAgendarSessao({
 
         <DialogFooter className="gap-2 sm:justify-between">
           {modoEdicao && planejada && (
-            <DialogConfirmarExclusao
-              titulo="Remover sessão da agenda"
-              mensagem="Some do calendário e da lista de planejadas. Não há como desfazer."
-              onConfirmar={async () => {
-                await excluir.mutateAsync(planejada.id)
-                setAberto(false)
-              }}
-              pendente={excluir.isPending}
-              trigger={
-                <Button type="button" variant="outline">
-                  Excluir
-                </Button>
-              }
-            />
+            <div className="flex items-center gap-2">
+              <DialogConfirmarExclusao
+                titulo="Remover sessão da agenda"
+                mensagem="Some do calendário e da lista de planejadas. Não há como desfazer."
+                onConfirmar={async () => {
+                  await excluir.mutateAsync(planejada.id)
+                  setAberto(false)
+                }}
+                pendente={excluir.isPending}
+                trigger={
+                  <Button type="button" variant="outline">
+                    Excluir
+                  </Button>
+                }
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={marcarComoFeita.isPending}
+                onClick={async () => {
+                  await marcarComoFeita.mutateAsync(planejada)
+                  setAberto(false)
+                }}
+              >
+                <Check className="size-4" />
+                Marcar como feita
+              </Button>
+            </div>
           )}
           <Button onClick={() => void submeter()} disabled={pendente}>
             {pendente ? 'Salvando…' : modoEdicao ? 'Salvar' : 'Agendar'}

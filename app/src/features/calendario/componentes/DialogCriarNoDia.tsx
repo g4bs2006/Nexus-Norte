@@ -68,13 +68,15 @@ const OPCOES: { valor: Tipo; rotulo: string }[] = [
 ]
 
 /**
- * Tipos com início e fim de verdade — os únicos que fazem sentido quando o
- * dialog nasce de um arrasto na grade de Horas (chat 2026-08-14). Sessão de
- * estudo tem hora opcional sem fim próprio (duração, não intervalo); marco e
- * avaliação não têm horário nenhum, só data — nenhum dos dois aproveitaria o
- * intervalo arrastado.
+ * Tipos que fazem sentido quando o dialog nasce de um arrasto na grade de
+ * Horas (chat 2026-08-14). Marco e avaliação não têm horário, só data — não
+ * aproveitariam o intervalo arrastado.
+ *
+ * Sessão de estudo entrou aqui em ago/2026: o arrasto pré-preenche `hora` e
+ * calcula `duração` a partir do intervalo — é o principal caso de uso da grade
+ * de Horas para o pilar de estudos.
  */
-const TIPOS_COM_HORARIO: readonly Tipo[] = ['treino', 'trabalho', 'evento']
+const TIPOS_COM_HORARIO: readonly Tipo[] = ['estudo', 'treino', 'trabalho', 'evento']
 
 interface DialogCriarNoDiaProps {
   /** Data clicada, ISO — entra pré-preenchida e editável (10.48.2). */
@@ -178,14 +180,22 @@ export function DialogCriarNoDia({
 
   // Preenche data e horário sugeridos a cada abertura — sem isto, reabrir
   // com um horário arrastado diferente manteria o do arrasto anterior. Vindo
-  // de arrasto, o tipo também parte de um que tenha horário — "estudo"
-  // (padrão de sempre) nem apareceria na lista filtrada.
+  // de arrasto, o tipo parte de 'estudo' (o caso mais comum para quem arrasta
+  // um bloco de tempo na grade de Horas).
   useEffect(() => {
     if (!aberto) return
     setDataEditavel(data)
     if (horarioInicial) {
       setHorarioInicio(horarioInicial)
-      setTipo((atual) => (TIPOS_COM_HORARIO.includes(atual) ? atual : 'evento'))
+      // Sessão de estudo: hora = início do arrasto, duração = diferença
+      setHoraEstudo(horarioInicial)
+      if (horarioFinal) {
+        const [hI, mI] = horarioInicial.split(':').map(Number)
+        const [hF, mF] = horarioFinal.split(':').map(Number)
+        const diff = (hF as number) * 60 + (mF as number) - ((hI as number) * 60 + (mI as number))
+        if (diff > 0) setDuracaoMinutos(diff)
+      }
+      setTipo((atual) => (TIPOS_COM_HORARIO.includes(atual) ? atual : 'estudo'))
     }
     if (horarioFinal) setHorarioFim(horarioFinal)
   }, [aberto, data, horarioInicial, horarioFinal])

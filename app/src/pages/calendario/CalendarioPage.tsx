@@ -35,8 +35,10 @@ import {
   COR_CAMADA,
   ROTULO_CAMADA,
   construirEventos,
+  idRealEntidade,
   type CamadaCalendario,
   type EventoCalendario,
+  type FonteSessaoEstudo,
   type FonteSessaoPlanejada,
   type FonteTreinoAgendado,
 } from '@/features/calendario/eventos'
@@ -47,6 +49,7 @@ import { DialogAgendarTreino } from '@/features/treino/componentes/DialogAgendar
 import { useTreinos } from '@/features/treino/hooks'
 import type { Treino } from '@/features/treino/types'
 import { DialogAgendarSessao } from '@/features/estudos/componentes/DialogAgendarSessao'
+import { DialogSessaoRealizada } from '@/features/estudos/componentes/DialogSessaoRealizada'
 import { useMaterias } from '@/features/estudos/hooks'
 import type { Materia } from '@/features/estudos/types'
 import { useMoverEvento } from '@/features/calendario/hooks/useMoverEvento'
@@ -130,6 +133,9 @@ export default function CalendarioPage() {
   const [sessaoEditando, setSessaoEditando] = useState<FonteSessaoPlanejada | null>(
     null,
   )
+  /** Idem, para sessão de estudo realizada (ago/2026). */
+  const [sessaoRealizadaEditando, setSessaoRealizadaEditando] =
+    useState<FonteSessaoEstudo | null>(null)
   const materias = useMaterias()
 
   /**
@@ -272,6 +278,12 @@ export default function CalendarioPage() {
   const sessoesPlanejadasPorId = useMemo(
     () => new Map(fontes.sessoesEstudoPlanejadas.map((s) => [s.id, s])),
     [fontes.sessoesEstudoPlanejadas],
+  )
+
+  /** Idem, para sessão de estudo realizada. */
+  const sessoesRealizadasPorId = useMemo(
+    () => new Map(fontes.sessoesEstudo.map((s) => [s.id, s])),
+    [fontes.sessoesEstudo],
   )
 
   const refsDia = useRef(new Map<string, HTMLLIElement>())
@@ -546,6 +558,7 @@ export default function CalendarioPage() {
                 treinosAgendadosPorId={treinosAgendadosPorId}
                 treinos={treinos.data}
                 sessoesPlanejadasPorId={sessoesPlanejadasPorId}
+                sessoesRealizadasPorId={sessoesRealizadasPorId}
                 materias={materias.data}
               />
             </CardContent>
@@ -588,8 +601,7 @@ export default function CalendarioPage() {
                 }
                 /*
                  * Mesma coisa pra sessão de estudo planejada — `estado !==
-                 * 'feito'` separa da sessão já registrada, que segue por
-                 * `rotaPorId` normalmente.
+                 * 'feito'` separa da sessão já registrada.
                  */
                 if (
                   evento?.tipo === 'estudo' &&
@@ -600,6 +612,22 @@ export default function CalendarioPage() {
                   const planejada = sessoesPlanejadasPorId.get(evento.origemId)
                   if (planejada) {
                     setSessaoEditando(planejada)
+                    return
+                  }
+                }
+                /*
+                 * E para sessão de estudo realizada (estado === 'feito') — abre
+                 * DialogSessaoRealizada para editar/excluir/anotar.
+                 */
+                if (
+                  evento?.tipo === 'estudo' &&
+                  evento.estado === 'feito'
+                ) {
+                  const realizada = sessoesRealizadasPorId.get(
+                    idRealEntidade(evento),
+                  )
+                  if (realizada) {
+                    setSessaoRealizadaEditando(realizada)
                     return
                   }
                 }
@@ -722,6 +750,7 @@ export default function CalendarioPage() {
         treinosAgendadosPorId={treinosAgendadosPorId}
         treinos={treinos.data}
         sessoesPlanejadasPorId={sessoesPlanejadasPorId}
+        sessoesRealizadasPorId={sessoesRealizadasPorId}
         materias={materias.data}
         onOpenChange={(aberto) => {
           if (!aberto) setDiaDetalhado(null)
@@ -758,6 +787,20 @@ export default function CalendarioPage() {
           if (!aberto) setSelecaoIntervalo(null)
         }}
       />
+
+      <DialogSessaoRealizada
+        sessao={sessaoRealizadaEditando}
+        nomeMateria={
+          sessaoRealizadaEditando
+            ? (fontes.nomePorMateria.get(sessaoRealizadaEditando.materia_id) ?? 'Estudo')
+            : 'Estudo'
+        }
+        trigger={null}
+        open={sessaoRealizadaEditando !== null}
+        onOpenChange={(aberto) => {
+          if (!aberto) setSessaoRealizadaEditando(null)
+        }}
+      />
     </>
   )
 }
@@ -771,6 +814,7 @@ interface DialogDiaProps {
   treinosAgendadosPorId: ReadonlyMap<string, FonteTreinoAgendado>
   treinos?: readonly Treino[]
   sessoesPlanejadasPorId: ReadonlyMap<string, FonteSessaoPlanejada>
+  sessoesRealizadasPorId: ReadonlyMap<string, FonteSessaoEstudo>
   materias?: readonly Materia[]
   onOpenChange: (aberto: boolean) => void
 }
@@ -794,6 +838,7 @@ function DialogDia({
   treinosAgendadosPorId,
   treinos,
   sessoesPlanejadasPorId,
+  sessoesRealizadasPorId,
   materias,
   onOpenChange,
 }: DialogDiaProps) {
@@ -815,6 +860,7 @@ function DialogDia({
             treinosAgendadosPorId={treinosAgendadosPorId}
             treinos={treinos}
             sessoesPlanejadasPorId={sessoesPlanejadasPorId}
+            sessoesRealizadasPorId={sessoesRealizadasPorId}
             materias={materias}
           />
         )}

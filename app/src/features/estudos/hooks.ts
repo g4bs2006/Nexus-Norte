@@ -243,6 +243,39 @@ export function useExcluirSessaoPlanejada() {
 }
 
 /**
+ * Converte uma sessão planejada em sessão executada: cria em `sessoes_estudo`
+ * e exclui de `sessoes_estudo_planejadas`.
+ */
+export function useMarcarSessaoComoFeita() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (planejada: {
+      id: string
+      materia_id: string
+      data: string
+      hora_inicio: string | null
+      duracao_minutos: number
+    }) => {
+      await api.criarSessao({
+        materia_id: planejada.materia_id,
+        data: planejada.data,
+        duracao_minutos: planejada.duracao_minutos,
+        hora_inicio: planejada.hora_inicio ?? null,
+        meta_diaria_minutos: null,
+      })
+      await api.excluirSessaoPlanejada(planejada.id)
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: chaves.raiz })
+      void queryClient.invalidateQueries({ queryKey: ['calendario'] })
+      toast.success('Sessão marcada como feita')
+    },
+    onError: (erro: Error) => toast.error(erro.message),
+  })
+}
+
+/**
  * Toggle "feita" de uma sessão planejada (chat 2026-08-14).
  *
  * Não é uma flag separada: marcar CRIA a sessão executada de verdade, com os

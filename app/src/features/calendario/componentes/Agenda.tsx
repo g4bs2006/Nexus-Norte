@@ -8,13 +8,16 @@ import type { EventoLivre } from '@/features/eventos/api'
 import { DialogAgendarTreino } from '@/features/treino/componentes/DialogAgendarTreino'
 import type { Treino } from '@/features/treino/types'
 import { DialogAgendarSessao } from '@/features/estudos/componentes/DialogAgendarSessao'
+import { DialogSessaoRealizada } from '@/features/estudos/componentes/DialogSessaoRealizada'
 import type { Materia } from '@/features/estudos/types'
 import { ordenarDoDia, type DiaCarga } from '../carga'
 import {
   corDoEvento,
   ROTULO_TIPO,
   ehImportante,
+  idRealEntidade,
   type EventoCalendario,
+  type FonteSessaoEstudo,
   type FonteSessaoPlanejada,
   type FonteTreinoAgendado,
 } from '../eventos'
@@ -51,6 +54,8 @@ interface AgendaProps {
   sessoesPlanejadasPorId?: ReadonlyMap<string, FonteSessaoPlanejada>
   /** Lista de matérias, para o Select do diálogo de editar sessão planejada. */
   materias?: readonly Materia[]
+  /** Registro completo por id, para sessão de estudo realizada (`tipo === 'estudo'`, `estado === 'feito'`). */
+  sessoesRealizadasPorId?: ReadonlyMap<string, FonteSessaoEstudo>
 }
 
 /**
@@ -78,6 +83,7 @@ export function Agenda({
   treinos,
   sessoesPlanejadasPorId,
   materias,
+  sessoesRealizadasPorId,
 }: AgendaProps) {
   return (
     <ul className="divide-border divide-y">
@@ -164,6 +170,11 @@ export function Agenda({
                           ? sessoesPlanejadasPorId?.get(evento.origemId)
                           : undefined
                       }
+                      sessaoRealizada={
+                        evento.tipo === 'estudo' && evento.estado === 'feito'
+                          ? sessoesRealizadasPorId?.get(idRealEntidade(evento))
+                          : undefined
+                      }
                       materias={materias}
                     />
                   ))}
@@ -185,6 +196,7 @@ function LinhaEvento({
   treinoAgendado,
   treinos,
   sessaoPlanejada,
+  sessaoRealizada,
   materias,
 }: {
   evento: EventoCalendario
@@ -196,6 +208,8 @@ function LinhaEvento({
   treinos?: readonly Treino[]
   /** Só presente quando `evento.tipo === 'estudo'` (planejada, não realizada). */
   sessaoPlanejada?: FonteSessaoPlanejada
+  /** Só presente quando `evento.tipo === 'estudo'` e `evento.estado === 'feito'`. */
+  sessaoRealizada?: FonteSessaoEstudo
   materias?: readonly Materia[]
 }) {
   const prazo = ehImportante(evento)
@@ -344,7 +358,7 @@ function LinhaEvento({
   /*
    * Sessão de estudo planejada (não executada) também não navega — mesmo
    * tratamento do treino agendado. `estado !== 'feito'` separa da sessão já
-   * registrada, que continua no `<Link>` de sempre.
+   * registrada.
    */
   if (
     evento.tipo === 'estudo' &&
@@ -356,6 +370,38 @@ function LinhaEvento({
       <DialogAgendarSessao
         planejada={sessaoPlanejada}
         materias={materias ?? []}
+        trigger={
+          <button
+            type="button"
+            className={cn(
+              classes,
+              'hover:bg-accent/60 -mx-1.5 w-[calc(100%+0.75rem)] px-1.5 text-left',
+            )}
+          >
+            {conteudo}
+          </button>
+        }
+      />
+    )
+  }
+
+  /*
+   * Sessão de estudo realizada (estado === 'feito') — abre DialogSessaoRealizada
+   * em vez de apenas navegar para a matéria.
+   */
+  if (
+    evento.tipo === 'estudo' &&
+    evento.estado === 'feito' &&
+    sessaoRealizada
+  ) {
+    const nomeMateria =
+      materias?.find((m) => m.id === sessaoRealizada.materia_id)?.nome ??
+      'Estudo'
+
+    return (
+      <DialogSessaoRealizada
+        sessao={sessaoRealizada}
+        nomeMateria={nomeMateria}
         trigger={
           <button
             type="button"
