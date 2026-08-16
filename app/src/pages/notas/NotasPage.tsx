@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Tag, NotebookPen } from 'lucide-react'
+import { Settings2, Tag, NotebookPen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { EstadoVazio } from '@/components/EstadoVazio'
 import { PageHeader } from '@/components/PageHeader'
 import { SkeletonPagina } from '@/components/Skeletons'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import {
@@ -20,6 +21,7 @@ import { useMaterias, useSemestres } from '@/features/estudos/hooks'
 import { useBuscaNotas, useNotas, useTopicos } from '@/features/notas/hooks'
 import { TrechoBusca } from '@/features/notas/componentes/TrechoBusca'
 import { BotaoExportar } from '@/features/notas/componentes/BotaoExportar'
+import { DialogGerenciarTopicos } from '@/features/notas/componentes/DialogGerenciarTopicos'
 
 /** Valor do `Select` para "sem filtro". String vazia não é aceita pelo shadcn. */
 const TODOS = 'todos'
@@ -38,6 +40,7 @@ const TODOS = 'todos'
 export default function NotasPage() {
   const [params, setParams] = useSearchParams()
   const [termo, setTermo] = useState('')
+  const [gerenciadorAberto, setGerenciadorAberto] = useState(false)
 
   const termoBusca = useDebounced(termo.trim(), 250)
   const notas = useNotas()
@@ -161,55 +164,73 @@ export default function NotasPage() {
           />
         </div>
 
-        {topicos.data && topicos.data.length > 0 && (
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
-            <span className="text-muted-foreground font-medium shrink-0 flex items-center gap-1">
-              <Tag className="size-3" /> Tópicos:
-            </span>
-            <button
-              type="button"
-              className={cn(
-                'px-2.5 py-1 rounded-full text-xs font-medium transition-colors shrink-0 cursor-pointer',
-                topicoFiltro === TODOS
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-accent',
-              )}
-              onClick={() => definirFiltro('topico', TODOS)}
-            >
-              Todos ({notas.data?.length ?? 0})
-            </button>
-            {topicos.data.map((t) => {
-              const contagem = (notas.data ?? []).filter((n) =>
-                n.topicos.some((top) => top.slug === t.slug),
-              ).length
-              if (contagem === 0) return null
-              const ativo = topicoFiltro === t.slug
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  className={cn(
-                    'px-2.5 py-1 rounded-full text-xs font-medium transition-colors shrink-0 flex items-center gap-1 cursor-pointer',
-                    ativo
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground',
-                  )}
-                  onClick={() => definirFiltro('topico', t.slug)}
-                >
-                  <span>#{t.nome}</span>
-                  <span
+        {topicos.data && (
+          <div className="flex items-center justify-between gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar min-w-0">
+              <span className="text-muted-foreground font-medium shrink-0 flex items-center gap-1">
+                <Tag className="size-3" /> Tópicos:
+              </span>
+              <button
+                type="button"
+                className={cn(
+                  'px-2.5 py-1 rounded-full text-xs font-medium transition-colors shrink-0 cursor-pointer',
+                  topicoFiltro === TODOS
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-accent',
+                )}
+                onClick={() => definirFiltro('topico', TODOS)}
+              >
+                Todos ({notas.data?.length ?? 0})
+              </button>
+              {topicos.data.map((t) => {
+                const contagem = (notas.data ?? []).filter((n) =>
+                  n.topicos.some((top) => top.slug === t.slug),
+                ).length
+                if (contagem === 0) return null
+                const ativo = topicoFiltro === t.slug
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
                     className={cn(
-                      'rounded-full px-1 py-0.2 text-[10px]',
-                      ativo ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-background/80 text-muted-foreground',
+                      'px-2.5 py-1 rounded-full text-xs font-medium transition-colors shrink-0 flex items-center gap-1 cursor-pointer',
+                      ativo
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground',
                     )}
+                    onClick={() => definirFiltro('topico', t.slug)}
                   >
-                    {contagem}
-                  </span>
-                </button>
-              )
-            })}
+                    <span>#{t.nome}</span>
+                    <span
+                      className={cn(
+                        'rounded-full px-1 py-0.2 text-[10px]',
+                        ativo ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-background/80 text-muted-foreground',
+                      )}
+                    >
+                      {contagem}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs gap-1 shrink-0 ml-auto border-dashed hover:border-solid"
+              onClick={() => setGerenciadorAberto(true)}
+            >
+              <Settings2 className="size-3.5 text-muted-foreground" />
+              <span>Gerenciar Tópicos</span>
+            </Button>
           </div>
         )}
+
+        <DialogGerenciarTopicos
+          aberto={gerenciadorAberto}
+          onAbertoChange={setGerenciadorAberto}
+        />
 
         {notas.isPending ? (
           <SkeletonPagina variante="lista" />

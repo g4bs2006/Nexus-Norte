@@ -740,6 +740,25 @@ export async function desvincularTopicoDaNota(
   )
 }
 
+export async function excluirTopico(id: string): Promise<void> {
+  lancar(await supabase.from('topicos').delete().eq('id', id))
+}
+
+export async function renomearTopico(
+  id: string,
+  novoNome: string,
+): Promise<void> {
+  const nomeLimpo = novoNome.trim()
+  if (!nomeLimpo) return
+  const slug = gerarSlug(nomeLimpo)
+  lancar(
+    await supabase
+      .from('topicos')
+      .update({ nome: nomeLimpo, slug })
+      .eq('id', id),
+  )
+}
+
 /**
  * Resolve as arestas que apontavam para este slug sem nota do outro lado.
  *

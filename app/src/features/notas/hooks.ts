@@ -143,6 +143,21 @@ export function useDesvincularTopico() {
   )
 }
 
+export function useExcluirTopico() {
+  return useMutationNotas(
+    (id: string) => api.excluirTopico(id),
+    'Tópico excluído',
+  )
+}
+
+export function useRenomearTopico() {
+  return useMutationNotas(
+    ({ id, novoNome }: { id: string; novoNome: string }) =>
+      api.renomearTopico(id, novoNome),
+    'Tópico renomeado',
+  )
+}
+
 /**
  * A única mutation que grava conteúdo. Criar e editar são o mesmo caminho —
  * `salvarNota` decide pelo `id`, e ter duas mutations aqui abriria a porta para
