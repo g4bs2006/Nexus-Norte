@@ -47,8 +47,8 @@ export function BarraSelecao({
     <div
       role="toolbar"
       aria-label="Formatar seleção"
-      className="bg-popover border-border fixed z-50 flex -translate-x-1/2 items-center gap-0.5 rounded-md border p-1 shadow-md"
-      style={{ left: ancora.esquerda, top: ancora.topo - 44 }}
+      className="bg-popover/90 border-border/80 fixed z-50 flex -translate-x-1/2 items-center gap-1 rounded-lg border p-1 shadow-xl backdrop-blur-md animate-in fade-in-50 zoom-in-95 duration-150"
+      style={{ left: ancora.esquerda, top: ancora.topo - 48 }}
     >
       {BOTOES.map(({ marca, rotulo, icone: Icone, atalho }) => (
         <button
@@ -56,35 +56,29 @@ export function BarraSelecao({
           type="button"
           title={`${rotulo} · ${atalho}`}
           aria-label={rotulo}
-          className="hover:bg-accent flex size-7 items-center justify-center rounded-sm"
+          className="hover:bg-accent hover:text-accent-foreground text-muted-foreground flex size-8 items-center justify-center rounded-md transition-all duration-150 cursor-pointer"
           onMouseDown={(evento) => {
             evento.preventDefault()
             onMarcar(marca)
           }}
         >
-          <Icone className="size-3.5" />
+          <Icone className="size-4" />
         </button>
       ))}
 
-      <span className="bg-border mx-0.5 h-4 w-px" aria-hidden />
+      <span className="bg-border/60 mx-1 h-4 w-px" aria-hidden />
 
-      {/*
-        Destaque, e não paleta de cor. Markdown não tem cor, e gravá-la exigiria
-        <span style>, que faria o `.md` exportado deixar de ser Markdown —
-        derrubando o argumento que sustenta o editor inteiro. `==assim==` é
-        extensão que o Obsidian entende e sobrevive à exportação.
-      */}
       <button
         type="button"
         title="Destacar · marca o que cai na prova"
         aria-label="Destacar"
-        className="hover:bg-accent flex size-7 items-center justify-center rounded-sm"
+        className="hover:bg-accent hover:text-accent-foreground text-muted-foreground flex size-8 items-center justify-center rounded-md transition-all duration-150 cursor-pointer"
         onMouseDown={(evento) => {
           evento.preventDefault()
           onDestacar()
         }}
       >
-        <Highlighter className="size-3.5" />
+        <Highlighter className="size-4 text-estudos" />
       </button>
     </div>
   )

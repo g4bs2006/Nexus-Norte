@@ -425,3 +425,13 @@
   border-style: dashed;
   opacity: 0.8;
 }
+
+/*
+ * Destaque de seleção de texto customizado.
+ * Substitui o azul padrão nativo do sistema por um tom orgânico do tema.
+ */
+.editor-markdown ::selection,
+.documento-leitura ::selection {
+  background: var(--accent);
+  color: var(--foreground);
+}

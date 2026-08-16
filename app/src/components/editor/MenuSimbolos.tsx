@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { cn } from '@/lib/utils'
 import type { EstadoGatilho } from './gatilhoMenu'
 
 /** O que a lista precisa saber de cada item, sem conhecer LaTeX. */
@@ -15,18 +16,10 @@ interface MenuSimbolosProps {
   onEscolher: (item: ItemMenu) => void
 }
 
-const ALTURA_MAXIMA = 260
+const ALTURA_MAXIMA = 280
 
 /**
- * A lista que aparece junto do cursor.
- *
- * `position: fixed` sobre as coordenadas que o ProseMirror deu — não é um
- * popover ancorado a um elemento, porque o cursor não é um elemento. Vira para
- * cima quando não cabe embaixo, que é o caso comum ao escrever no fim da tela.
- *
- * Não recebe foco, e é isso que faz o atalho funcionar: o cursor continua no
- * texto, digitar continua filtrando, e o teclado é lido pelo plugin do editor.
- * Um menu que rouba o foco seria um diálogo com outro nome.
+ * A lista que aparece junto do cursor (Notion / Raycast style).
  */
 export function MenuSimbolos({
   estado,
@@ -55,8 +48,8 @@ export function MenuSimbolos({
     <ul
       ref={lista}
       role="listbox"
-      aria-label="Símbolos"
-      className="bg-popover border-border fixed z-50 w-64 overflow-y-auto rounded-md border p-1 shadow-md"
+      aria-label="Símbolos e Comandos"
+      className="bg-popover/95 border-border/80 fixed z-50 w-72 overflow-y-auto rounded-xl border p-1.5 shadow-2xl backdrop-blur-xl no-scrollbar animate-in fade-in-50 zoom-in-95 duration-150"
       style={{
         left: estado.ancora.esquerda,
         maxHeight: ALTURA_MAXIMA,
@@ -65,31 +58,56 @@ export function MenuSimbolos({
           : { top: estado.ancora.base + 4 }),
       }}
     >
-      {itens.map((item, posicao) => (
-        <li key={item.chave}>
-          <button
-            type="button"
-            role="option"
-            aria-selected={posicao === indice}
-            data-selecionado={posicao === indice ? 'sim' : 'nao'}
-            className="data-[selecionado=sim]:bg-accent flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm"
-            // `onMouseDown` e não `onClick`: clicar tiraria o foco do editor
-            // antes de o clique chegar, e a inserção perderia a posição.
-            onMouseDown={(evento) => {
-              evento.preventDefault()
-              onEscolher(item)
-            }}
-          >
-            <span className="text-muted-foreground w-8 shrink-0 text-center">
-              {item.amostra}
-            </span>
-            <span className="truncate">{item.rotulo}</span>
-            <span className="text-muted-foreground/60 ml-auto shrink-0 text-[11px]">
-              {item.chave}
-            </span>
-          </button>
-        </li>
-      ))}
+      <li className="px-2.5 py-1 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+        Comandos e Blocos
+      </li>
+      {itens.map((item, posicao) => {
+        const ativo = posicao === indice
+        return (
+          <li key={item.chave}>
+            <button
+              type="button"
+              role="option"
+              aria-selected={ativo}
+              data-selecionado={ativo ? 'sim' : 'nao'}
+              className={cn(
+                'group flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left text-xs transition-colors cursor-pointer',
+                ativo
+                  ? 'bg-primary text-primary-foreground font-medium shadow-sm'
+                  : 'hover:bg-accent text-foreground',
+              )}
+              onMouseDown={(evento) => {
+                evento.preventDefault()
+                onEscolher(item)
+              }}
+            >
+              <span className="flex items-center gap-2.5 truncate min-w-0">
+                <span
+                  className={cn(
+                    'flex size-6 shrink-0 items-center justify-center rounded-md text-[11px] font-mono transition-colors',
+                    ativo
+                      ? 'bg-primary-foreground/20 text-primary-foreground'
+                      : 'bg-muted/80 text-muted-foreground',
+                  )}
+                >
+                  {item.amostra}
+                </span>
+                <span className="truncate">{item.rotulo}</span>
+              </span>
+              <span
+                className={cn(
+                  'shrink-0 rounded px-1.5 py-0.5 font-mono text-[10px] transition-colors',
+                  ativo
+                    ? 'bg-primary-foreground/20 text-primary-foreground'
+                    : 'bg-muted/80 text-muted-foreground/70',
+                )}
+              >
+                /{item.chave}
+              </span>
+            </button>
+          </li>
+        )
+      })}
     </ul>
   )
 }
