@@ -258,7 +258,7 @@ export default function NotaDetalhePage() {
         <article
           className={cn(
             'documento-nota min-w-0 transition-all duration-300 ease-in-out',
-            !trilhoAberto && 'mx-auto w-full',
+            !trilhoAberto && 'mx-auto w-full max-w-4xl',
           )}
         >
           {desktop ? (
