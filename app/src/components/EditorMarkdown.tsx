@@ -16,6 +16,7 @@ import type {
 } from './editor/views'
 import type { FonteItens, ResultadoEscolha } from './editor/useGatilho'
 import type { EnviarImagem } from './editor/imagens'
+import type { FormulaEmEdicao } from './editor/editarFormula'
 import { filtrarEscrita, CATALOGO_ESCRITA } from './editor/catalogoEscrita'
 
 const EditorRico = lazy(() => import('./EditorMarkdownRico'))
@@ -39,7 +40,18 @@ export type Inserir = (markdown: string, inline: boolean) => void
  * o `remark-math` lê como fórmula inline: a prévia mostrava uma coisa e a
  * página recebia outra.
  */
-export type InserirFormula = (latex: string, bloco: boolean) => void
+export type InserirFormula = (
+  latex: string,
+  bloco: boolean,
+  /**
+   * Posição do nó a SUBSTITUIR. Ausente, a fórmula entra no cursor.
+   *
+   * É o que faz o duplo clique poder reescrever a fórmula no lugar em vez de
+   * inserir uma segunda. `bloco` pode mudar no caminho — trocar "em linha
+   * própria" ao editar troca o TIPO do nó, e substituir cuida disso sozinho.
+   */
+  substituirEm?: number,
+) => void
 
 export interface EditorMarkdownProps {
   value: string
@@ -126,6 +138,13 @@ export function EditorMarkdown({
   const [seletorAberto, setSeletorAberto] = useState(false)
   const [desenhando, setDesenhando] = useState(false)
   const [formulaAberta, setFormulaAberta] = useState(false)
+  /*
+   * A fórmula que o duplo clique pediu para editar, ou `null` quando o
+   * diálogo abre em branco pelo `/`. Guarda a POSIÇÃO do nó, que é o que
+   * distingue "reescreva aquela" de "insira uma aqui".
+   */
+  const [formulaEmEdicao, setFormulaEmEdicao] =
+    useState<FormulaEmEdicao | null>(null)
   const escuro = resolverTema(useUIStore((estado) => estado.tema)) === 'escuro'
   /*
    * Quando o seletor abre por causa do `[[` já digitado, só falta completar o
@@ -263,8 +282,16 @@ export function EditorMarkdown({
       */}
       <DialogFormula
         aberto={formulaAberta}
-        onAbertoChange={setFormulaAberta}
-        onInserir={(latex, bloco) => inserirFormulaRef.current?.(latex, bloco)}
+        onAbertoChange={(aberto) => {
+          setFormulaAberta(aberto)
+          // Fechar limpa a edição, senão o próximo `/formula` abriria com a
+          // fórmula anterior dentro e a salvaria por cima dela.
+          if (!aberto) setFormulaEmEdicao(null)
+        }}
+        inicial={formulaEmEdicao}
+        onInserir={(latex, bloco) =>
+          inserirFormulaRef.current?.(latex, bloco, formulaEmEdicao?.posicao)
+        }
       />
 
       <Suspense
@@ -276,6 +303,10 @@ export function EditorMarkdown({
           placeholder={placeholder}
           inserirRef={inserirRef}
           inserirFormulaRef={inserirFormulaRef}
+          aoEditarFormula={(formula) => {
+            setFormulaEmEdicao(formula)
+            setFormulaAberta(true)
+          }}
           renderizarBloco={renderizarBloco}
           renderizarDesenho={renderizarDesenho}
           simbolos={simbolos}

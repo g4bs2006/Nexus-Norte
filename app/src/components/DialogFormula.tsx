@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -12,9 +12,27 @@ import { Formula } from './Formula'
 
 const CampoMatematico = lazy(() => import('./CampoMatematico'))
 
+/** Uma tecla a digitar, na linha de dicas. */
+function Atalho({ children }: { children: string }) {
+  return (
+    <code className="bg-muted rounded px-1 py-0.5 font-mono text-[11px]">
+      {children}
+    </code>
+  )
+}
+
 interface DialogFormulaProps {
   /** Recebe o LaTeX pronto, sem os `$`. Quem chama decide onde inserir. */
   onInserir: (latex: string, bloco: boolean) => void
+  /**
+   * A fórmula a editar, quando o diálogo abre por duplo clique numa que já
+   * existe. Ausente, ele abre em branco para escrever uma nova.
+   *
+   * Semeia o estado ao ABRIR, e não a cada render: enquanto se digita, quem
+   * manda no campo é o próprio diálogo — reescrever por cima a cada tecla
+   * devolveria o texto original e travaria a edição.
+   */
+  inicial?: { latex: string; bloco: boolean } | null
   /**
    * Controlado de fora desde que o menu `/` passou a abri-lo.
    *
@@ -41,11 +59,26 @@ interface DialogFormulaProps {
  */
 export function DialogFormula({
   onInserir,
+  inicial,
   aberto,
   onAbertoChange,
 }: DialogFormulaProps) {
   const [latex, setLatex] = useState('')
   const [bloco, setBloco] = useState(false)
+
+  const editando = inicial != null
+
+  /*
+   * Semeia ao ABRIR. A dependência é `aberto`, e não `inicial`: se o objeto
+   * entrasse aqui, cada render do pai o recriaria e o campo voltaria ao texto
+   * original no meio da digitação.
+   */
+  useEffect(() => {
+    if (!aberto) return
+    setLatex(inicial?.latex ?? '')
+    setBloco(inicial?.bloco ?? false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aberto])
 
   function inserir() {
     const limpo = latex.trim()
@@ -74,7 +107,7 @@ export function DialogFormula({
         onInteractOutside={(evento) => evento.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>Fórmula</DialogTitle>
+          <DialogTitle>{editando ? 'Editar fórmula' : 'Fórmula'}</DialogTitle>
           <DialogDescription>
             Escreva como se lê. O que a nota guarda é o LaTeX.
           </DialogDescription>
@@ -91,6 +124,19 @@ export function DialogFormula({
             onConfirmar={inserir}
           />
         </Suspense>
+
+        {/*
+          Os atalhos que o MathLive já tem, escritos porque não se descobrem.
+          Nenhum deles está no teclado virtual: `sum` vira o somatório COM os
+          limites (`\sum_{}^{}`), não a letra grega solta, e é a diferença
+          entre achar que o app não tem somatório e escrever um em três teclas.
+        */}
+        <p className="text-muted-foreground text-xs">
+          Digite <Atalho>sum</Atalho> <Atalho>int</Atalho>{' '}
+          <Atalho>prod</Atalho> <Atalho>sqrt</Atalho> <Atalho>oo</Atalho> para
+          somatório, integral, produtório, raiz e infinito. <Atalho>/</Atalho>{' '}
+          faz fração e <Atalho>^</Atalho> faz expoente.
+        </p>
 
         {latex.trim() !== '' && (
           <div className="bg-muted/40 rounded-md p-3">
@@ -109,7 +155,7 @@ export function DialogFormula({
 
         <DialogFooter>
           <Button type="button" onClick={inserir} disabled={latex.trim() === ''}>
-            Inserir
+            {editando ? 'Salvar' : 'Inserir'}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -96,13 +96,43 @@ export default function CampoMatematico({
     }
 
     /*
-     * Fase de CAPTURA. O MathLive trata o teclado dentro do próprio shadow
-     * DOM, e um listener de bolha aqui correria depois dele — ou nem correria,
-     * se ele parasse a propagação. Na captura o evento passa por este
-     * elemento antes de descer, então o `Enter` é nosso primeiro.
+     * O caminho da TECLA MORTA, que o `keydown` não alcança.
+     *
+     * No ABNT2 o `^` é acento: a primeira pressão chega como `key: 'Dead'` e
+     * nenhum caractere existe ainda, então a regra acima não tem o que casar.
+     * O caractere só aparece quando a composição se resolve — e aí ele vem
+     * como `data` de um `beforeinput`, que é onde este segundo ouvinte pega.
+     *
+     * Não há risco de agir duas vezes: quando o `keydown` casa, ele já chama
+     * `preventDefault`, e sem inserção não há `beforeinput` depois.
+     */
+    function aoInserir(evento: InputEvent) {
+      const elementoAtual = campo.current
+      if (!elementoAtual) return
+
+      const latex = ATALHOS[evento.data ?? '']
+      if (latex === undefined) return
+      evento.preventDefault()
+      evento.stopPropagation()
+      elementoAtual.executeCommand(['insert', latex])
+    }
+
+    /*
+     * Fase de CAPTURA nos dois. O MathLive trata o teclado dentro do próprio
+     * shadow DOM, e um ouvinte de bolha aqui correria depois dele — ou nem
+     * correria, se ele parasse a propagação. Na captura o evento passa por
+     * este elemento antes de descer, então somos os primeiros.
      */
     elemento.addEventListener('keydown', aoTeclar, true)
-    return () => elemento.removeEventListener('keydown', aoTeclar, true)
+    elemento.addEventListener('beforeinput', aoInserir as EventListener, true)
+    return () => {
+      elemento.removeEventListener('keydown', aoTeclar, true)
+      elemento.removeEventListener(
+        'beforeinput',
+        aoInserir as EventListener,
+        true,
+      )
+    }
   }, [])
 
   useEffect(() => {

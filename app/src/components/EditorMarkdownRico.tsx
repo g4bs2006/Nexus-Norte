@@ -34,6 +34,10 @@ import { criarPluginImagens, type EnviarImagem } from './editor/imagens'
 import { sairDaFormula } from './editor/sairDaFormula'
 import { multiplicacaoFormula } from './editor/formatarFormula'
 import {
+  criarEditarFormula,
+  type AoEditarFormula,
+} from './editor/editarFormula'
+import {
   focoMatematica,
   mathInlineEditavel,
   viewMatematica,
@@ -74,6 +78,8 @@ interface EditorRicoProps {
    * reinterpretado — e não era como se esperava.
    */
   inserirFormulaRef: RefObject<InserirFormula | null>
+  /** Duplo clique numa fórmula pronta pede para reabri-la no editor visual. */
+  aoEditarFormula?: AoEditarFormula
   /**
    * O que cada cerca vira, e como desenhar um desenho.
    *
@@ -128,6 +134,7 @@ function Interno({
   placeholder,
   inserirRef,
   inserirFormulaRef,
+  aoEditarFormula,
   renderizarBloco,
   renderizarDesenho,
   simbolos,
@@ -190,6 +197,17 @@ function Interno({
    */
   const pluginImagens = useRef(
     enviarImagem ? criarPluginImagens(enviarImagem) : null,
+  )
+
+  /*
+   * Como a barra de seleção: o plugin nasce UMA vez e fala com o React por
+   * ref. Recriá-lo mudaria a configuração do editor, e o Milkdown responde a
+   * isso remontando tudo — cursor no começo, undo perdido.
+   */
+  const editarFormulaRef = useRef(aoEditarFormula)
+  editarFormulaRef.current = aoEditarFormula
+  const pluginEditarFormula = useRef(
+    criarEditarFormula((formula) => editarFormulaRef.current?.(formula)),
   )
 
   const gatilhoSimbolos = useGatilho(
@@ -261,6 +279,7 @@ function Interno({
       // Depois do commonmark: na primeira `*` a regra de ênfase não casa
       // (falta o par), então a nossa age antes de existir um `*itálico*`.
       .use(multiplicacaoFormula)
+      .use(pluginEditarFormula.current)
       // Antes de navegarBuracos: dentro da fórmula, Enter sai; Tab anda.
       .use(sairDaFormula)
       .use(destaqueSchema)
@@ -312,7 +331,7 @@ function Interno({
    */
   useEffect(() => {
     const alvo = inserirFormulaRef
-    alvo.current = (latex, bloco) => {
+    alvo.current = (latex, bloco, substituirEm) => {
       get()?.action((ctx) => {
         const view = ctx.get(editorViewCtx)
         const { schema } = view.state
@@ -327,6 +346,24 @@ function Interno({
         const no = bloco
           ? tipo.create({ value: latex })
           : tipo.create(null, schema.text(latex))
+
+        /*
+         * Editando uma fórmula que já existe (duplo clique), o nó velho é
+         * trocado pelo novo no lugar. `nodeSize` do ANTIGO, e não do novo:
+         * é o pedaço a remover, e ele pode até ter mudado de tipo, se a caixa
+         * "em linha própria" foi trocada no meio da edição.
+         */
+        if (substituirEm !== undefined) {
+          const antigo = view.state.doc.nodeAt(substituirEm)
+          if (!antigo) return
+          view.dispatch(
+            view.state.tr
+              .replaceWith(substituirEm, substituirEm + antigo.nodeSize, no)
+              .scrollIntoView(),
+          )
+          view.focus()
+          return
+        }
 
         view.dispatch(
           view.state.tr.replaceSelectionWith(no, false).scrollIntoView(),
