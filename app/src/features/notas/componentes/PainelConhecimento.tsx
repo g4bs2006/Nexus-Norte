@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom'
-import { ArrowUpRight, Link2Off, PanelRightClose, PanelRightOpen, Tag } from 'lucide-react'
+import { ArrowDownRight, ArrowUpRight, Link2Off, PanelRightClose, PanelRightOpen, Tag } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { useUIStore } from '@/stores/ui'
-import { useBacklinks, useLinksQuebrados } from '../hooks'
+import { useBacklinks, useLinksQuebrados, useLinksSaida } from '../hooks'
 import type { Topico } from '../types'
 
 interface PainelConhecimentoProps {
@@ -41,6 +41,7 @@ export function PainelConhecimento({
   const alternar = useUIStore((estado) => estado.alternarTrilhoNota)
 
   const backlinks = useBacklinks(notaId)
+  const linksSaida = useLinksSaida(notaId)
   const quebrados = useLinksQuebrados(notaId)
 
   const conteudo = (
@@ -62,6 +63,30 @@ export function PainelConhecimento({
                 </Link>
                 <span className="text-muted-foreground text-[11px]">
                   {backlink.materia_nome}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Secao>
+
+      <Secao icone={ArrowDownRight} titulo="Notas citadas" total={linksSaida.data?.length}>
+        {linksSaida.data === undefined ? (
+          <Espera />
+        ) : linksSaida.data.length === 0 ? (
+          <Vazio texto="Esta nota não menciona nenhuma outra no texto ainda." />
+        ) : (
+          <ul className="space-y-2">
+            {linksSaida.data.map((item) => (
+              <li key={item.id}>
+                <Link
+                  to={`/notas/${item.slug}`}
+                  className="hover:text-estudos block text-sm font-medium"
+                >
+                  {item.titulo}
+                </Link>
+                <span className="text-muted-foreground text-[11px]">
+                  {item.materia_nome}
                 </span>
               </li>
             ))}

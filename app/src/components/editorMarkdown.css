@@ -394,3 +394,34 @@
         border-top-color: var(--border);
     }
 }
+
+.editor-markdown .wikilink,
+.documento-leitura .wikilink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.1rem 0.45rem;
+  margin: 0 0.15rem;
+  border-radius: var(--radius-md);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--primary);
+  background: var(--accent);
+  border: 1px solid var(--border);
+  text-decoration: none;
+  transition: all 150ms ease;
+  line-height: 1.3;
+}
+
+.editor-markdown .wikilink:hover,
+.documento-leitura .wikilink:hover {
+  background: var(--accent)/80;
+  border-color: var(--primary)/30;
+}
+
+.editor-markdown .wikilink[data-pendente='sim'],
+.documento-leitura .wikilink[data-pendente='sim'] {
+  color: var(--muted-foreground);
+  border-style: dashed;
+  opacity: 0.8;
+}

@@ -53,6 +53,14 @@ export function useBacklinks(notaId: string | undefined) {
   })
 }
 
+export function useLinksSaida(notaId: string | undefined) {
+  return useQuery({
+    queryKey: ['notas', 'saida', notaId ?? ''],
+    queryFn: () => api.listarLinksSaida(notaId as string),
+    enabled: Boolean(notaId),
+  })
+}
+
 export function useLinksQuebrados(notaId: string | undefined) {
   return useQuery({
     queryKey: chaves.quebrados(notaId ?? ''),

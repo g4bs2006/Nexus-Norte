@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { format, isToday, isYesterday } from 'date-fns'
-import { Plus, X } from 'lucide-react'
+import { Plus, Tag, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -12,6 +11,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command'
 import { deISO } from '@/lib/datas'
 import {
   useDesvincularTopico,
@@ -43,8 +51,8 @@ export function BlocoPropriedades({
   atualizadaEm,
   sessoesDaMateria,
 }: BlocoPropriedadesProps) {
-  const [adicionando, setAdicionando] = useState(false)
-  const [rascunho, setRascunho] = useState('')
+  const [popoverAberto, setPopoverAberto] = useState(false)
+  const [buscaTopico, setBuscaTopico] = useState('')
   const vincular = useVincularNotaASessao()
   const vincularTopico = useVincularTopico()
   const desvincularTopico = useDesvincularTopico()
@@ -56,11 +64,11 @@ export function BlocoPropriedades({
   )
 
   function confirmarTopico(nome?: string) {
-    const nomeFinal = nome ?? rascunho.trim()
+    const nomeFinal = nome ?? buscaTopico.trim()
     if (!nomeFinal || !notaId) return
     vincularTopico.mutate({ notaId, nomeTopico: nomeFinal })
-    setRascunho('')
-    setAdicionando(false)
+    setBuscaTopico('')
+    setPopoverAberto(false)
   }
 
   return (
@@ -119,7 +127,7 @@ export function BlocoPropriedades({
       </dd>
 
       <dt>Tópicos</dt>
-      <dd className="flex flex-wrap items-center gap-1">
+      <dd className="flex flex-wrap items-center gap-1.5">
         {topicos.map((topico) => (
           <Badge key={topico.id} variant="secondary" className="font-normal gap-1">
             <Link to={`/notas?topico=${topico.slug}`}>{topico.nome}</Link>
@@ -139,62 +147,58 @@ export function BlocoPropriedades({
           </Badge>
         ))}
 
-        {adicionando ? (
-          <span className="flex items-center gap-1">
-            <Input
-              autoFocus
-              value={rascunho}
-              onChange={(evento) => setRascunho(evento.target.value)}
-              onKeyDown={(evento) => {
-                if (evento.key === 'Enter') {
-                  evento.preventDefault()
-                  confirmarTopico()
-                }
-                if (evento.key === 'Escape') setAdicionando(false)
-              }}
-              placeholder="novo ou selecione"
-              className="h-6 w-32 text-xs"
-            />
-            {disponiveis.length > 0 && (
-              <Select onValueChange={(nome) => confirmarTopico(nome)}>
-                <SelectTrigger className="h-6 w-6 p-0">
-                  <SelectValue placeholder="" />
-                </SelectTrigger>
-                <SelectContent>
-                  {disponiveis.map((t) => (
-                    <SelectItem key={t.id} value={t.nome}>
-                      {t.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-6"
-              aria-label="Cancelar"
-              onMouseDown={(evento) => {
-                evento.preventDefault()
-                setRascunho('')
-                setAdicionando(false)
-              }}
-            >
-              <X className="size-3" />
-            </Button>
-          </span>
-        ) : (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="text-muted-foreground size-6"
-            aria-label="Adicionar tópico"
-            onClick={() => setAdicionando(true)}
-          >
-            <Plus className="size-3" />
-          </Button>
+        {notaId && (
+          <Popover open={popoverAberto} onOpenChange={setPopoverAberto}>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-6 text-xs text-muted-foreground hover:text-foreground gap-1 px-2 border border-dashed border-border hover:border-solid transition-colors"
+              >
+                <Plus className="size-3" />
+                <span>Adicionar tópico</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-0" align="start">
+              <Command>
+                <CommandInput
+                  placeholder="Procurar ou criar tópico..."
+                  value={buscaTopico}
+                  onValueChange={setBuscaTopico}
+                />
+                <CommandList>
+                  {buscaTopico.trim() !== '' && (
+                    <button
+                      type="button"
+                      className="w-full text-left px-3 py-2 text-xs text-primary hover:bg-accent flex items-center gap-1.5 font-medium cursor-pointer"
+                      onClick={() => confirmarTopico(buscaTopico)}
+                    >
+                      <Plus className="size-3.5" /> Criar tópico "#{buscaTopico.trim()}"
+                    </button>
+                  )}
+                  <CommandEmpty className="py-2 text-center text-xs text-muted-foreground">
+                    Nenhum tópico encontrado.
+                  </CommandEmpty>
+                  {disponiveis.length > 0 && (
+                    <CommandGroup heading="Tópicos disponíveis">
+                      {disponiveis.map((t) => (
+                        <CommandItem
+                          key={t.id}
+                          value={t.nome}
+                          onSelect={() => confirmarTopico(t.nome)}
+                          className="text-xs flex items-center justify-between cursor-pointer"
+                        >
+                          <span>#{t.nome}</span>
+                          <Tag className="size-3 text-muted-foreground" />
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  )}
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         )}
       </dd>
 

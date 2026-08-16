@@ -151,6 +151,37 @@ export async function listarBacklinks(notaId: string): Promise<Backlink[]> {
 }
 
 /**
+ * Notas que esta nota cita no seu texto (links de saída).
+ */
+export async function listarLinksSaida(notaId: string): Promise<Backlink[]> {
+  const linhas = lancarSeErro(
+    await supabase
+      .from('links_nota')
+      .select(
+        'destino:notas_estudo!links_nota_destino_id_fkey(id, slug, titulo, materias(nome))',
+      )
+      .eq('origem_id', notaId),
+  ) as {
+    destino: {
+      id: string
+      slug: string
+      titulo: string
+      materias: { nome: string } | null
+    } | null
+  }[]
+
+  return linhas
+    .map((linha) => linha.destino)
+    .filter((destino) => destino !== null)
+    .map((destino) => ({
+      id: destino.id,
+      slug: destino.slug,
+      titulo: destino.titulo,
+      materia_nome: destino.materias?.nome ?? '—',
+    }))
+}
+
+/**
  * Slugs que esta nota cita e que ainda não têm nota do outro lado.
  *
  * Não é lista de erro, é lista de próxima nota a escrever — e é assim que a

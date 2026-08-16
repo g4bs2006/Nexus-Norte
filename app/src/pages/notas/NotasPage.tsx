@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { NotebookPen } from 'lucide-react'
+import { Tag, NotebookPen } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { EstadoVazio } from '@/components/EstadoVazio'
 import { PageHeader } from '@/components/PageHeader'
 import { SkeletonPagina } from '@/components/Skeletons'
@@ -159,6 +160,56 @@ export default function NotasPage() {
             }))}
           />
         </div>
+
+        {topicos.data && topicos.data.length > 0 && (
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs no-scrollbar">
+            <span className="text-muted-foreground font-medium shrink-0 flex items-center gap-1">
+              <Tag className="size-3" /> Tópicos:
+            </span>
+            <button
+              type="button"
+              className={cn(
+                'px-2.5 py-1 rounded-full text-xs font-medium transition-colors shrink-0 cursor-pointer',
+                topicoFiltro === TODOS
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-accent',
+              )}
+              onClick={() => definirFiltro('topico', TODOS)}
+            >
+              Todos ({notas.data?.length ?? 0})
+            </button>
+            {topicos.data.map((t) => {
+              const contagem = (notas.data ?? []).filter((n) =>
+                n.topicos.some((top) => top.slug === t.slug),
+              ).length
+              if (contagem === 0) return null
+              const ativo = topicoFiltro === t.slug
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={cn(
+                    'px-2.5 py-1 rounded-full text-xs font-medium transition-colors shrink-0 flex items-center gap-1 cursor-pointer',
+                    ativo
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground',
+                  )}
+                  onClick={() => definirFiltro('topico', t.slug)}
+                >
+                  <span>#{t.nome}</span>
+                  <span
+                    className={cn(
+                      'rounded-full px-1 py-0.2 text-[10px]',
+                      ativo ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-background/80 text-muted-foreground',
+                    )}
+                  >
+                    {contagem}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        )}
 
         {notas.isPending ? (
           <SkeletonPagina variante="lista" />

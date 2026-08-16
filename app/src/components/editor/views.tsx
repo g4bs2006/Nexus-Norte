@@ -173,21 +173,26 @@ export function criarViewWikilink(existe: SlugExiste) {
   return $view(wikilinkSchema.node, () => (node) => {
     const dom = document.createElement('a')
     const alvo = node.attrs.alvo as string
+    const rotuloBruto = node.attrs.rotulo as string | null
 
     dom.className = 'wikilink'
     dom.dataset.wikilink = alvo
-    /*
-     * Link para nota que ainda não existe fica visivelmente diferente. É a
-     * mesma distinção que a leitura faz, e a que dá sentido ao cartão de
-     * espiada oferecer criar.
-     */
     dom.dataset.pendente = existe(alvo) ? 'nao' : 'sim'
     dom.href = `/notas/${alvo}`
-    dom.textContent = (node.attrs.rotulo as string | null) ?? alvo
+
+    const tituloFormatado = rotuloBruto ?? formatarSlugParaTitulo(alvo)
+    dom.innerHTML = `<span style="font-size: 11px; opacity: 0.7;">🔗</span><span>${tituloFormatado}</span>`
 
     const view: NodeView = { dom }
     return view
   })
+}
+
+function formatarSlugParaTitulo(slug: string): string {
+  return slug
+    .split('-')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
 }
 
 /** Desenho: o mesmo componente que a leitura usa, montado dentro do editor. */

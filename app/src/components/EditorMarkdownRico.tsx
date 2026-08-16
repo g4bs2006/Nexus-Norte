@@ -27,6 +27,7 @@ import {
 } from './editor/pluginSelecao'
 import { aplicarMarca, type MarcaEscrita } from './editor/comandos'
 import { MenuSimbolos } from './editor/MenuSimbolos'
+import { MenuReferencias } from './editor/MenuReferencias'
 import { navegarBuracos } from './editor/buracos'
 import { tabNaoEscapa } from './editor/tabNaoEscapa'
 import { tipografia } from './editor/tipografia'
@@ -408,7 +409,7 @@ function Interno({
         />
       )}
       {buscarReferencias && (
-        <MenuSimbolos
+        <MenuReferencias
           estado={gatilhoReferencias.estado}
           itens={gatilhoReferencias.itens}
           indice={gatilhoReferencias.indice}
