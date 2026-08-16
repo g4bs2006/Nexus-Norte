@@ -73,25 +73,37 @@ export function useMoverEvento() {
         })
         return
       }
-      case 'estudo':
-        /*
-         * Sessão registrada (`estado: 'feito'`) grava em `sessoes_estudo`;
-         * planejada (chat 2026-08-14) tem linha própria em
-         * `sessoes_estudo_planejadas`, sem regra recorrente — mesma
-         * separação de treino/treino agendado.
-         */
+      case 'estudo': {
+        const dados: {
+          data: string
+          hora_inicio?: string | null
+          duracao_minutos?: number
+        } = {
+          data: novaData,
+          hora_inicio: novoInicio,
+        }
+        if (novoInicio !== null && novoFim !== null) {
+          const [hI, mI] = novoInicio.split(':').map(Number)
+          const [hF, mF] = novoFim.split(':').map(Number)
+          const diff =
+            ((hF as number) * 60 + (mF as number)) -
+            ((hI as number) * 60 + (mI as number))
+          if (diff > 0) dados.duracao_minutos = diff
+        }
+
         if (evento.estado === 'feito') {
           await atualizarSessao.mutateAsync({
             id: idRealEntidade(evento),
-            dados: { data: novaData, hora_inicio: novoInicio },
+            dados,
           })
         } else {
           await atualizarSessaoPlanejada.mutateAsync({
             id: idRealEntidade(evento),
-            dados: { data: novaData, hora_inicio: novoInicio },
+            dados,
           })
         }
         return
+      }
       case 'evento':
         await atualizarEventoLivre.mutateAsync({
           id: idRealEntidade(evento),
