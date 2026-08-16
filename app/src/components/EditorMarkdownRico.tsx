@@ -50,7 +50,7 @@ import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react'
 import '@milkdown/kit/prose/view/style/prosemirror.css'
 import 'katex/dist/katex.min.css'
 import './editorMarkdown.css'
-import type { Inserir } from './EditorMarkdown'
+import type { Inserir, InserirFormula } from './EditorMarkdown'
 
 /** Catálogo vazio, para o hook existir mesmo sem símbolos injetados. */
 const FONTE_VAZIA: FonteItens = {
@@ -64,6 +64,14 @@ interface EditorRicoProps {
   placeholder?: string
   /** Preenchida com o jeito deste editor de inserir Markdown no cursor. */
   inserirRef: RefObject<Inserir | null>
+  /**
+   * A porta da fórmula, separada de `inserirRef` de propósito.
+   *
+   * Fórmula não é um trecho de Markdown que se cola: é um nó, e o `bloco` é o
+   * tipo dele. Passar por texto obrigava a confiar em como `$$…$$` seria
+   * reinterpretado — e não era como se esperava.
+   */
+  inserirFormulaRef: RefObject<InserirFormula | null>
   /**
    * O que cada cerca vira, e como desenhar um desenho.
    *
@@ -117,6 +125,7 @@ function Interno({
   onChange,
   placeholder,
   inserirRef,
+  inserirFormulaRef,
   renderizarBloco,
   renderizarDesenho,
   simbolos,
@@ -273,6 +282,54 @@ function Interno({
       alvo.current = null
     }
   }, [get, inserirRef])
+
+  /*
+   * Fórmula entra como NÓ, e não como `$…$` para o `insert` genérico.
+   *
+   * O caminho de texto tinha dois defeitos, os dois medidos:
+   *
+   * 1. `$$x$$` numa linha só NÃO é bloco para o `remark-math` — ele lê isso
+   *    como fórmula inline. Marcar "em linha própria" na caixa do MathLive
+   *    devolvia uma fórmula pequena no meio da frase, enquanto a prévia
+   *    (`Formula` com `bloco`) mostrava centralizada e grande. Bloco de
+   *    verdade em Markdown exige `$$` em linhas próprias.
+   * 2. `insert(markdown, true)` serializa o nó para DOM e o parseia de volta
+   *    (`@milkdown/utils`), o que faz o KaTeX renderizar no meio do caminho só
+   *    para o resultado ser relido. Muita peça para um dado que já se tem.
+   *
+   * Criar o nó direto pula os dois: é o mesmo que `useGatilho` faz para o
+   * `//`, que é justamente o caminho que sempre funcionou. O `bloco` deixa de
+   * depender de como o Markdown seria reinterpretado e passa a ser a escolha
+   * do tipo do nó, que é o que ele sempre foi.
+   */
+  useEffect(() => {
+    const alvo = inserirFormulaRef
+    alvo.current = (latex, bloco) => {
+      get()?.action((ctx) => {
+        const view = ctx.get(editorViewCtx)
+        const { schema } = view.state
+        const tipo = bloco ? schema.nodes.math_block : schema.nodes.math_inline
+        if (!tipo) return
+
+        /*
+         * O bloco guarda o LaTeX num ATRIBUTO e o inline no texto do nó — é
+         * assim que o `plugin-math` os declara, e é o que o serializer de cada
+         * um lê na hora de virar Markdown.
+         */
+        const no = bloco
+          ? tipo.create({ value: latex })
+          : tipo.create(null, schema.text(latex))
+
+        view.dispatch(
+          view.state.tr.replaceSelectionWith(no, false).scrollIntoView(),
+        )
+        view.focus()
+      })
+    }
+    return () => {
+      alvo.current = null
+    }
+  }, [get, inserirFormulaRef])
 
   editorRef.current = get()
 

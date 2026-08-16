@@ -201,6 +201,21 @@ describe('fatiar', () => {
     ])
   })
 
+  /*
+   * A forma que o `math_block` do editor GRAVA — `$$` em linhas próprias.
+   *
+   * Não é preciosismo de sintaxe: `$$x$$` numa linha só é bloco aqui, mas o
+   * `remark-math` do editor lê a mesma string como fórmula INLINE. Era essa
+   * divergência que fazia "em linha própria" na caixa do MathLive mostrar uma
+   * fórmula centralizada na prévia e entregar uma pequena no meio da frase.
+   * Agora o editor grava assim, e este teste é o lado da leitura do acordo.
+   */
+  it('lê o bloco com os $$ em linhas próprias, como o editor grava', () => {
+    expect(fatiar('$$\n\\frac{a}{b}\n$$')).toEqual([
+      { tipo: 'matematica', latex: '\n\\frac{a}{b}\n', bloco: true },
+    ])
+  })
+
   it('preserva o texto exibido do link', () => {
     expect(fatiar('[[limites|o que vimos]]')).toEqual([
       { tipo: 'link', slug: 'limites', rotulo: 'o que vimos' },

@@ -30,6 +30,17 @@ const EditorDesenho = lazy(() => import('./EditorDesenho'))
  */
 export type Inserir = (markdown: string, inline: boolean) => void
 
+/**
+ * Porta imperativa da fórmula.
+ *
+ * Separada de `Inserir` porque fórmula não é um trecho de Markdown a colar: é
+ * um nó, e `bloco` é o TIPO dele — `math_block` ou `math_inline`. Enquanto
+ * isso passava por texto, "em linha própria" virava `$$…$$` numa linha só, que
+ * o `remark-math` lê como fórmula inline: a prévia mostrava uma coisa e a
+ * página recebia outra.
+ */
+export type InserirFormula = (latex: string, bloco: boolean) => void
+
 export interface EditorMarkdownProps {
   value: string
   onChange: (markdown: string) => void
@@ -111,6 +122,7 @@ export function EditorMarkdown({
   enviarImagem,
 }: EditorMarkdownProps) {
   const inserirRef = useRef<Inserir | null>(null)
+  const inserirFormulaRef = useRef<InserirFormula | null>(null)
   const [seletorAberto, setSeletorAberto] = useState(false)
   const [desenhando, setDesenhando] = useState(false)
   const [formulaAberta, setFormulaAberta] = useState(false)
@@ -252,9 +264,7 @@ export function EditorMarkdown({
       <DialogFormula
         aberto={formulaAberta}
         onAbertoChange={setFormulaAberta}
-        onInserir={(latex, bloco) =>
-          inserir(bloco ? `$$${latex}$$` : `$${latex}$`, !bloco)
-        }
+        onInserir={(latex, bloco) => inserirFormulaRef.current?.(latex, bloco)}
       />
 
       <Suspense
@@ -265,6 +275,7 @@ export function EditorMarkdown({
           onChange={onChange}
           placeholder={placeholder}
           inserirRef={inserirRef}
+          inserirFormulaRef={inserirFormulaRef}
           renderizarBloco={renderizarBloco}
           renderizarDesenho={renderizarDesenho}
           simbolos={simbolos}
