@@ -44,7 +44,6 @@ const ATALHOS_INLINE_GREGOS: Record<string, string> = {
   gamma: '\\gamma',
   delta: '\\delta',
   epsilon: '\\epsilon',
-  ep: '\\epsilon',
   zeta: '\\zeta',
   eta: '\\eta',
   theta: '\\theta',
@@ -70,8 +69,8 @@ const ATALHOS_INLINE_GREGOS: Record<string, string> = {
   Phi: '\\Phi',
   Omega: '\\Omega',
   inf: '\\infty',
-  oo: '\\infty',
-  pd: '\\partial',
+  infty: '\\infty',
+  partial: '\\partial',
   lim: '\\lim_{#?}',
   sqrt: '\\sqrt{#?}',
   int: '\\int_{#?}^{#?}',
@@ -79,8 +78,6 @@ const ATALHOS_INLINE_GREGOS: Record<string, string> = {
   prod: '\\prod_{#?}^{#?}',
   neq: '\\neq',
   approx: '\\approx',
-  leq: '\\le',
-  geq: '\\ge',
 }
 
 /**
@@ -103,18 +100,12 @@ const CampoMatematico = forwardRef<CampoMatematicoHandle, CampoMatematicoProps>(
     }))
 
     /*
-     * Foco e atalhos inline ao montar.
+     * Foco ao montar.
      */
     useEffect(() => {
       const elemento = campo.current
       if (!elemento) return
       elemento.focus()
-
-      // Registra os atalhos de palavras para LaTeX no MathLive
-      elemento.inlineShortcuts = {
-        ...elemento.inlineShortcuts,
-        ...ATALHOS_INLINE_GREGOS,
-      }
     }, [])
 
     const confirmar = useRef(onConfirmar)
