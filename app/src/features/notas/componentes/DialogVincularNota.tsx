@@ -50,8 +50,8 @@ export function DialogVincularNota({
   const listaNotas = notas.data ?? []
   // Notas já vinculadas a ESTA sessão
   const notasVinculadas = listaNotas.filter((n) => n.sessao_id === sessaoId)
-  // Notas que podem ser vinculadas a esta sessão
-  const notasDisponiveis = listaNotas.filter((n) => n.sessao_id !== sessaoId)
+  // Notas sem nenhuma sessão vinculada (livres para serem vinculadas)
+  const notasDisponiveis = listaNotas.filter((n) => !n.sessao_id)
 
   function alternarSelecao(id: string) {
     setSelecionadas((atual) => {
@@ -168,11 +168,6 @@ export function DialogVincularNota({
                           {nota.titulo}
                         </span>
                       </div>
-                      {nota.sessao_id && (
-                        <span className="text-[10px] text-muted-foreground shrink-0">
-                          (em outra sessão)
-                        </span>
-                      )}
                     </label>
                   )
                 })}
