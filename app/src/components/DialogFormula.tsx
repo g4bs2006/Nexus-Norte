@@ -57,7 +57,22 @@ export function DialogFormula({
 
   return (
     <Dialog open={aberto} onOpenChange={onAbertoChange}>
-      <DialogContent>
+      <DialogContent
+        // O padrão é `sm:max-w-sm` (384px), estreito demais para uma fórmula
+        // com o teclado do MathLive aberto embaixo.
+        className="max-w-2xl!"
+        /*
+         * Clique fora NÃO fecha.
+         *
+         * O teclado virtual do MathLive é montado num portal, fora da árvore
+         * do diálogo — então, para o Radix, tocar nele é "interagir fora" e o
+         * diálogo fechava no meio da fórmula. Some-se a isso o alvo pequeno e
+         * qualquer clique de mira errada custava o que já tinha sido escrito.
+         *
+         * Fechar continua tendo dois caminhos deliberados: `Esc` e o X.
+         */
+        onInteractOutside={(evento) => evento.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Fórmula</DialogTitle>
           <DialogDescription>

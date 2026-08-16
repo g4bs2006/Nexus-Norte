@@ -17,6 +17,28 @@ interface CampoMatematicoProps {
 }
 
 /**
+ * Teclas que o MathLive não reconhece em teclado brasileiro.
+ *
+ * Ele TEM os dois atalhos embutidos — `/` vira fração e `^` vira expoente —,
+ * mas casa a tecla pelo `code` (a POSIÇÃO física) contra um mapa de layout, e
+ * os layouts que ele traz são só Dvorak, inglês, francês, alemão e espanhol.
+ * Não há ABNT2. No teclado brasileiro a `/` sai da tecla `IntlRo`, que não
+ * existe no mapa americano, e o `^` é tecla morta de acento — nenhum dos dois
+ * chega ao atalho, e por isso os dois entravam como caractere solto.
+ *
+ * A chave aqui é `event.key`, que é o CARACTERE digitado e não depende de
+ * onde ele mora no teclado. Em layout que o MathLive já entende o resultado é
+ * o mesmo LaTeX, então isto não atrapalha quem não é brasileiro.
+ *
+ * `#@` é "o que já está antes do cursor" e `#?` é um espaço a preencher — é a
+ * mesma notação que o próprio MathLive usa nos atalhos que traz de fábrica.
+ */
+const ATALHOS: Record<string, string> = {
+  '/': '\\frac{#@}{#?}',
+  '^': '^{#?}',
+}
+
+/**
  * O `<math-field>` do MathLive, embrulhado para o React.
  *
  * MathLive é um Web Component, não um componente React: registra o elemento
@@ -56,10 +78,21 @@ export default function CampoMatematico({
     if (!elemento) return
 
     function aoTeclar(evento: KeyboardEvent) {
-      if (evento.key !== 'Enter' || evento.shiftKey) return
+      const elementoAtual = campo.current
+      if (!elementoAtual) return
+
+      if (evento.key === 'Enter' && !evento.shiftKey) {
+        evento.preventDefault()
+        evento.stopPropagation()
+        confirmar.current?.()
+        return
+      }
+
+      const latex = ATALHOS[evento.key]
+      if (latex === undefined) return
       evento.preventDefault()
       evento.stopPropagation()
-      confirmar.current?.()
+      elementoAtual.executeCommand(['insert', latex])
     }
 
     /*
