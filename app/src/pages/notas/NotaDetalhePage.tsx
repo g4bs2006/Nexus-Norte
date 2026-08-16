@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
@@ -76,12 +76,31 @@ export default function NotaDetalhePage() {
    * exato momento em que outra aba invalidasse o cache.
    */
   const carregada = useRef<string | null>(null)
-  useEffect(() => {
-    if (!atual || carregada.current === atual.id) return
+  /*
+   * Semeado DURANTE o render, e não num efeito — e a diferença era um bug de
+   * nota em branco.
+   *
+   * Um efeito roda DEPOIS do commit. O editor é não controlado: ele lê `value`
+   * uma vez, ao montar (`EditorMarkdownRico`, `inicial = useRef(value)`), e
+   * nunca mais olha. Então, no render em que a nota trocava, o editor montava
+   * com o `conteudo` da nota ANTERIOR — vazio, no caso de vir de uma nota
+   * recém-criada — e o efeito corrigia o estado tarde demais: o React
+   * re-renderizava com o texto certo e o editor continuava mostrando o vazio,
+   * até recarregar a página.
+   *
+   * Era mais que um susto visual. O editor emite `onChange` do documento que
+   * TEM, então bastava digitar uma tecla naquela tela em branco para o
+   * autosave gravar vazio por cima da nota de verdade.
+   *
+   * Chamar `setState` durante o render do próprio componente é o padrão do
+   * React para derivar estado de prop que mudou: ele re-renderiza na hora,
+   * antes de pintar, então o editor já monta com o texto certo.
+   */
+  if (atual && carregada.current !== atual.id) {
     carregada.current = atual.id
     setTitulo(atual.titulo)
     setConteudo(atual.conteudo)
-  }, [atual])
+  }
 
   /** Slugs que já existem, para o link a escrever se distinguir do resolvido. */
   const existentes = useMemo(
@@ -251,6 +270,13 @@ export default function NotaDetalhePage() {
                 onAdicionarTopico={adicionarTopico}
               />
               <EditorMarkdown
+                /*
+                 * Um editor por nota. Sem isto, navegar entre notas mantém a
+                 * MESMA instância montada — mesma rota, mesmo componente — e
+                 * um editor não controlado nunca troca o documento que já
+                 * tem: a nota aberta mostrava o texto da anterior.
+                 */
+                key={atual.id}
                 value={conteudo}
                 onChange={setConteudo}
                 placeholder="Escreva aqui…"
