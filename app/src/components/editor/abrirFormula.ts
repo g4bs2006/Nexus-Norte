@@ -39,14 +39,23 @@ export const abrirFormula = $inputRule(
       const no = tipoNo.create(null)
 
       /*
-       * Só o `\` recém-digitado é substituído — a regra casa opcionalmente o
-       * espaço antes dele (`(?:^|\s)`), mas apagar esse espaço também
-       * colaria a fórmula na palavra anterior.
+       * INSERE, não substitui — e é onde a primeira versão disto errou.
+       *
+       * Uma input rule roda ANTES de o caractere digitado entrar no
+       * documento (`run()` em `prosemirror-inputrules` monta o texto de
+       * comparação concatenando a tecla, justamente porque ela ainda não
+       * está lá). Então não há `\` no documento para trocar pelo nó: quem
+       * mora em `fim - 1` é o caractere anterior, e substituí-lo apagava uma
+       * letra da palavra e ainda largava o cursor fora da fórmula — sem
+       * cursor dentro, a decoração `formula-editando` não aplica e o CSS
+       * mantém a fonte oculta, que era o "não consigo digitar nada".
+       *
+       * Devolver a transação já impede o `\` de ser inserido; o espaço que a
+       * regra casa antes dele fica onde estava, porque nada é removido.
        */
-      const de = fim - 1
-      const transacao = state.tr.replaceWith(de, fim, no)
+      const transacao = state.tr.insert(fim, no)
       // +1 entra no conteúdo do nó, que nasce vazio.
-      transacao.setSelection(TextSelection.create(transacao.doc, de + 1))
+      transacao.setSelection(TextSelection.create(transacao.doc, fim + 1))
       return transacao
     }),
 )

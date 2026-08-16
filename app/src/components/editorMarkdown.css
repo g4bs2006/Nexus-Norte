@@ -273,8 +273,18 @@
     font-size: 1.15em;
 }
 
-/* Fórmula vazia precisa de alvo: sem largura não há onde clicar de volta. */
-.editor-markdown .formula-viva[data-vazia='sim'] .formula-viva-render::after {
+/*
+ * Fórmula vazia precisa de alvo: sem largura não há onde clicar de volta.
+ *
+ * `:not(.formula-editando)` porque quem está com o cursor dentro já sabe que
+ * ali é uma fórmula — a palavra escrita ao lado do que se digita só competia
+ * com o LaTeX pela atenção. Some ao primeiro caractere de qualquer jeito
+ * (`data-vazia` vira `nao`); isto adianta o sumiço para o instante em que a
+ * fórmula é aberta pelo `\`.
+ */
+.editor-markdown
+    .formula-viva[data-vazia='sim']:not(.formula-editando)
+    .formula-viva-render::after {
     content: 'fórmula';
     color: var(--muted-foreground);
     font-size: 0.75rem;
@@ -299,6 +309,13 @@
 
 .editor-markdown .formula-viva.formula-editando .formula-viva-fonte {
     display: inline;
+    /*
+     * Fórmula recém-aberta pelo `\` nasce sem nenhum caractere, e um campo
+     * de largura zero não tem onde desenhar o cursor — parece que o editor
+     * não recebeu o clique. Como `.formula-viva` é `inline-flex`, a fonte é
+     * um item de flex e `min-width` vale mesmo com `display: inline`.
+     */
+    min-width: 1ch;
 }
 
 /* Com o cursor dentro, o render vira referência: menor, e apagado o bastante

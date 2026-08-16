@@ -4,6 +4,8 @@ import { mathInlineSchema } from '@milkdown/plugin-math'
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state'
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view'
 import type { NodeView } from '@milkdown/kit/prose/view'
+import type { Node } from '@milkdown/kit/prose/model'
+import type { SerializerState } from '@milkdown/kit/transformer'
 
 /**
  * Fórmula que se escreve por dentro, vendo o resultado.
@@ -45,6 +47,29 @@ export const mathInlineEditavel = mathInlineSchema.extendSchema(
     ...anterior(ctx),
     atom: false,
     selectable: false,
+    /*
+     * Fórmula vazia NÃO vira `$$` no Markdown.
+     *
+     * O serializer original escreve `addNode('inlineMath', …, textContent)`
+     * sem olhar o conteúdo, e para um nó vazio isso produz `$$` — que no
+     * reparse não é fórmula nenhuma: medido, `antes $$ depois` volta como um
+     * único nó de TEXTO. Ou seja, a fórmula não só se perdia como deixava
+     * dois cifrões soltos no meio da frase.
+     *
+     * Isso passou a importar quando o `\` (ver `abrirFormula.ts`) fez toda
+     * fórmula nascer vazia: basta abrir uma e hesitar mais que o debounce do
+     * autosave para gravar o lixo. Emitir nada é a resposta certa também em
+     * intenção — uma fórmula sem conteúdo não é conteúdo, e some sozinha na
+     * próxima abertura em vez de virar texto que o autor não escreveu.
+     */
+    toMarkdown: {
+      match: (no: Node) => no.type.name === 'math_inline',
+      runner: (estado: SerializerState, no: Node) => {
+        const latex = no.textContent
+        if (latex.trim() === '') return
+        estado.addNode('inlineMath', undefined, latex)
+      },
+    },
   }),
 )
 
