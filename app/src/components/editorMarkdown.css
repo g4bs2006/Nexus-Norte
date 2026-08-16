@@ -257,18 +257,17 @@
     gap: 0.35em;
     border-radius: var(--radius-sm);
     padding: 0 0.15em;
-    /*
-     * Destaque permanente, não só durante a edição: uma fórmula simples
-     * (`x^2`, sem integral nem derivada) merece se distinguir do texto tanto
-     * quanto uma complexa — pedido de usabilidade explícito. O tom vem do
-     * mesmo par usado no wikilink selecionado (linha ~195), então a nota
-     * ganha uma paleta e não uma cor a mais.
-     */
-    background: var(--estudos-soft);
 }
 
-/* O próprio KaTeX herda o tamanho do texto ao redor por padrão — sem isto,
-   fórmula e frase ficam do mesmo tamanho e a distinção vira só de cor. */
+/*
+ * O que distingue a fórmula do texto é o TAMANHO, e só.
+ *
+ * Houve um fundo colorido aqui, e ficou pesado: uma nota de estudo tem
+ * fórmula em quase todo parágrafo, e um retângulo atrás de cada uma vira
+ * uma página manchada. O KaTeX já entrega uma tipografia visivelmente
+ * diferente da do texto; um degrau de corpo basta para ela se destacar sem
+ * competir com o `==destaque==`, que é o único fundo que a nota usa.
+ */
 .editor-markdown .formula-viva .katex {
     font-size: 1.15em;
 }
@@ -320,17 +319,15 @@
  * node view próprio neste app — por isso o seletor é o `data-type` que o
  * pacote já escreve no `<div>`, e não uma classe nossa.
  *
- * Ganha o mesmo tom de `.formula-viva`, mas em linha própria e maior: é onde
- * a distância entre "editando" e "lendo" (ver `Formula.tsx`, que já centraliza
- * o bloco) se fecha — o `displayMode` do KaTeX aqui vem de `katexOptionsCtx`,
- * configurado junto do plugin em `EditorMarkdownRico`.
+ * Em linha própria e centralizada, sem fundo — como `.formula-viva`, o
+ * destaque é a posição e o corpo, não uma cor. É onde a distância entre
+ * "editando" e "lendo" (ver `Formula.tsx`, que já centraliza o bloco) se
+ * fecha: o `displayMode` do KaTeX aqui vem de `katexOptionsCtx`, configurado
+ * junto do plugin em `EditorMarkdownRico`.
  */
 .editor-markdown div[data-type='math_block'] {
     display: block;
     margin: 0.75em 0;
-    padding: 0.6em 0.75em;
-    border-radius: var(--radius-md);
-    background: var(--estudos-soft);
     text-align: center;
     overflow-x: auto;
 }

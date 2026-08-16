@@ -66,19 +66,13 @@
 
 /*
  * Fórmula na leitura, com o mesmo destaque do editor (`editorMarkdown.css`,
- * `.formula-viva`/`div[data-type='math_block']`): fonte maior e um tom
- * próprio, para que uma equação simples se distinga do texto tanto quanto uma
- * complexa — não só as com integral ou derivada.
+ * `.formula-viva`): um degrau de corpo, e nada mais. Sem fundo — numa nota
+ * com fórmula em quase todo parágrafo, um retângulo atrás de cada uma mancha
+ * a página, e a tipografia do KaTeX já basta para separá-la da frase.
  */
 .documento-leitura .katex {
   font-size: 1.15em;
   padding: 0 0.15em;
-}
-
-.documento-leitura .katex-display {
-  padding: 0.6em 0.75em;
-  border-radius: var(--radius-md);
-  background: var(--estudos-soft);
 }
 
 /* ---------------------------------------------------------------------------

@@ -32,6 +32,7 @@ import { tabNaoEscapa } from './editor/tabNaoEscapa'
 import { tipografia } from './editor/tipografia'
 import { criarPluginImagens, type EnviarImagem } from './editor/imagens'
 import { sairDaFormula } from './editor/sairDaFormula'
+import { multiplicacaoFormula } from './editor/formatarFormula'
 import {
   focoMatematica,
   mathInlineEditavel,
@@ -257,6 +258,9 @@ function Interno({
       .use(mathInlineEditavel)
       .use(viewMatematica)
       .use(focoMatematica)
+      // Depois do commonmark: na primeira `*` a regra de ênfase não casa
+      // (falta o par), então a nossa age antes de existir um `*itálico*`.
+      .use(multiplicacaoFormula)
       // Antes de navegarBuracos: dentro da fórmula, Enter sai; Tab anda.
       .use(sairDaFormula)
       .use(destaqueSchema)
