@@ -70,7 +70,11 @@ export function DialogFormula({
             <p className="text-muted-foreground text-sm">Carregando editor…</p>
           }
         >
-          <CampoMatematico valor={latex} onChange={setLatex} />
+          <CampoMatematico
+            valor={latex}
+            onChange={setLatex}
+            onConfirmar={inserir}
+          />
         </Suspense>
 
         {latex.trim() !== '' && (

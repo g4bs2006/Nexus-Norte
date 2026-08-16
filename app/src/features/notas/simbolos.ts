@@ -25,6 +25,17 @@ export const fonteSimbolos = {
     if (!simbolo) return { tipo: 'acao' as const }
 
     /*
+     * A fórmula em branco (`latex` vazio) é a única entrada sem conteúdo, e
+     * por isso não passa pelo caminho normal: já estando DENTRO de uma
+     * fórmula não há o que abrir — o gatilho digitado sai e o menu fecha,
+     * porque abrir fórmula dentro de fórmula não existe.
+     */
+    if (simbolo.latex === '') {
+      if (emMatematica) return { tipo: 'acao' as const }
+      return { tipo: 'formula' as const, latex: '', buracos: [] }
+    }
+
+    /*
      * Dentro de uma fórmula, o LaTeX entra como texto: já se está no nó, e
      * aninhar fórmula em fórmula não existe.
      *

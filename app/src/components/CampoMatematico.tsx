@@ -5,6 +5,15 @@ import type { MathfieldElement } from 'mathlive'
 interface CampoMatematicoProps {
   valor: string
   onChange: (latex: string) => void
+  /**
+   * `Enter` confirma, como em qualquer campo de uma linha só.
+   *
+   * Sem isto o diálogo exigia mouse: não havia foco automático nem tecla que
+   * inserisse, então escrever a fórmula no teclado terminava com a mão indo
+   * até o botão. `Shift+Enter` fica livre para o que o MathLive quiser fazer
+   * com ele — é a saída para quem estiver montando uma matriz.
+   */
+  onConfirmar?: () => void
 }
 
 /**
@@ -22,8 +31,46 @@ interface CampoMatematicoProps {
 export default function CampoMatematico({
   valor,
   onChange,
+  onConfirmar,
 }: CampoMatematicoProps) {
   const campo = useRef<MathfieldElement>(null)
+
+  /*
+   * Foco ao montar, e não `autoFocus`: o diálogo só monta este componente ao
+   * abrir (e por `lazy`), então o foco do Radix já passou quando chegamos
+   * aqui — pedir o foco depois é o que garante o cursor no campo.
+   */
+  useEffect(() => {
+    campo.current?.focus()
+  }, [])
+
+  /*
+   * Por ref: o callback muda a cada render do diálogo, e entrar na dependência
+   * do efeito re-registraria o listener sem necessidade.
+   */
+  const confirmar = useRef(onConfirmar)
+  confirmar.current = onConfirmar
+
+  useEffect(() => {
+    const elemento = campo.current
+    if (!elemento) return
+
+    function aoTeclar(evento: KeyboardEvent) {
+      if (evento.key !== 'Enter' || evento.shiftKey) return
+      evento.preventDefault()
+      evento.stopPropagation()
+      confirmar.current?.()
+    }
+
+    /*
+     * Fase de CAPTURA. O MathLive trata o teclado dentro do próprio shadow
+     * DOM, e um listener de bolha aqui correria depois dele — ou nem correria,
+     * se ele parasse a propagação. Na captura o evento passa por este
+     * elemento antes de descer, então o `Enter` é nosso primeiro.
+     */
+    elemento.addEventListener('keydown', aoTeclar, true)
+    return () => elemento.removeEventListener('keydown', aoTeclar, true)
+  }, [])
 
   useEffect(() => {
     const elemento = campo.current

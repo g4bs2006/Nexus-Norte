@@ -7,10 +7,19 @@ describe('catálogo', () => {
     expect(new Set(gatilhos).size).toBe(gatilhos.length)
   })
 
-  it('todo símbolo tem latex não vazio', () => {
-    for (const simbolo of SIMBOLOS) {
-      expect(simbolo.latex.trim()).not.toBe('')
-    }
+  /*
+   * A fórmula em branco é a ÚNICA entrada sem latex, e é assim de propósito:
+   * é ela que abre um nó vazio para se escrever dentro (`simbolos.ts`). O
+   * teste continua guardando o resto do catálogo contra entrada sem conteúdo
+   * — que seria um item de menu que não insere nada.
+   */
+  it('só a fórmula em branco tem latex vazio', () => {
+    const vazios = SIMBOLOS.filter((simbolo) => simbolo.latex.trim() === '')
+    expect(vazios.map((simbolo) => simbolo.gatilho)).toEqual(['formula'])
+  })
+
+  it('a fórmula em branco é a primeira — `//` e Enter abrem uma', () => {
+    expect(SIMBOLOS[0]?.gatilho).toBe('formula')
   })
 
   it('todo gatilho é minúsculo e sem espaço', () => {

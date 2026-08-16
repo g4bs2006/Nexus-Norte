@@ -42,6 +42,22 @@ export interface Simbolo {
  * cru continua funcionando em qualquer lugar do texto.
  */
 export const SIMBOLOS: readonly Simbolo[] = [
+  /*
+   * Primeiro da lista de propósito: `//` + Enter abre uma fórmula vazia.
+   *
+   * É o buraco que faltava. O catálogo resolve o símbolo que não se lembra,
+   * e o diálogo do MathLive resolve a matriz — mas escrever `x^2 + 3x`, que
+   * não tem símbolo nenhum, obrigava a digitar os `$` na mão ou a abrir um
+   * diálogo para uma conta trivial. Com `latex` vazio o nó nasce em branco e
+   * o cursor entra nele, e dali `//` continua valendo para os símbolos.
+   */
+  {
+    gatilho: 'formula',
+    rotulo: 'fórmula em branco',
+    amostra: '𝑥',
+    latex: '',
+    sinonimos: 'vazia nova equacao conta escrever matematica',
+  },
   {
     gatilho: 'int',
     rotulo: 'integral',
