@@ -147,3 +147,24 @@ export function useExcluirDesenho() {
 export function useExcluirNota() {
   return useMutationNotas(api.excluirNota, 'Nota excluída')
 }
+
+export function useVincularNotaASessao() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      notaId,
+      sessaoId,
+    }: {
+      notaId: string
+      sessaoId: string | null
+    }) => api.vincularNotaASessao(notaId, sessaoId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: chaves.raiz })
+      void queryClient.invalidateQueries({ queryKey: ['estudos'] })
+      void queryClient.invalidateQueries({ queryKey: ['calendario'] })
+      toast.success('Vínculo da nota atualizado')
+    },
+    onError: (erro: Error) => toast.error(erro.message),
+  })
+}

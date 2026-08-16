@@ -700,3 +700,16 @@ export async function fixarNota(id: string, fixada: boolean): Promise<void> {
 export async function excluirNota(id: string): Promise<void> {
   lancar(await supabase.from('notas_estudo').delete().eq('id', id))
 }
+
+/** Vincular ou desvincular uma nota de estudo a uma sessão de estudo executada. */
+export async function vincularNotaASessao(
+  notaId: string,
+  sessaoId: string | null,
+): Promise<void> {
+  lancar(
+    await supabase
+      .from('notas_estudo')
+      .update({ sessao_id: sessaoId })
+      .eq('id', notaId),
+  )
+}

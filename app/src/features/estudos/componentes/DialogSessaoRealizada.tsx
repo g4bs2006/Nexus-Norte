@@ -1,6 +1,4 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { format } from 'date-fns'
 import { NotebookPen } from 'lucide-react'
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { Button } from '@/components/ui/button'
@@ -15,9 +13,8 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { deISO } from '@/lib/datas'
 import { useAtualizarSessao, useExcluirSessao } from '../hooks'
-import { DialogNota } from '@/features/notas/componentes/DialogNota'
+import { DialogVincularNota } from '@/features/notas/componentes/DialogVincularNota'
 
 interface DialogSessaoRealizadaProps {
   sessao?: {
@@ -55,7 +52,6 @@ export function DialogSessaoRealizada({
 
   const atualizar = useAtualizarSessao()
   const excluir = useExcluirSessao()
-  const navigate = useNavigate()
 
   const [data, setData] = useState('')
   const [hora, setHora] = useState('')
@@ -161,31 +157,18 @@ export function DialogSessaoRealizada({
                 </Button>
               }
             />
-            {notaVinculada ? (
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  setAberto(false)
-                  navigate(`/notas/${notaVinculada.slug}`)
-                }}
-              >
-                <NotebookPen className="size-4" />
-                Abrir nota
-              </Button>
-            ) : (
-              <DialogNota
-                materiaId={sessao.materia_id}
-                sessaoId={sessao.id}
-                tituloInicial={`Sessão de ${format(deISO(sessao.data), 'dd/MM')}`}
-                trigger={
-                  <Button type="button" variant="secondary">
-                    <NotebookPen className="size-4" />
-                    Criar nota
-                  </Button>
-                }
-              />
-            )}
+            <DialogVincularNota
+              sessaoId={sessao.id}
+              materiaId={sessao.materia_id}
+              sessaoData={sessao.data}
+              notaVinculada={notaVinculada}
+              trigger={
+                <Button type="button" variant="secondary">
+                  <NotebookPen className="size-4" />
+                  {notaVinculada ? 'Anotação' : 'Vincular nota'}
+                </Button>
+              }
+            />
           </div>
           <Button onClick={() => void salvar()} disabled={pendente}>
             {pendente ? 'Salvando…' : 'Salvar'}

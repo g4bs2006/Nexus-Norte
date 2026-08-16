@@ -7,7 +7,7 @@ import { EditorMarkdown } from '@/components/EditorMarkdown'
 import { PageHeader } from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
-import { useMaterias, useSemestres } from '@/features/estudos/hooks'
+import { useMaterias, useSemestres, useSessoes } from '@/features/estudos/hooks'
 import {
   buscarReferencias,
   enviarImagemNota,
@@ -60,6 +60,7 @@ export default function NotaDetalhePage() {
   const todas = useNotas()
   const materias = useMaterias()
   const semestres = useSemestres()
+  const sessoes = useSessoes()
   const salvar = useSalvarNota()
   const excluir = useExcluirNota()
 
@@ -124,6 +125,14 @@ export default function NotaDetalhePage() {
         ?.rotulo ?? null
     )
   }, [atual, materias.data, semestres.data])
+
+  const sessoesDaMateria = useMemo(
+    () =>
+      (sessoes.data ?? []).filter(
+        (sessao) => sessao.materia_id === atual?.materia_id,
+      ),
+    [sessoes.data, atual?.materia_id],
+  )
 
   /*
    * O autosave cuida do CONTEÚDO. O título fica de fora de propósito: renomear
@@ -262,12 +271,15 @@ export default function NotaDetalhePage() {
               />
 
               <BlocoPropriedades
+                notaId={atual.id}
+                sessaoId={atual.sessao_id}
                 materiaId={atual.materia_id}
                 materiaNome={atual.materia_nome}
                 semestre={semestre}
                 topicos={atual.topicos}
                 atualizadaEm={atual.atualizada_em}
                 onAdicionarTopico={adicionarTopico}
+                sessoesDaMateria={sessoesDaMateria}
               />
               <EditorMarkdown
                 /*

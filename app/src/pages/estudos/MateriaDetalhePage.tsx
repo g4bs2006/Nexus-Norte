@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { format } from 'date-fns'
 import { ArrowLeft, NotebookPen } from 'lucide-react'
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { PageHeader } from '@/components/PageHeader'
@@ -34,10 +33,9 @@ import { AbaDocumentos } from '@/features/estudos/componentes/AbaDocumentos'
 import { AbaFaltas } from '@/features/estudos/componentes/AbaFaltas'
 import { AbaListas } from '@/features/estudos/componentes/AbaListas'
 import { AbaNotas } from '@/features/notas/componentes/AbaNotas'
-import { DialogNota } from '@/features/notas/componentes/DialogNota'
+import { DialogVincularNota } from '@/features/notas/componentes/DialogVincularNota'
 import { AbaSessoes } from '@/features/estudos/componentes/AbaSessoes'
 import { DialogMateria } from '@/features/estudos/componentes/DialogMateria'
-import { deISO } from '@/lib/datas'
 import type { Status } from '@/lib/dominio'
 import type { NotaListada } from '@/features/notas/types'
 
@@ -287,14 +285,11 @@ export default function MateriaDetalhePage() {
               hoje={hoje}
               notaPorSessao={notaPorSessao}
               acaoNota={(sessaoId, data) => (
-                <DialogNota
+                <DialogVincularNota
+                  sessaoId={sessaoId}
                   materiaId={materiaId}
-                  {...(notaPorSessao.get(sessaoId)
-                    ? { nota: notaPorSessao.get(sessaoId) }
-                    : {
-                        sessaoId,
-                        tituloInicial: `Sessão de ${format(deISO(data), 'dd/MM')}`,
-                      })}
+                  sessaoData={data}
+                  notaVinculada={notaPorSessao.get(sessaoId)}
                   trigger={
                     <Button
                       variant="ghost"
@@ -302,7 +297,7 @@ export default function MateriaDetalhePage() {
                       className="text-muted-foreground hover:text-foreground size-11 shrink-0 sm:size-7"
                       aria-label={
                         notaPorSessao.get(sessaoId)
-                          ? 'Editar nota da sessão'
+                          ? 'Gerenciar nota da sessão'
                           : 'Anotar esta sessão'
                       }
                     >
