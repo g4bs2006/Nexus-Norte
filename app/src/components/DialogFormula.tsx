@@ -76,14 +76,28 @@ export function DialogFormula({
   useEffect(() => {
     if (!aberto) return
     setLatex(inicial?.latex ?? '')
-    setBloco(inicial?.bloco ?? false)
+    /*
+     * Só a EDIÇÃO impõe o `bloco` — ali ele é um fato da fórmula que está na
+     * página. Fórmula nova mantém a última escolha da sessão: quem está
+     * escrevendo uma lista de equações centralizadas as escreve em série, e
+     * remarcar a caixa a cada uma era o trabalho manual que este diálogo
+     * existe para tirar.
+     */
+    if (inicial) setBloco(inicial.bloco)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aberto])
 
-  function inserir() {
+  /**
+   * `forcarBloco` vem do `Ctrl+Enter`, que insere em linha própria sem passar
+   * pela caixa. A escolha fica marcada depois: se foi assim que se quis esta,
+   * a próxima provavelmente é igual, e é o mesmo princípio do parágrafo acima.
+   */
+  function inserir(forcarBloco?: boolean) {
     const limpo = latex.trim()
     if (limpo === '') return
-    onInserir(limpo, bloco)
+    const emBloco = forcarBloco ?? bloco
+    onInserir(limpo, emBloco)
+    setBloco(emBloco)
     setLatex('')
     onAbertoChange(false)
   }
@@ -151,10 +165,22 @@ export function DialogFormula({
             onChange={(evento) => setBloco(evento.target.checked)}
           />
           Em linha própria, centralizada
+          <span className="text-muted-foreground/70">
+            — ou <Atalho>Ctrl</Atalho>+<Atalho>Enter</Atalho> para inserir assim
+          </span>
         </label>
 
         <DialogFooter>
-          <Button type="button" onClick={inserir} disabled={latex.trim() === ''}>
+          {/*
+            `() => inserir()` e não `inserir`: passado direto, o evento de
+            clique viraria o argumento `forcarBloco` — e um MouseEvent é
+            truthy, então todo botão inseriria em bloco.
+          */}
+          <Button
+            type="button"
+            onClick={() => inserir()}
+            disabled={latex.trim() === ''}
+          >
             {editando ? 'Salvar' : 'Inserir'}
           </Button>
         </DialogFooter>

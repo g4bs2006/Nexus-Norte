@@ -12,8 +12,11 @@ interface CampoMatematicoProps {
    * inserisse, então escrever a fórmula no teclado terminava com a mão indo
    * até o botão. `Shift+Enter` fica livre para o que o MathLive quiser fazer
    * com ele — é a saída para quem estiver montando uma matriz.
+   *
+   * `emBloco` é `true` no `Ctrl+Enter`: insere em linha própria sem passar
+   * pela caixa, que era a outra viagem de mão até o mouse.
    */
-  onConfirmar?: () => void
+  onConfirmar?: (emBloco: boolean) => void
 }
 
 /**
@@ -84,7 +87,13 @@ export default function CampoMatematico({
       if (evento.key === 'Enter' && !evento.shiftKey) {
         evento.preventDefault()
         evento.stopPropagation()
-        confirmar.current?.()
+        /*
+         * `Ctrl+Enter` insere em linha própria, sem ir até a caixa com o
+         * mouse. É a variante-de-Enter que todo mundo já espera, e está livre:
+         * o MathLive não a usa (usa `ctrl+b`, `ctrl+e`, `alt+b` e companhia,
+         * que por isso ficaram de fora).
+         */
+        confirmar.current?.(evento.ctrlKey || evento.metaKey)
         return
       }
 
