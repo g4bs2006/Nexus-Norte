@@ -1,6 +1,11 @@
-import { useEffect, useRef } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import 'mathlive'
 import type { MathfieldElement } from 'mathlive'
+
+export interface CampoMatematicoHandle {
+  inserir: (latex: string) => void
+  focar: () => void
+}
 
 interface CampoMatematicoProps {
   valor: string
@@ -21,152 +26,169 @@ interface CampoMatematicoProps {
 
 /**
  * Teclas que o MathLive não reconhece em teclado brasileiro.
- *
- * Ele TEM os dois atalhos embutidos — `/` vira fração e `^` vira expoente —,
- * mas casa a tecla pelo `code` (a POSIÇÃO física) contra um mapa de layout, e
- * os layouts que ele traz são só Dvorak, inglês, francês, alemão e espanhol.
- * Não há ABNT2. No teclado brasileiro a `/` sai da tecla `IntlRo`, que não
- * existe no mapa americano, e o `^` é tecla morta de acento — nenhum dos dois
- * chega ao atalho, e por isso os dois entravam como caractere solto.
- *
- * A chave aqui é `event.key`, que é o CARACTERE digitado e não depende de
- * onde ele mora no teclado. Em layout que o MathLive já entende o resultado é
- * o mesmo LaTeX, então isto não atrapalha quem não é brasileiro.
- *
- * `#@` é "o que já está antes do cursor" e `#?` é um espaço a preencher — é a
- * mesma notação que o próprio MathLive usa nos atalhos que traz de fábrica.
  */
-const ATALHOS: Record<string, string> = {
+const ATALHOS_ABNT: Record<string, string> = {
   '/': '\\frac{#@}{#?}',
   '^': '^{#?}',
 }
 
 /**
- * O `<math-field>` do MathLive, embrulhado para o React.
+ * Dicionário estendido de atalhos por palavra para o MathLive.
  *
- * MathLive é um Web Component, não um componente React: registra o elemento
- * customizado ao ser importado, e é por isso que o `import 'mathlive'` acima
- * não tem binding. O React 19 já repassa props desconhecidas para elementos
- * customizados, mas o valor entra por propriedade e não por atributo — daí a
- * ref em vez de JSX.
- *
- * Carregado por `lazy` a partir de `DialogFormula`: é pesado e só serve a quem
- * está escrevendo uma fórmula, que é uma fração das vezes em que se abre a nota.
+ * Permite digitar o nome da letra grega ou operador (ex: `epsilon`, `alpha`, `theta`)
+ * no teclado e converter instantaneamente na letra grega ou símbolo LaTeX correspondente.
  */
-export default function CampoMatematico({
-  valor,
-  onChange,
-  onConfirmar,
-}: CampoMatematicoProps) {
-  const campo = useRef<MathfieldElement>(null)
+const ATALHOS_INLINE_GREGOS: Record<string, string> = {
+  alpha: '\\alpha',
+  beta: '\\beta',
+  gamma: '\\gamma',
+  delta: '\\delta',
+  epsilon: '\\epsilon',
+  ep: '\\epsilon',
+  zeta: '\\zeta',
+  eta: '\\eta',
+  theta: '\\theta',
+  iota: '\\iota',
+  kappa: '\\kappa',
+  lambda: '\\lambda',
+  mu: '\\mu',
+  nu: '\\nu',
+  xi: '\\xi',
+  pi: '\\pi',
+  rho: '\\rho',
+  sigma: '\\sigma',
+  tau: '\\tau',
+  phi: '\\phi',
+  chi: '\\chi',
+  psi: '\\psi',
+  omega: '\\omega',
+  Delta: '\\Delta',
+  Gamma: '\\Gamma',
+  Theta: '\\Theta',
+  Lambda: '\\Lambda',
+  Sigma: '\\Sigma',
+  Phi: '\\Phi',
+  Omega: '\\Omega',
+  inf: '\\infty',
+  oo: '\\infty',
+  pd: '\\partial',
+  lim: '\\lim_{#?}',
+  sqrt: '\\sqrt{#?}',
+  int: '\\int_{#?}^{#?}',
+  sum: '\\sum_{#?}^{#?}',
+  prod: '\\prod_{#?}^{#?}',
+  neq: '\\neq',
+  approx: '\\approx',
+  leq: '\\le',
+  geq: '\\ge',
+}
 
-  /*
-   * Foco ao montar, e não `autoFocus`: o diálogo só monta este componente ao
-   * abrir (e por `lazy`), então o foco do Radix já passou quando chegamos
-   * aqui — pedir o foco depois é o que garante o cursor no campo.
-   */
-  useEffect(() => {
-    campo.current?.focus()
-  }, [])
+/**
+ * O `<math-field>` do MathLive, embrulhado para o React com suporte a ref imperativa.
+ */
+const CampoMatematico = forwardRef<CampoMatematicoHandle, CampoMatematicoProps>(
+  function CampoMatematico({ valor, onChange, onConfirmar }, ref) {
+    const campo = useRef<MathfieldElement>(null)
 
-  /*
-   * Por ref: o callback muda a cada render do diálogo, e entrar na dependência
-   * do efeito re-registraria o listener sem necessidade.
-   */
-  const confirmar = useRef(onConfirmar)
-  confirmar.current = onConfirmar
+    useImperativeHandle(ref, () => ({
+      inserir(latex: string) {
+        if (campo.current) {
+          campo.current.executeCommand(['insert', latex])
+          campo.current.focus()
+        }
+      },
+      focar() {
+        campo.current?.focus()
+      },
+    }))
 
-  useEffect(() => {
-    const elemento = campo.current
-    if (!elemento) return
+    /*
+     * Foco e atalhos inline ao montar.
+     */
+    useEffect(() => {
+      const elemento = campo.current
+      if (!elemento) return
+      elemento.focus()
 
-    function aoTeclar(evento: KeyboardEvent) {
-      const elementoAtual = campo.current
-      if (!elementoAtual) return
+      // Registra os atalhos de palavras para LaTeX no MathLive
+      elemento.inlineShortcuts = {
+        ...elemento.inlineShortcuts,
+        ...ATALHOS_INLINE_GREGOS,
+      }
+    }, [])
 
-      if (evento.key === 'Enter' && !evento.shiftKey) {
+    const confirmar = useRef(onConfirmar)
+    confirmar.current = onConfirmar
+
+    useEffect(() => {
+      const elemento = campo.current
+      if (!elemento) return
+
+      function aoTeclar(evento: KeyboardEvent) {
+        const elementoAtual = campo.current
+        if (!elementoAtual) return
+
+        if (evento.key === 'Enter' && !evento.shiftKey) {
+          evento.preventDefault()
+          evento.stopPropagation()
+          confirmar.current?.(evento.ctrlKey || evento.metaKey)
+          return
+        }
+
+        const latex = ATALHOS_ABNT[evento.key]
+        if (latex === undefined) return
         evento.preventDefault()
         evento.stopPropagation()
-        /*
-         * `Ctrl+Enter` insere em linha própria, sem ir até a caixa com o
-         * mouse. É a variante-de-Enter que todo mundo já espera, e está livre:
-         * o MathLive não a usa (usa `ctrl+b`, `ctrl+e`, `alt+b` e companhia,
-         * que por isso ficaram de fora).
-         */
-        confirmar.current?.(evento.ctrlKey || evento.metaKey)
-        return
+        elementoAtual.executeCommand(['insert', latex])
       }
 
-      const latex = ATALHOS[evento.key]
-      if (latex === undefined) return
-      evento.preventDefault()
-      evento.stopPropagation()
-      elementoAtual.executeCommand(['insert', latex])
-    }
+      function aoInserir(evento: InputEvent) {
+        const elementoAtual = campo.current
+        if (!elementoAtual) return
 
-    /*
-     * O caminho da TECLA MORTA, que o `keydown` não alcança.
-     *
-     * No ABNT2 o `^` é acento: a primeira pressão chega como `key: 'Dead'` e
-     * nenhum caractere existe ainda, então a regra acima não tem o que casar.
-     * O caractere só aparece quando a composição se resolve — e aí ele vem
-     * como `data` de um `beforeinput`, que é onde este segundo ouvinte pega.
-     *
-     * Não há risco de agir duas vezes: quando o `keydown` casa, ele já chama
-     * `preventDefault`, e sem inserção não há `beforeinput` depois.
-     */
-    function aoInserir(evento: InputEvent) {
-      const elementoAtual = campo.current
-      if (!elementoAtual) return
+        const latex = ATALHOS_ABNT[evento.data ?? '']
+        if (latex === undefined) return
+        evento.preventDefault()
+        evento.stopPropagation()
+        elementoAtual.executeCommand(['insert', latex])
+      }
 
-      const latex = ATALHOS[evento.data ?? '']
-      if (latex === undefined) return
-      evento.preventDefault()
-      evento.stopPropagation()
-      elementoAtual.executeCommand(['insert', latex])
-    }
+      elemento.addEventListener('keydown', aoTeclar, true)
+      elemento.addEventListener('beforeinput', aoInserir as EventListener, true)
+      return () => {
+        elemento.removeEventListener('keydown', aoTeclar, true)
+        elemento.removeEventListener(
+          'beforeinput',
+          aoInserir as EventListener,
+          true,
+        )
+      }
+    }, [])
 
-    /*
-     * Fase de CAPTURA nos dois. O MathLive trata o teclado dentro do próprio
-     * shadow DOM, e um ouvinte de bolha aqui correria depois dele — ou nem
-     * correria, se ele parasse a propagação. Na captura o evento passa por
-     * este elemento antes de descer, então somos os primeiros.
-     */
-    elemento.addEventListener('keydown', aoTeclar, true)
-    elemento.addEventListener('beforeinput', aoInserir as EventListener, true)
-    return () => {
-      elemento.removeEventListener('keydown', aoTeclar, true)
-      elemento.removeEventListener(
-        'beforeinput',
-        aoInserir as EventListener,
-        true,
-      )
-    }
-  }, [])
+    useEffect(() => {
+      const elemento = campo.current
+      if (!elemento) return
 
-  useEffect(() => {
-    const elemento = campo.current
-    if (!elemento) return
+      if (elemento.value !== valor) elemento.value = valor
 
-    // Só sobrescreve quando o valor de fora diverge: escrever de volta o que o
-    // próprio campo acabou de emitir moveria o cursor a cada tecla.
-    if (elemento.value !== valor) elemento.value = valor
+      function aoDigitar() {
+        if (elemento) onChange(elemento.value)
+      }
 
-    function aoDigitar() {
-      if (elemento) onChange(elemento.value)
-    }
+      elemento.addEventListener('input', aoDigitar)
+      return () => elemento.removeEventListener('input', aoDigitar)
+    }, [valor, onChange])
 
-    elemento.addEventListener('input', aoDigitar)
-    return () => elemento.removeEventListener('input', aoDigitar)
-  }, [valor, onChange])
+    return (
+      <math-field
+        ref={campo}
+        className="border-input w-full rounded-md border p-2 text-base"
+      />
+    )
+  },
+)
 
-  return (
-    <math-field
-      ref={campo}
-      className="border-input w-full rounded-md border p-2 text-base"
-    />
-  )
-}
+export default CampoMatematico
 
 declare module 'react' {
   namespace JSX {

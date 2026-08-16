@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -9,8 +9,34 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Formula } from './Formula'
+import type { CampoMatematicoHandle } from './CampoMatematico'
 
 const CampoMatematico = lazy(() => import('./CampoMatematico'))
+
+const SIMBOLOS_RAPIDOS = [
+  { rotulo: 'α', latex: '\\alpha' },
+  { rotulo: 'β', latex: '\\beta' },
+  { rotulo: 'γ', latex: '\\gamma' },
+  { rotulo: 'δ', latex: '\\delta' },
+  { rotulo: 'ε', latex: '\\epsilon' },
+  { rotulo: 'θ', latex: '\\theta' },
+  { rotulo: 'λ', latex: '\\lambda' },
+  { rotulo: 'μ', latex: '\\mu' },
+  { rotulo: 'π', latex: '\\pi' },
+  { rotulo: 'σ', latex: '\\sigma' },
+  { rotulo: 'ω', latex: '\\omega' },
+  { rotulo: 'Δ', latex: '\\Delta' },
+  { rotulo: 'Ω', latex: '\\Omega' },
+  { rotulo: '∞', latex: '\\infty' },
+  { rotulo: '∂', latex: '\\partial' },
+  { rotulo: '√', latex: '\\sqrt{#?}' },
+  { rotulo: '∫', latex: '\\int_{#?}^{#?}' },
+  { rotulo: '∑', latex: '\\sum_{#?}^{#?}' },
+  { rotulo: '≈', latex: '\\approx' },
+  { rotulo: '≠', latex: '\\neq' },
+  { rotulo: '≤', latex: '\\le' },
+  { rotulo: '≥', latex: '\\ge' },
+]
 
 /** Uma tecla a digitar, na linha de dicas. */
 function Atalho({ children }: { children: string }) {
@@ -22,41 +48,12 @@ function Atalho({ children }: { children: string }) {
 }
 
 interface DialogFormulaProps {
-  /** Recebe o LaTeX pronto, sem os `$`. Quem chama decide onde inserir. */
   onInserir: (latex: string, bloco: boolean) => void
-  /**
-   * A fórmula a editar, quando o diálogo abre por duplo clique numa que já
-   * existe. Ausente, ele abre em branco para escrever uma nova.
-   *
-   * Semeia o estado ao ABRIR, e não a cada render: enquanto se digita, quem
-   * manda no campo é o próprio diálogo — reescrever por cima a cada tecla
-   * devolveria o texto original e travaria a edição.
-   */
   inicial?: { latex: string; bloco: boolean } | null
-  /**
-   * Controlado de fora desde que o menu `/` passou a abri-lo.
-   *
-   * Antes ele trazia o próprio gatilho — um botão permanente na barra do
-   * editor. A barra saiu, e um diálogo que se abre sozinho não tem como ser
-   * chamado por um menu.
-   */
   aberto: boolean
   onAbertoChange: (aberto: boolean) => void
 }
 
-/**
- * Entrada de fórmula com MathLive, devolvendo LaTeX.
- *
- * Não é enfeite (spec 14/08, seção 5): digitar `\int_{0}^{\infty}` às cegas é
- * lento o suficiente para se desistir de anotar no app — e fricção é o que
- * matou as tentativas anteriores de manter um sistema pessoal. Aqui se escreve
- * a fórmula vendo a fórmula.
- *
- * O que sai é LaTeX cru, que é o que a nota guarda. Renderização é view; fonte
- * é texto (é o mesmo princípio que sustenta Markdown como fonte de verdade).
- *
- * MathLive entra por `lazy` porque é pesado e só serve a quem está escrevendo.
- */
 export function DialogFormula({
   onInserir,
   inicial,
@@ -65,33 +62,17 @@ export function DialogFormula({
 }: DialogFormulaProps) {
   const [latex, setLatex] = useState('')
   const [bloco, setBloco] = useState(false)
+  const campoRef = useRef<CampoMatematicoHandle>(null)
 
   const editando = inicial != null
 
-  /*
-   * Semeia ao ABRIR. A dependência é `aberto`, e não `inicial`: se o objeto
-   * entrasse aqui, cada render do pai o recriaria e o campo voltaria ao texto
-   * original no meio da digitação.
-   */
   useEffect(() => {
     if (!aberto) return
     setLatex(inicial?.latex ?? '')
-    /*
-     * Só a EDIÇÃO impõe o `bloco` — ali ele é um fato da fórmula que está na
-     * página. Fórmula nova mantém a última escolha da sessão: quem está
-     * escrevendo uma lista de equações centralizadas as escreve em série, e
-     * remarcar a caixa a cada uma era o trabalho manual que este diálogo
-     * existe para tirar.
-     */
     if (inicial) setBloco(inicial.bloco)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aberto])
 
-  /**
-   * `forcarBloco` vem do `Ctrl+Enter`, que insere em linha própria sem passar
-   * pela caixa. A escolha fica marcada depois: se foi assim que se quis esta,
-   * a próxima provavelmente é igual, e é o mesmo princípio do parágrafo acima.
-   */
   function inserir(forcarBloco?: boolean) {
     const limpo = latex.trim()
     if (limpo === '') return
@@ -105,25 +86,13 @@ export function DialogFormula({
   return (
     <Dialog open={aberto} onOpenChange={onAbertoChange}>
       <DialogContent
-        // O padrão é `sm:max-w-sm` (384px), estreito demais para uma fórmula
-        // com o teclado do MathLive aberto embaixo.
         className="max-w-2xl!"
-        /*
-         * Clique fora NÃO fecha.
-         *
-         * O teclado virtual do MathLive é montado num portal, fora da árvore
-         * do diálogo — então, para o Radix, tocar nele é "interagir fora" e o
-         * diálogo fechava no meio da fórmula. Some-se a isso o alvo pequeno e
-         * qualquer clique de mira errada custava o que já tinha sido escrito.
-         *
-         * Fechar continua tendo dois caminhos deliberados: `Esc` e o X.
-         */
         onInteractOutside={(evento) => evento.preventDefault()}
       >
         <DialogHeader>
           <DialogTitle>{editando ? 'Editar fórmula' : 'Fórmula'}</DialogTitle>
           <DialogDescription>
-            Escreva como se lê. O que a nota guarda é o LaTeX.
+            Escreva como se lê ou clique nos símbolos rápidos abaixo.
           </DialogDescription>
         </DialogHeader>
 
@@ -133,22 +102,32 @@ export function DialogFormula({
           }
         >
           <CampoMatematico
+            ref={campoRef}
             valor={latex}
             onChange={setLatex}
             onConfirmar={inserir}
           />
         </Suspense>
 
-        {/*
-          Os atalhos que o MathLive já tem, escritos porque não se descobrem.
-          Nenhum deles está no teclado virtual: `sum` vira o somatório COM os
-          limites (`\sum_{}^{}`), não a letra grega solta, e é a diferença
-          entre achar que o app não tem somatório e escrever um em três teclas.
-        */}
+        {/* Barra de Símbolos Rápido de 1-Clique */}
+        <div className="flex flex-wrap gap-1 py-1.5 border-y border-border/60 my-1">
+          <span className="text-[11px] font-medium text-muted-foreground self-center mr-1">Rápidos:</span>
+          {SIMBOLOS_RAPIDOS.map((s) => (
+            <button
+              key={s.rotulo}
+              type="button"
+              className="h-6 px-1.5 min-w-6 rounded bg-muted hover:bg-accent text-xs font-mono transition-colors flex items-center justify-center border border-border/40 cursor-pointer"
+              onClick={() => campoRef.current?.inserir(s.latex)}
+            >
+              {s.rotulo}
+            </button>
+          ))}
+        </div>
+
         <p className="text-muted-foreground text-xs">
-          Digite <Atalho>sum</Atalho> <Atalho>int</Atalho>{' '}
-          <Atalho>prod</Atalho> <Atalho>sqrt</Atalho> <Atalho>oo</Atalho> para
-          somatório, integral, produtório, raiz e infinito. <Atalho>/</Atalho>{' '}
+          Digite <Atalho>alpha</Atalho> <Atalho>epsilon</Atalho>{' '}
+          <Atalho>theta</Atalho> <Atalho>sum</Atalho> <Atalho>int</Atalho>{' '}
+          <Atalho>oo</Atalho> para símbolos directos no teclado. <Atalho>/</Atalho>{' '}
           faz fração e <Atalho>^</Atalho> faz expoente.
         </p>
 
