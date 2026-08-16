@@ -7,7 +7,7 @@ import {
 } from '@/components/ui/dialog'
 import { resolverTema, useUIStore } from '@/stores/ui'
 import { DialogFormula } from './DialogFormula'
-import { SeletorReferencia, type Referencia } from './SeletorReferencia'
+import type { Referencia } from './SeletorReferencia'
 import type { CenaDesenho } from './EditorDesenho'
 import type {
   RenderizarBloco,
@@ -135,23 +135,11 @@ export function EditorMarkdown({
 }: EditorMarkdownProps) {
   const inserirRef = useRef<Inserir | null>(null)
   const inserirFormulaRef = useRef<InserirFormula | null>(null)
-  const [seletorAberto, setSeletorAberto] = useState(false)
   const [desenhando, setDesenhando] = useState(false)
   const [formulaAberta, setFormulaAberta] = useState(false)
-  /*
-   * A fórmula que o duplo clique pediu para editar, ou `null` quando o
-   * diálogo abre em branco pelo `/`. Guarda a POSIÇÃO do nó, que é o que
-   * distingue "reescreva aquela" de "insira uma aqui".
-   */
   const [formulaEmEdicao, setFormulaEmEdicao] =
     useState<FormulaEmEdicao | null>(null)
   const escuro = resolverTema(useUIStore((estado) => estado.tema)) === 'escuro'
-  /*
-   * Quando o seletor abre por causa do `[[` já digitado, só falta completar o
-   * miolo e fechar. Quando abre pelo botão, o link inteiro precisa ser escrito.
-   */
-  const completando = useRef(false)
-  const ultimoColchete = useRef(0)
 
   const inserir = useCallback<Inserir>((markdown, inline) => {
     inserirRef.current?.(markdown, inline)
@@ -196,52 +184,8 @@ export function EditorMarkdown({
     }
   }, [criarBlocos])
 
-  /*
-   * Gatilho do `[[`.
-   *
-   * O `keydown` fica no contêiner porque o editor é DOM do ProseMirror — daqui
-   * se escuta sem precisar da API dele.
-   *
-   * O segundo `[` é deixado entrar antes de abrir: completar o que já está na
-   * tela é como o Obsidian se comporta, e cancelar deixando `[[` escrito é o
-   * resultado esperado, não um resto.
-   */
-  function aoTeclar(evento: React.KeyboardEvent) {
-    if (!buscarReferencias || evento.key !== '[') return
-
-    const agora = evento.timeStamp
-    const seguido = agora - ultimoColchete.current < 800
-    ultimoColchete.current = agora
-
-    if (!seguido) return
-    ultimoColchete.current = 0
-    completando.current = true
-    setSeletorAberto(true)
-  }
-
-  function escolher(referencia: Referencia) {
-    inserir(
-      completando.current ? `${referencia.slug}]]` : `[[${referencia.slug}]]`,
-      true,
-    )
-    completando.current = false
-  }
-
   return (
-    <div className="space-y-2" onKeyDown={aoTeclar}>
-      {/*
-        A barra permanente de botões saiu. Ela ocupava espaço fixo em toda nota
-        para uma ação ocasional, e empurrava o texto para baixo — agora tudo
-        entra por `//` e `/`, que custam zero pixel quando não se usa.
-      */}
-      {buscarReferencias && (
-        <SeletorReferencia
-          aberto={seletorAberto}
-          onAbertoChange={setSeletorAberto}
-          buscar={buscarReferencias}
-          onEscolher={escolher}
-        />
-      )}
+    <div className="space-y-2">
 
       {onSalvarDesenho && (
         <Dialog open={desenhando} onOpenChange={setDesenhando}>

@@ -266,6 +266,7 @@ function Interno({
       .use(views.current.desenho)
       .use(gatilhoSimbolos.plugin)
       .use(gatilhoBlocos.plugin)
+      .use(gatilhoReferencias.plugin)
       // Depois do gatilho: o Tab do menu tem precedência sobre o Tab que anda
       // pelos buracos, senão escolher um símbolo pularia para o buraco errado.
       .use(navegarBuracos)
