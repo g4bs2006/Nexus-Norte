@@ -2,7 +2,11 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import type { Editor } from '@milkdown/kit/core'
 import { editorViewCtx } from '@milkdown/kit/core'
 import { TextSelection } from '@milkdown/kit/prose/state'
-import { aplicarComando, type ComandoEscrita } from './comandos'
+import {
+  aplicarComando,
+  converteOBloco,
+  type ComandoEscrita,
+} from './comandos'
 import { criarGatilhoMenu, type EstadoGatilho } from './gatilhoMenu'
 import type { ItemMenu } from './MenuSimbolos'
 
@@ -111,7 +115,30 @@ export function useGatilho(
            * título" agem sobre o bloco inteiro, e deixar `/tit` no texto o
            * transformaria em parte do título.
            */
-          view.dispatch(view.state.tr.delete(posicao.de, posicao.ate))
+          const transacao = view.state.tr.delete(posicao.de, posicao.ate)
+
+          /*
+           * Havendo texto antes do gatilho, o bloco é PARTIDO ali.
+           *
+           * `setBlockType` e os `wrapIn…` convertem o bloco inteiro, sem olhar
+           * onde o cursor está dentro dele — então "revisão de cálculo
+           * /titulo1" virava um título com a frase toda dentro. O `/` é um
+           * comando sobre o que vem A SEGUIR: o que já estava escrito continua
+           * sendo o parágrafo de cima, e o comando cai no bloco novo, vazio.
+           */
+          const $inicio = transacao.doc.resolve(posicao.de)
+          if (
+            converteOBloco(resultado.comando) &&
+            $inicio.parentOffset > 0
+          ) {
+            transacao.split(posicao.de)
+            // +1 entra no bloco recém-criado, que é onde o comando deve cair.
+            transacao.setSelection(
+              TextSelection.create(transacao.doc, posicao.de + 1),
+            )
+          }
+
+          view.dispatch(transacao)
           aplicarComando(resultado.comando)(ctx)
 
           /*

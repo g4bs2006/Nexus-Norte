@@ -43,19 +43,27 @@ export interface Simbolo {
  */
 export const SIMBOLOS: readonly Simbolo[] = [
   /*
-   * Primeiro da lista de propósito: `//` + Enter abre uma fórmula vazia.
+   * Primeiro da lista de propósito: `//` + Enter abre uma fórmula para
+   * escrever dentro.
    *
-   * É o buraco que faltava. O catálogo resolve o símbolo que não se lembra,
-   * e o diálogo do MathLive resolve a matriz — mas escrever `x^2 + 3x`, que
-   * não tem símbolo nenhum, obrigava a digitar os `$` na mão ou a abrir um
-   * diálogo para uma conta trivial. Com `latex` vazio o nó nasce em branco e
-   * o cursor entra nele, e dali `//` continua valendo para os símbolos.
+   * É o buraco que faltava. O catálogo resolve o símbolo que não se lembra, e
+   * o diálogo do MathLive resolve a matriz — mas escrever `x^2 + 3x`, que não
+   * tem símbolo nenhum, obrigava a digitar os `$` na mão ou a abrir um diálogo
+   * para uma conta trivial.
+   *
+   * O corpo é UM BURACO, e não vazio. Um nó inline sem conteúdo nenhum não
+   * recebe cursor: o navegador não põe caret dentro de elemento inline vazio
+   * num `contenteditable` e joga a seleção para o texto mais próximo — o que
+   * fazia o que se digitava sair FORA da fórmula. Com o buraco, esta entrada
+   * passa a ser exatamente o que toda outra já é: um LaTeX com `{}` onde o
+   * cursor pousa e por onde o `Tab` anda. A chave vazia é grupo em LaTeX, e
+   * não muda o que o KaTeX desenha.
    */
   {
     gatilho: 'formula',
     rotulo: 'fórmula em branco',
     amostra: '𝑥',
-    latex: '',
+    latex: '{}',
     sinonimos: 'vazia nova equacao conta escrever matematica',
   },
   {

@@ -47,6 +47,22 @@ export type ComandoEscrita =
 export type MarcaEscrita = 'negrito' | 'italico' | 'codigo' | 'riscado'
 
 /**
+ * O comando TRANSFORMA o bloco onde o cursor está, em vez de inserir um novo?
+ *
+ * Importa porque `setBlockType` e os `wrapIn…` agem sobre o bloco inteiro, sem
+ * olhar onde o cursor está dentro dele. Escrever "revisão de cálculo /titulo1"
+ * virava um título com a frase toda dentro — o `/` é um comando sobre o que vem
+ * A SEGUIR, e quem chama usa isto para separar o texto já escrito antes de
+ * aplicar.
+ *
+ * `divisor` e `tabela` ficam de fora porque inserem um nó novo: ali não há
+ * bloco sendo convertido, e separar antes só deixaria um parágrafo vazio.
+ */
+export function converteOBloco(comando: ComandoEscrita): boolean {
+  return comando.tipo !== 'divisor' && comando.tipo !== 'tabela'
+}
+
+/**
  * Executa o comando no editor.
  *
  * Devolvido como função de `Ctx` porque é assim que o Milkdown expõe ação

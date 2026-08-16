@@ -62,12 +62,17 @@ export const mathInlineEditavel = mathInlineSchema.extendSchema(
      * o lixo. Emitir nada é a resposta certa também em intenção: uma fórmula
      * sem conteúdo não é conteúdo, e some sozinha na próxima abertura em vez
      * de virar texto que o autor não escreveu.
+     *
+     * "Sem conteúdo" inclui só chaves: a fórmula em branco do `//` nasce como
+     * `{}` (é o buraco onde o cursor pousa — ver `latex.ts`), então abrir uma
+     * e desistir deixaria `${}$` gravado. Chave sem nada dentro é grupo vazio
+     * em LaTeX: não desenha nada, e portanto não é fórmula.
      */
     toMarkdown: {
       match: (no: Node) => no.type.name === 'math_inline',
       runner: (estado: SerializerState, no: Node) => {
         const latex = no.textContent
-        if (latex.trim() === '') return
+        if (latex.replace(/[{}\s]/g, '') === '') return
         estado.addNode('inlineMath', undefined, latex)
       },
     },

@@ -28,6 +28,7 @@ import {
 import { aplicarMarca, type MarcaEscrita } from './editor/comandos'
 import { MenuSimbolos } from './editor/MenuSimbolos'
 import { navegarBuracos } from './editor/buracos'
+import { tabNaoEscapa } from './editor/tabNaoEscapa'
 import { tipografia } from './editor/tipografia'
 import { criarPluginImagens, type EnviarImagem } from './editor/imagens'
 import { sairDaFormula } from './editor/sairDaFormula'
@@ -270,6 +271,9 @@ function Interno({
       // Depois do gatilho: o Tab do menu tem precedência sobre o Tab que anda
       // pelos buracos, senão escolher um símbolo pularia para o buraco errado.
       .use(navegarBuracos)
+      // POR ÚLTIMO entre os que leem Tab: só segura a tecla quando lista,
+      // fórmula e menu já disseram que não a queriam.
+      .use(tabNaoEscapa)
       .use(block),
   )
 
