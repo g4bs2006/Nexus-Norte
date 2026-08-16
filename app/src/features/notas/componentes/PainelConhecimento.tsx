@@ -120,7 +120,7 @@ export function PainelConhecimento({
           type="button"
           variant="ghost"
           size="icon"
-          className="text-muted-foreground size-8"
+          className="text-muted-foreground hover:text-foreground size-8 transition-colors duration-200"
           aria-label="Mostrar conhecimento"
           onClick={alternar}
         >
@@ -131,7 +131,7 @@ export function PainelConhecimento({
   }
 
   return (
-    <aside className="space-y-5">
+    <aside className="space-y-5 animate-in fade-in-50 duration-300">
       <div className="text-muted-foreground flex items-center justify-between">
         <span className="text-[11px] tracking-wide uppercase">Conhecimento</span>
         <Button

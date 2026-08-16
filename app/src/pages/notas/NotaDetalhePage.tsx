@@ -6,6 +6,7 @@ import { SkeletonPagina } from '@/components/Skeletons'
 import { EditorMarkdown } from '@/components/EditorMarkdown'
 import { PageHeader } from '@/components/PageHeader'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { useMaterias, useSemestres, useSessoes } from '@/features/estudos/hooks'
 import {
@@ -247,13 +248,19 @@ export default function NotaDetalhePage() {
         de sumir: sem uma alça visível, reabrir viraria caça ao atalho.
       */}
       <div
-        className={
+        className={cn(
+          'grid transition-all duration-300 ease-in-out',
           trilhoAberto
-            ? 'grid gap-10 lg:grid-cols-[minmax(0,1fr)_280px]'
-            : 'grid gap-4 lg:grid-cols-[minmax(0,1fr)_2.5rem]'
-        }
+            ? 'gap-10 lg:grid-cols-[minmax(0,1fr)_280px]'
+            : 'gap-4 lg:grid-cols-[minmax(0,1fr)_2.5rem]',
+        )}
       >
-        <article className="documento-nota min-w-0">
+        <article
+          className={cn(
+            'documento-nota min-w-0 transition-all duration-300 ease-in-out',
+            !trilhoAberto && 'mx-auto w-full',
+          )}
+        >
           {desktop ? (
             <>
               {/*
