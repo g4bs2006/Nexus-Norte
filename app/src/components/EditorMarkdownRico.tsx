@@ -31,8 +31,6 @@ import { navegarBuracos } from './editor/buracos'
 import { tipografia } from './editor/tipografia'
 import { criarPluginImagens, type EnviarImagem } from './editor/imagens'
 import { sairDaFormula } from './editor/sairDaFormula'
-import { abrirFormula } from './editor/abrirFormula'
-import { fracaoFormula, multiplicacaoFormula } from './editor/formatarFormula'
 import {
   focoMatematica,
   mathInlineEditavel,
@@ -249,11 +247,6 @@ function Interno({
       .use(mathInlineEditavel)
       .use(viewMatematica)
       .use(focoMatematica)
-      // `\` fora de uma fórmula abre uma vazia; dentro dela, `*` e `/` viram
-      // os operadores de verdade (ver `formatarFormula.ts`).
-      .use(abrirFormula)
-      .use(multiplicacaoFormula)
-      .use(fracaoFormula)
       // Antes de navegarBuracos: dentro da fórmula, Enter sai; Tab anda.
       .use(sairDaFormula)
       .use(destaqueSchema)

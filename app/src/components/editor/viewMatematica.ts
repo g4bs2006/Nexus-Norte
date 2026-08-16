@@ -56,11 +56,12 @@ export const mathInlineEditavel = mathInlineSchema.extendSchema(
      * único nó de TEXTO. Ou seja, a fórmula não só se perdia como deixava
      * dois cifrões soltos no meio da frase.
      *
-     * Isso passou a importar quando o `\` (ver `abrirFormula.ts`) fez toda
-     * fórmula nascer vazia: basta abrir uma e hesitar mais que o debounce do
-     * autosave para gravar o lixo. Emitir nada é a resposta certa também em
-     * intenção — uma fórmula sem conteúdo não é conteúdo, e some sozinha na
-     * próxima abertura em vez de virar texto que o autor não escreveu.
+     * O nó não é mais `atom` (é o que esta mesma extensão faz acima), então
+     * dá para apagar o miolo de uma fórmula caractere a caractere e parar
+     * com ela vazia — basta então esperar o debounce do autosave para gravar
+     * o lixo. Emitir nada é a resposta certa também em intenção: uma fórmula
+     * sem conteúdo não é conteúdo, e some sozinha na próxima abertura em vez
+     * de virar texto que o autor não escreveu.
      */
     toMarkdown: {
       match: (no: Node) => no.type.name === 'math_inline',
