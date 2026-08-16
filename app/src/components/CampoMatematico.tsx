@@ -135,6 +135,24 @@ const CampoMatematico = forwardRef<CampoMatematicoHandle, CampoMatematicoProps>(
           return
         }
 
+        if (evento.key === 'Tab' && !evento.shiftKey) {
+          const val = elementoAtual.value.trimEnd()
+          const matchText = val.match(/\\text\{([a-zA-Z]+)\}$/)
+          const matchWord = val.match(/([a-zA-Z]+)$/)
+          const palavra = matchText?.[1] ?? matchWord?.[1]
+
+          if (palavra && ATALHOS_INLINE_GREGOS[palavra]) {
+            evento.preventDefault()
+            evento.stopPropagation()
+            const latexSubstituto = ATALHOS_INLINE_GREGOS[palavra]
+            for (let i = 0; i < palavra.length; i++) {
+              elementoAtual.executeCommand('deleteBackward')
+            }
+            elementoAtual.executeCommand(['insert', latexSubstituto])
+            return
+          }
+        }
+
         const latex = ATALHOS_ABNT[evento.key]
         if (latex === undefined) return
         evento.preventDefault()

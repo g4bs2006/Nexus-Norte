@@ -34,8 +34,6 @@ const SIMBOLOS_RAPIDOS = [
   { rotulo: '∑', latex: '\\sum_{#?}^{#?}' },
   { rotulo: '≈', latex: '\\approx' },
   { rotulo: '≠', latex: '\\neq' },
-  { rotulo: '≤', latex: '\\le' },
-  { rotulo: '≥', latex: '\\ge' },
 ]
 
 /** Uma tecla a digitar, na linha de dicas. */
