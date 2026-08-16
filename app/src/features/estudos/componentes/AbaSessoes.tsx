@@ -47,12 +47,10 @@ interface AbaSessoesProps {
   /**
    * Primeira nota de cada sessão, quando existe.
    *
-   * O modelo permite várias notas por sessão, mas a linha da sessão oferece
-   * uma: com nota, o botão edita a que está lá; sem nota, cria. Um botão que
-   * empilha notas silenciosamente numa linha de lista seria fácil de acionar
-   * por engano e difícil de perceber.
+  /**
+   * Notas vinculadas por sessão.
    */
-  notaPorSessao?: ReadonlyMap<string, { titulo: string }>
+  notaPorSessao?: ReadonlyMap<string, readonly { titulo: string }[]>
   /**
    * Gatilho de nota da sessão, injetado pela composição.
    *
@@ -461,11 +459,18 @@ export function AbaSessoes({
                         meta do dia: {sessao.meta_diaria_minutos} min
                       </p>
                     )}
-                    {notaPorSessao?.get(sessao.id) && (
-                      <p className="text-muted-foreground truncate text-xs">
-                        nota: {notaPorSessao.get(sessao.id)?.titulo}
-                      </p>
-                    )}
+                    {(() => {
+                      const list = notaPorSessao?.get(sessao.id)
+                      if (!list || list.length === 0) return null
+                      const titulos = list.map((n) => n.titulo).join(', ')
+                      return (
+                        <p className="text-muted-foreground truncate text-xs">
+                          {list.length === 1
+                            ? `nota: ${list[0]?.titulo}`
+                            : `notas (${list.length}): ${titulos}`}
+                        </p>
+                      )
+                    })()}
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     {/*

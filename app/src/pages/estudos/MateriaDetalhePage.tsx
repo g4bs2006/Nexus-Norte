@@ -102,16 +102,14 @@ export default function MateriaDetalhePage() {
     [sessoesDaMateria],
   )
 
-  /*
-   * Primeira nota de cada sessão. As notas já vêm ordenadas por
-   * `fixada desc, atualizada_em desc`, então "a primeira" é a mais relevante —
-   * e é a que a linha da sessão abre para editar.
-   */
-  const notaPorSessao = useMemo(() => {
-    const mapa = new Map<string, NotaListada>()
+  /** Notas vinculadas por sessão. */
+  const notasPorSessao = useMemo(() => {
+    const mapa = new Map<string, NotaListada[]>()
     for (const nota of notas.data ?? []) {
-      if (nota.sessao_id && !mapa.has(nota.sessao_id)) {
-        mapa.set(nota.sessao_id, nota)
+      if (nota.sessao_id) {
+        const lista = mapa.get(nota.sessao_id) ?? []
+        lista.push(nota)
+        mapa.set(nota.sessao_id, lista)
       }
     }
     return mapa
@@ -283,23 +281,18 @@ export default function MateriaDetalhePage() {
               planejadas={planejadasDaMateria}
               materiaAtual={materia}
               hoje={hoje}
-              notaPorSessao={notaPorSessao}
+              notaPorSessao={notasPorSessao}
               acaoNota={(sessaoId, data) => (
                 <DialogVincularNota
                   sessaoId={sessaoId}
                   materiaId={materiaId}
                   sessaoData={data}
-                  notaVinculada={notaPorSessao.get(sessaoId)}
                   trigger={
                     <Button
                       variant="ghost"
                       size="icon"
                       className="text-muted-foreground hover:text-foreground size-11 shrink-0 sm:size-7"
-                      aria-label={
-                        notaPorSessao.get(sessaoId)
-                          ? 'Gerenciar nota da sessão'
-                          : 'Anotar esta sessão'
-                      }
+                      aria-label="Gerenciar anotações da sessão"
                     >
                       <NotebookPen className="size-3.5" />
                     </Button>

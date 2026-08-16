@@ -25,8 +25,6 @@ interface DialogSessaoRealizadaProps {
     duracao_minutos: number
   } | null
   nomeMateria: string
-  /** Primeira nota vinculada a esta sessão, se houver. */
-  notaVinculada?: { id: string; slug: string; titulo: string } | null
   open?: boolean
   onOpenChange?: (aberto: boolean) => void
   trigger?: ReactNode | null
@@ -41,7 +39,6 @@ interface DialogSessaoRealizadaProps {
 export function DialogSessaoRealizada({
   sessao,
   nomeMateria,
-  notaVinculada,
   open,
   onOpenChange,
   trigger,
@@ -161,11 +158,10 @@ export function DialogSessaoRealizada({
               sessaoId={sessao.id}
               materiaId={sessao.materia_id}
               sessaoData={sessao.data}
-              notaVinculada={notaVinculada}
               trigger={
                 <Button type="button" variant="secondary">
                   <NotebookPen className="size-4" />
-                  {notaVinculada ? 'Anotação' : 'Vincular nota'}
+                  Anotações
                 </Button>
               }
             />
