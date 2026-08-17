@@ -22,6 +22,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -148,6 +149,24 @@ export function DialogMeta({
                     <Input
                       placeholder="Ex: Aprender Git / GitHub, Tirar CNH..."
                       className="text-xs"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="descricao"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-xs">Descrição / Detalhes (Opcional)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Adicione observações, links ou detalhes..."
+                      className="text-xs min-h-[60px]"
                       {...field}
                     />
                   </FormControl>

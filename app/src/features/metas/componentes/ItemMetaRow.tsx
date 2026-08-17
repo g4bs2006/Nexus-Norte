@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, Clock, GripVertical, MoreHorizontal, Trash2, Zap } from 'lucide-react'
+import { Check, Clock, GripVertical, MoreHorizontal, RotateCcw, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -9,6 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
 import { cn } from '@/lib/utils'
 import type { Meta } from '../types'
 import { DialogEncerrarMeta } from './DialogEncerrarMeta'
@@ -65,17 +66,17 @@ export function ItemMetaRow({
         onDragLeave={onDragLeave}
         onDrop={onDrop}
         className={cn(
-          'group border-border/50 bg-card/60 hover:bg-accent/40 relative flex items-center justify-between gap-2.5 rounded-lg border px-2.5 py-2 text-xs transition-all select-none',
+          'group border-border/50 bg-card/60 hover:bg-accent/40 relative flex items-start justify-between gap-2.5 rounded-lg border px-2.5 py-2 text-xs transition-all select-none',
           meta.concluida && 'bg-muted/20 opacity-60',
           isDragging && 'opacity-30 border-dashed border-primary',
           isDropTarget && 'border-t-2 border-t-primary bg-primary/5',
         )}
       >
-        <div className="flex min-w-0 items-center gap-2 truncate">
+        <div className="flex min-w-0 flex-1 items-start gap-2">
           {/* Drag Handle */}
           {draggable && (
             <span
-              className="text-muted-foreground/40 hover:text-foreground cursor-grab active:cursor-grabbing opacity-0 transition-opacity group-hover:opacity-100 shrink-0"
+              className="text-muted-foreground/40 hover:text-foreground cursor-grab active:cursor-grabbing opacity-0 transition-opacity group-hover:opacity-100 shrink-0 mt-0.5"
               title="Arrastar para reordenar"
             >
               <GripVertical className="size-3.5" />
@@ -85,45 +86,57 @@ export function ItemMetaRow({
           <Checkbox
             checked={checado}
             onCheckedChange={(c) => lidarComCliqueCheckbox(Boolean(c))}
-            className="border-border size-4 rounded-xs shrink-0"
+            className="border-border size-4 rounded-xs shrink-0 mt-0.5"
           />
-          <span
-            className={cn(
-              'text-foreground truncate font-medium transition-colors',
-              meta.concluida && 'text-muted-foreground line-through',
-            )}
-          >
-            {meta.titulo}
-          </span>
 
-          {/* Indicador de Check Diário */}
-          {meta.no_check_diario && (
-            <span
-              title="Aparece nos checks diários do topo"
-              className="flex shrink-0 items-center gap-0.5 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-500"
-            >
-              <Zap className="size-3" />
-              <span>Diário</span>
-            </span>
-          )}
-
-          {/* Badge de Prazo */}
-          {meta.data_alvo && !meta.concluida && (
-            <span className="text-muted-foreground bg-muted/60 flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px]">
-              <Clock className="size-3" />
-              <span>
-                até{' '}
-                {new Date(meta.data_alvo + 'T00:00:00').toLocaleDateString(
-                  'pt-BR',
-                  { day: '2-digit', month: 'short' },
+          <div className="flex-1 min-w-0 space-y-0.5">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span
+                className={cn(
+                  'text-foreground font-medium transition-colors break-words',
+                  meta.concluida && 'text-muted-foreground line-through',
                 )}
+              >
+                {meta.titulo}
               </span>
-            </span>
-          )}
+
+              {/* Indicador de Check Diário */}
+              {meta.no_check_diario && (
+                <span
+                  title="Aparece nos checks diários do topo"
+                  className="flex shrink-0 items-center gap-0.5 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-500"
+                >
+                  <Zap className="size-3" />
+                  <span>Diário</span>
+                </span>
+              )}
+
+              {/* Badge de Prazo */}
+              {meta.data_alvo && !meta.concluida && (
+                <span className="text-muted-foreground bg-muted/60 flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px]">
+                  <Clock className="size-3" />
+                  <span>
+                    até{' '}
+                    {new Date(meta.data_alvo + 'T00:00:00').toLocaleDateString(
+                      'pt-BR',
+                      { day: '2-digit', month: 'short' },
+                    )}
+                  </span>
+                </span>
+              )}
+            </div>
+
+            {/* Descrição / Detalhes adicionais (se houver) */}
+            {meta.descricao && (
+              <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                {meta.descricao}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Menu de Ações da Meta */}
-        <div className="flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+        <div className="flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 shrink-0">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -144,7 +157,7 @@ export function ItemMetaRow({
                 }
               />
 
-              {!meta.concluida && (
+              {!meta.concluida ? (
                 <DropdownMenuItem
                   onClick={() => setEncerrarAberto(true)}
                   className="text-emerald-500 focus:text-emerald-500 font-medium"
@@ -152,18 +165,25 @@ export function ItemMetaRow({
                   <Check className="mr-1.5 size-3.5" />
                   <span>Encerrar completamente</span>
                 </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem
+                  onClick={() => onAlternarConclusaoDirecta?.(false)}
+                  className="text-foreground font-medium"
+                >
+                  <RotateCcw className="mr-1.5 size-3.5" />
+                  <span>Reabrir meta</span>
+                </DropdownMenuItem>
               )}
 
               {onExcluir && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={onExcluir}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <Trash2 className="mr-1.5 size-3.5" />
-                    <span>Excluir</span>
-                  </DropdownMenuItem>
+                  <DialogConfirmarExclusao
+                    titulo="Excluir meta"
+                    mensagem={`"${meta.titulo}" será removida permanentemente.`}
+                    onConfirmar={onExcluir}
+                    classeTrigger="w-full justify-start text-xs text-destructive hover:bg-destructive/10 px-2 py-1.5 rounded-sm flex items-center"
+                  />
                 </>
               )}
             </DropdownMenuContent>
