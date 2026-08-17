@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react'
+import { Sigma } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -8,12 +9,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { cn } from '@/lib/utils'
 import { Formula } from './Formula'
 import type { CampoMatematicoHandle } from './CampoMatematico'
 
 const CampoMatematico = lazy(() => import('./CampoMatematico'))
 
-const SIMBOLOS_RAPIDOS = [
+const SIMBOLOS_GREGOS = [
   { rotulo: 'α', latex: '\\alpha' },
   { rotulo: 'β', latex: '\\beta' },
   { rotulo: 'γ', latex: '\\gamma' },
@@ -27,6 +29,9 @@ const SIMBOLOS_RAPIDOS = [
   { rotulo: 'ω', latex: '\\omega' },
   { rotulo: 'Δ', latex: '\\Delta' },
   { rotulo: 'Ω', latex: '\\Omega' },
+]
+
+const SIMBOLOS_OPERADORES = [
   { rotulo: '∞', latex: '\\infty' },
   { rotulo: '∂', latex: '\\partial' },
   { rotulo: '√', latex: '\\sqrt{#?}' },
@@ -39,9 +44,9 @@ const SIMBOLOS_RAPIDOS = [
 /** Uma tecla a digitar, na linha de dicas. */
 function Atalho({ children }: { children: string }) {
   return (
-    <code className="bg-muted rounded px-1 py-0.5 font-mono text-[11px]">
+    <kbd className="bg-muted px-1.5 py-0.5 rounded text-[11px] font-mono border border-border/50 shadow-2xs">
       {children}
-    </code>
+    </kbd>
   )
 }
 
@@ -84,81 +89,128 @@ export function DialogFormula({
   return (
     <Dialog open={aberto} onOpenChange={onAbertoChange}>
       <DialogContent
-        className="max-w-2xl!"
+        className="max-w-2xl! border-border/80 shadow-2xl backdrop-blur-xl"
         onInteractOutside={(evento) => evento.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>{editando ? 'Editar fórmula' : 'Fórmula'}</DialogTitle>
-          <DialogDescription>
-            Escreva como se lê ou clique nos símbolos rápidos abaixo.
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <Sigma className="size-4 text-estudos" />
+            <span>{editando ? 'Editar Fórmula' : 'Fórmula Matemática'}</span>
+          </DialogTitle>
+          <DialogDescription className="text-xs text-muted-foreground">
+            Escreva em LaTeX ou digite o nome e pressione <Atalho>Tab</Atalho> para converter.
           </DialogDescription>
         </DialogHeader>
 
+        {/* Input MathLive com borda suave de foco */}
         <Suspense
           fallback={
             <p className="text-muted-foreground text-sm">Carregando editor…</p>
           }
         >
-          <CampoMatematico
-            ref={campoRef}
-            valor={latex}
-            onChange={setLatex}
-            onConfirmar={inserir}
-          />
+          <div className="rounded-lg border border-border/80 bg-card p-1 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary/40 transition-all shadow-2xs">
+            <CampoMatematico
+              ref={campoRef}
+              valor={latex}
+              onChange={setLatex}
+              onConfirmar={inserir}
+            />
+          </div>
         </Suspense>
 
-        {/* Barra de Símbolos Rápido de 1-Clique */}
-        <div className="flex flex-wrap gap-1 py-1.5 border-y border-border/60 my-1">
-          <span className="text-[11px] font-medium text-muted-foreground self-center mr-1">Rápidos:</span>
-          {SIMBOLOS_RAPIDOS.map((s) => (
+        {/* Modo de Exibição: Segmented Control Notion Style */}
+        <div className="flex items-center justify-between gap-4 py-1 border-b border-border/50">
+          <span className="text-xs font-medium text-muted-foreground">Modo de exibição:</span>
+          <div className="flex items-center p-0.5 bg-muted/80 rounded-lg border border-border/60 text-xs">
             <button
-              key={s.rotulo}
               type="button"
-              className="h-6 px-1.5 min-w-6 rounded bg-muted hover:bg-accent text-xs font-mono transition-colors flex items-center justify-center border border-border/40 cursor-pointer"
-              onClick={() => campoRef.current?.inserir(s.latex)}
+              className={cn(
+                'px-3 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer',
+                !bloco
+                  ? 'bg-background text-foreground shadow-xs font-semibold'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+              onClick={() => setBloco(false)}
             >
-              {s.rotulo}
+              Em linha ($...$)
             </button>
-          ))}
+            <button
+              type="button"
+              className={cn(
+                'px-3 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer',
+                bloco
+                  ? 'bg-background text-foreground shadow-xs font-semibold'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+              onClick={() => setBloco(true)}
+            >
+              Bloco centralizado ($$...$$)
+            </button>
+          </div>
         </div>
 
-        <p className="text-muted-foreground text-xs">
+        {/* Barra de Símbolos Rápido Agrupada */}
+        <div className="space-y-1.5 py-1">
+          <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-0.5 flex-wrap">
+            <span className="text-[11px] font-medium text-muted-foreground mr-1">Gregas:</span>
+            {SIMBOLOS_GREGOS.map((s) => (
+              <button
+                key={s.rotulo}
+                type="button"
+                className="h-6 px-1.5 min-w-6 rounded-md bg-muted/80 hover:bg-primary hover:text-primary-foreground text-xs font-mono transition-all flex items-center justify-center border border-border/40 cursor-pointer shadow-2xs"
+                onClick={() => campoRef.current?.inserir(s.latex)}
+              >
+                {s.rotulo}
+              </button>
+            ))}
+            <span className="text-[11px] font-medium text-muted-foreground ml-2 mr-1">Operadores:</span>
+            {SIMBOLOS_OPERADORES.map((s) => (
+              <button
+                key={s.rotulo}
+                type="button"
+                className="h-6 px-1.5 min-w-6 rounded-md bg-muted/80 hover:bg-primary hover:text-primary-foreground text-xs font-mono transition-all flex items-center justify-center border border-border/40 cursor-pointer shadow-2xs"
+                onClick={() => campoRef.current?.inserir(s.latex)}
+              >
+                {s.rotulo}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <p className="text-muted-foreground text-[11px] leading-relaxed">
           Digite <Atalho>alpha</Atalho> <Atalho>epsilon</Atalho>{' '}
-          <Atalho>theta</Atalho> <Atalho>sum</Atalho> <Atalho>int</Atalho>{' '}
-          <Atalho>oo</Atalho> para símbolos directos no teclado. <Atalho>/</Atalho>{' '}
+          <Atalho>theta</Atalho> <Atalho>sum</Atalho> <Atalho>int</Atalho> + <Atalho>Tab</Atalho> para símbolos diretos. <Atalho>/</Atalho>{' '}
           faz fração e <Atalho>^</Atalho> faz expoente.
         </p>
 
+        {/* Live KaTeX Preview Card */}
         {latex.trim() !== '' && (
-          <div className="bg-muted/40 rounded-md p-3">
+          <div className="bg-accent/40 border border-border/60 rounded-lg p-3 space-y-1 backdrop-blur-sm">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Pré-visualização KaTeX:
+            </span>
             <Formula latex={latex} bloco={bloco} />
           </div>
         )}
 
-        <label className="text-muted-foreground flex items-center gap-2 text-xs">
-          <input
-            type="checkbox"
-            checked={bloco}
-            onChange={(evento) => setBloco(evento.target.checked)}
-          />
-          Em linha própria, centralizada
-          <span className="text-muted-foreground/70">
-            — ou <Atalho>Ctrl</Atalho>+<Atalho>Enter</Atalho> para inserir assim
-          </span>
-        </label>
-
-        <DialogFooter>
-          {/*
-            `() => inserir()` e não `inserir`: passado direto, o evento de
-            clique viraria o argumento `forcarBloco` — e um MouseEvent é
-            truthy, então todo botão inseriria em bloco.
-          */}
+        <DialogFooter className="gap-2">
           <Button
             type="button"
-            onClick={() => inserir()}
-            disabled={latex.trim() === ''}
+            variant="ghost"
+            size="sm"
+            onClick={() => onAbertoChange(false)}
           >
-            {editando ? 'Salvar' : 'Inserir'}
+            Cancelar
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm cursor-pointer"
+            disabled={latex.trim() === ''}
+            onClick={() => inserir()}
+          >
+            <span>{editando ? 'Salvar Fórmula' : 'Inserir Fórmula'}</span>
+            <Atalho>↵</Atalho>
           </Button>
         </DialogFooter>
       </DialogContent>
