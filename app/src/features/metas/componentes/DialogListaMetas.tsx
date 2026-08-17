@@ -1,4 +1,3 @@
-// app/src/features/metas/componentes/DialogListaMetas.tsx
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -10,8 +9,8 @@ import {
 } from '@/components/ui/dialog'
 import { useExcluirMeta, useMetas } from '../hooks'
 import type { Meta } from '../types'
-import { CardMeta } from './CardMeta'
 import { DialogMeta } from './DialogMeta'
+import { ItemMetaRow } from './ItemMetaRow'
 
 type Filtro = 'ativas' | 'concluidas' | 'todas'
 
@@ -30,7 +29,6 @@ function aplicarFiltro(metas: Meta[], filtro: Filtro): Meta[] {
 export function DialogListaMetas({
   aberto,
   onOpenChange,
-  hoje,
 }: DialogListaMetasProps) {
   const { data } = useMetas()
   const excluir = useExcluirMeta()
@@ -44,7 +42,7 @@ export function DialogListaMetas({
         <DialogHeader>
           <DialogTitle>Metas</DialogTitle>
           <DialogDescription>
-            Todas as metas, de qualquer pilar, num só lugar.
+            Todas as metas, de qualquer categoria, num só lugar.
           </DialogDescription>
         </DialogHeader>
 
@@ -73,18 +71,12 @@ export function DialogListaMetas({
             Nenhuma meta {filtro === 'concluidas' ? 'concluída' : 'ativa'} por aqui.
           </p>
         ) : (
-          // auto-fill em vez de grid-cols-2/3 fixo: cada célula nasce do
-          // tamanho natural do card (min 10rem) e a última linha nunca sobra
-          // coluna vazia — que era exatamente o espaço onde o botão de
-          // excluir, antes absolute no wrapper, ficava flutuando sem card.
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-3">
+          <div className="space-y-2">
             {metas.map((meta) => (
-              <CardMeta
+              <ItemMetaRow
                 key={meta.id}
                 meta={meta}
-                hoje={hoje}
-                onExcluir={() => excluir.mutateAsync(meta.id)}
-                excluindo={excluir.isPending}
+                onExcluir={() => excluir.mutate(meta.id)}
               />
             ))}
           </div>

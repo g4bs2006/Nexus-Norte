@@ -52,8 +52,8 @@ export function CardPressaoPrazos({ hoje }: { hoje: string }) {
 
     const metaPorMateria = new Map<string, number>()
     for (const meta of metas.data ?? []) {
-      if (meta.tipo === 'numerica' && meta.materia_id && meta.valor_alvo) {
-        metaPorMateria.set(meta.materia_id, meta.valor_alvo)
+      if (meta.pilar === 'estudos' && meta.categoria_meta_id) {
+        metaPorMateria.set(meta.categoria_meta_id, 100)
       }
     }
 

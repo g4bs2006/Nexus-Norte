@@ -895,97 +895,76 @@ export type Database = {
           },
         ]
       }
-      metas: {
+      categorias_metas: {
         Row: {
-          categoria_id: string | null
-          concluida: boolean
+          cor: string
           criada_em: string
-          data_alvo: string | null
-          data_inicio: string
-          descricao: string | null
-          frequencia_alvo: number | null
-          frequencia_periodo: string | null
           id: string
-          materia_id: string | null
-          no_check_diario: boolean
-          projeto_id: string | null
-          tipo: string
-          tipo_treino_id: string | null
-          titulo: string
-          unidade: string | null
-          usa_peso_corporal: boolean
-          valor_alvo: number | null
-          valor_atual_manual: number | null
+          nome: string
+          ordem: number
         }
         Insert: {
-          categoria_id?: string | null
-          concluida?: boolean
+          cor?: string
           criada_em?: string
-          data_alvo?: string | null
-          data_inicio?: string
-          descricao?: string | null
-          frequencia_alvo?: number | null
-          frequencia_periodo?: string | null
           id?: string
-          materia_id?: string | null
-          no_check_diario?: boolean
-          projeto_id?: string | null
-          tipo: string
-          tipo_treino_id?: string | null
-          titulo: string
-          unidade?: string | null
-          usa_peso_corporal?: boolean
-          valor_alvo?: number | null
-          valor_atual_manual?: number | null
+          nome: string
+          ordem?: number
         }
         Update: {
-          categoria_id?: string | null
+          cor?: string
+          criada_em?: string
+          id?: string
+          nome?: string
+          ordem?: number
+        }
+        Relationships: []
+      }
+      metas: {
+        Row: {
+          categoria_meta_id: string | null
+          concluida: boolean
+          concluida_em: string | null
+          criada_em: string
+          data_alvo: string | null
+          descricao: string | null
+          id: string
+          no_check_diario: boolean
+          ordem: number
+          pilar: string | null
+          titulo: string
+        }
+        Insert: {
+          categoria_meta_id?: string | null
           concluida?: boolean
+          concluida_em?: string | null
           criada_em?: string
           data_alvo?: string | null
-          data_inicio?: string
           descricao?: string | null
-          frequencia_alvo?: number | null
-          frequencia_periodo?: string | null
           id?: string
-          materia_id?: string | null
           no_check_diario?: boolean
-          projeto_id?: string | null
-          tipo?: string
-          tipo_treino_id?: string | null
+          ordem?: number
+          pilar?: string | null
+          titulo: string
+        }
+        Update: {
+          categoria_meta_id?: string | null
+          concluida?: boolean
+          concluida_em?: string | null
+          criada_em?: string
+          data_alvo?: string | null
+          descricao?: string | null
+          id?: string
+          no_check_diario?: boolean
+          ordem?: number
+          pilar?: string | null
           titulo?: string
-          unidade?: string | null
-          usa_peso_corporal?: boolean
-          valor_alvo?: number | null
-          valor_atual_manual?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "metas_categoria_id_fkey"
-            columns: ["categoria_id"]
+            foreignKeyName: "metas_categoria_meta_id_fkey"
+            columns: ["categoria_meta_id"]
             isOneToOne: false
-            referencedRelation: "categorias"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "metas_materia_id_fkey"
-            columns: ["materia_id"]
-            isOneToOne: false
-            referencedRelation: "materias"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "metas_projeto_id_fkey"
-            columns: ["projeto_id"]
-            isOneToOne: false
-            referencedRelation: "projetos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "metas_tipo_treino_id_fkey"
-            columns: ["tipo_treino_id"]
-            isOneToOne: false
-            referencedRelation: "tipos_treino"
+            referencedRelation: "categorias_metas"
             referencedColumns: ["id"]
           },
         ]

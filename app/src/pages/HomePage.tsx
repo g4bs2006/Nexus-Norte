@@ -82,15 +82,14 @@ import {
 } from '@/features/calendario/eventos'
 import { useFontesCalendario } from '@/features/calendario/hooks'
 import {
-  useAlternarCheckinDoDia,
+  useAlternarCheckin,
   useCheckinsDoDia,
-  useConcluirMetaDoDia,
   useMetas,
 } from '@/features/metas/hooks'
 import { MiniCard } from '@/features/home/componentes/MiniCard'
 import { AvisoTreinoAberto } from '@/features/treino/componentes/AvisoTreinoAberto'
 import { IndicadorSono } from '@/features/home/componentes/IndicadorSono'
-import { SecaoMetas } from '@/features/home/componentes/SecaoMetas'
+import { SecaoMetasHome } from '@/features/metas/componentes/SecaoMetasHome'
 import { CardNotificacoes } from '@/features/notificacoes/componentes/CardNotificacoes'
 
 const EVENTOS_NA_HOME = 5
@@ -147,8 +146,7 @@ export default function HomePage() {
   // --- Metas no check do dia ------------------------------------------------
   const metas = useMetas()
   const checkinsDoDia = useCheckinsDoDia(hojeISO)
-  const alternarCheckin = useAlternarCheckinDoDia()
-  const concluirMeta = useConcluirMetaDoDia()
+  const alternarCheckin = useAlternarCheckin()
 
   /*
    * Exceções do fluxograma (resolução 10.19) — hoje só aula usa. A janela da
@@ -390,11 +388,10 @@ export default function HomePage() {
     )
 
     return (metas.data ?? [])
-      .filter((meta) => meta.no_check_diario && meta.tipo !== 'numerica')
+      .filter((meta) => meta.no_check_diario && !meta.concluida)
       .map((meta) => ({
         meta,
-        feito:
-          meta.tipo === 'habito' ? feitosHoje.has(meta.id) : meta.concluida,
+        feito: feitosHoje.has(meta.id),
       }))
   }, [metas.data, checkinsDoDia.data])
 
@@ -529,26 +526,18 @@ export default function HomePage() {
                 </li>
               )}
 
-              {/* Metas com `no_check_diario` ligado — hábito alterna o check-in
-                  do dia, marco e livre alternam `concluida`. */}
+              {/* Metas com `no_check_diario` ligado */}
               {metasDoDia.map(({ meta, feito }) => (
                 <li key={meta.id}>
                   <CheckDia
                     id={`home-check-meta-${meta.id}`}
                     marcado={feito}
                     onAlternar={(marcado) => {
-                      if (meta.tipo === 'habito') {
-                        alternarCheckin.mutate({
-                          metaId: meta.id,
-                          data: hojeISO,
-                          feito: marcado,
-                        })
-                      } else {
-                        concluirMeta.mutate({
-                          id: meta.id,
-                          concluida: marcado,
-                        })
-                      }
+                      alternarCheckin.mutate({
+                        metaId: meta.id,
+                        data: hojeISO,
+                        feito: marcado,
+                      })
                     }}
                   >
                     {meta.titulo}
@@ -665,8 +654,6 @@ export default function HomePage() {
           acao={<DialogSono hoje={hoje} />}
         />
 
-        <SecaoMetas hoje={hoje} />
-
         {/* Atalho para o calendário (plano 7.1) */}
         <Card>
           <CardHeader>
@@ -714,6 +701,9 @@ export default function HomePage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Seção de Metas Reestruturada por Categorias */}
+        <SecaoMetasHome hoje={hoje} />
 
         <CardNotificacoes />
 

@@ -5,53 +5,73 @@ import * as api from './api'
 export const chaves = {
   raiz: ['metas'] as const,
   lista: () => ['metas', 'lista'] as const,
-  progresso: (metaId: string) => ['metas', 'progresso', metaId] as const,
+  categorias: () => ['metas', 'categorias'] as const,
   checkins: (metaId: string) => ['metas', 'checkins', metaId] as const,
   checkinsDoDia: (data: string) => ['metas', 'checkins-do-dia', data] as const,
 }
 
+// --- Categorias ---
+
+export function useCategoriasMetas() {
+  return useQuery({
+    queryKey: chaves.categorias(),
+    queryFn: api.listarCategoriasMetas,
+  })
+}
+
+export function useCriarCategoriaMeta() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: api.criarCategoriaMeta,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: chaves.raiz })
+      toast.success('Categoria criada')
+    },
+    onError: (erro: Error) => toast.error(erro.message),
+  })
+}
+
+export function useAtualizarCategoriaMeta() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      id,
+      dados,
+    }: {
+      id: string
+      dados: { nome?: string; cor?: string; ordem?: number }
+    }) => api.atualizarCategoriaMeta(id, dados),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: chaves.raiz })
+      toast.success('Categoria atualizada')
+    },
+    onError: (erro: Error) => toast.error(erro.message),
+  })
+}
+
+export function useExcluirCategoriaMeta() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: api.excluirCategoriaMeta,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: chaves.raiz })
+      toast.success('Categoria removida')
+    },
+    onError: (erro: Error) => toast.error(erro.message),
+  })
+}
+
+// --- Metas ---
+
 export function useMetas() {
-  return useQuery({ queryKey: chaves.lista(), queryFn: api.listarMetas })
-}
-
-/** `ativo` evita chamar o RPC para metas sem link de pilar ou de outro tipo. */
-export function useProgressoMeta(metaId: string, ativo: boolean) {
   return useQuery({
-    queryKey: chaves.progresso(metaId),
-    queryFn: () => api.progressoMeta(metaId),
-    enabled: ativo,
-  })
-}
-
-/** `ativo` evita buscar check-ins para metas que não são de hábito. */
-export function useCheckinsMeta(metaId: string, ativo: boolean) {
-  return useQuery({
-    queryKey: chaves.checkins(metaId),
-    queryFn: () => api.listarCheckins(metaId),
-    enabled: ativo,
-  })
-}
-
-/**
- * Check-ins de um dia, de todas as metas — uma requisição para o bloco de
- * checks da Home, em vez de uma por hábito ligado.
- */
-export function useCheckinsDoDia(data: string) {
-  return useQuery({
-    queryKey: chaves.checkinsDoDia(data),
-    queryFn: () => api.listarCheckinsDoDia(data),
+    queryKey: chaves.lista(),
+    queryFn: api.listarMetas,
   })
 }
 
 function useMutationMetas<TVariaveis>(
   fn: (variaveis: TVariaveis) => Promise<void>,
-  /**
-   * `null` = sem toast de sucesso.
-   *
-   * Existe para as ações que se repetem todo dia: um check que anuncia "salvo"
-   * a cada clique vira ruído, e é por isso que os vizinhos dele no bloco do dia
-   * (`useSalvarCheck`, `useDefinirConclusao`) também só falam quando dá erro.
-   */
   mensagemSucesso: string | null,
 ) {
   const queryClient = useQueryClient()
@@ -83,8 +103,29 @@ export function useAtualizarMeta() {
   )
 }
 
+export function useEncerrarMeta() {
+  return useMutationMetas(api.encerrarMeta, 'Meta encerrada com sucesso! 🎉')
+}
+
 export function useExcluirMeta() {
   return useMutationMetas(api.excluirMeta, 'Meta excluída')
+}
+
+// --- Check-ins ---
+
+export function useCheckinsMeta(metaId: string, ativo: boolean) {
+  return useQuery({
+    queryKey: chaves.checkins(metaId),
+    queryFn: () => api.listarCheckins(metaId),
+    enabled: ativo,
+  })
+}
+
+export function useCheckinsDoDia(data: string) {
+  return useQuery({
+    queryKey: chaves.checkinsDoDia(data),
+    queryFn: () => api.listarCheckinsDoDia(data),
+  })
 }
 
 export function useAlternarCheckin() {
@@ -98,36 +139,6 @@ export function useAlternarCheckin() {
       data: string
       feito: boolean
     }) => api.alternarCheckin(metaId, data, feito),
-    'Check-in atualizado',
-  )
-}
-
-/**
- * As duas mutations do bloco de checks do dia, sem toast de sucesso.
- *
- * São as mesmas escritas de `useAlternarCheckin`/`useAtualizarMeta` — o que
- * muda é só o silêncio, para a meta se comportar como os outros checks do dia
- * em vez de comemorar cada tique.
- */
-export function useAlternarCheckinDoDia() {
-  return useMutationMetas(
-    ({
-      metaId,
-      data,
-      feito,
-    }: {
-      metaId: string
-      data: string
-      feito: boolean
-    }) => api.alternarCheckin(metaId, data, feito),
-    null,
-  )
-}
-
-export function useConcluirMetaDoDia() {
-  return useMutationMetas(
-    ({ id, concluida }: { id: string; concluida: boolean }) =>
-      api.atualizarMeta(id, { concluida }),
     null,
   )
 }

@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
-import type { TablesInsert, TablesUpdate } from '@/types/database'
-import type { Meta, MetaCheckin } from './types'
+import type { TablesUpdate } from '@/types/database'
+import type { CategoriaMeta, Meta, MetaCheckin } from './types'
 
 function lancarSeErro<T>(resultado: {
   data: T | null
@@ -11,17 +11,67 @@ function lancarSeErro<T>(resultado: {
   return resultado.data
 }
 
-// --- Metas --------------------------------------------------------------
+// --- Categorias de Metas ----------------------------------------------------
+
+export async function listarCategoriasMetas(): Promise<CategoriaMeta[]> {
+  const resultado = await supabase
+    .from('categorias_metas')
+    .select('*')
+    .order('ordem', { ascending: true })
+    .order('criada_em', { ascending: true })
+  return (resultado.data ?? []) as CategoriaMeta[]
+}
+
+export async function criarCategoriaMeta(dados: {
+  nome: string
+  cor?: string
+  ordem?: number
+}): Promise<CategoriaMeta> {
+  const resultado = await supabase
+    .from('categorias_metas')
+    .insert(dados)
+    .select()
+    .single()
+  return lancarSeErro(resultado) as CategoriaMeta
+}
+
+export async function atualizarCategoriaMeta(
+  id: string,
+  dados: { nome?: string; cor?: string; ordem?: number },
+): Promise<void> {
+  const { error } = await supabase
+    .from('categorias_metas')
+    .update(dados)
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+export async function excluirCategoriaMeta(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('categorias_metas')
+    .delete()
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+// --- Metas ------------------------------------------------------------------
 
 export async function listarMetas(): Promise<Meta[]> {
   const resultado = await supabase
     .from('metas')
     .select('*')
     .order('criada_em', { ascending: false })
-  return lancarSeErro(resultado) as Meta[]
+  return (resultado.data ?? []) as Meta[]
 }
 
-export async function criarMeta(dados: TablesInsert<'metas'>): Promise<void> {
+export async function criarMeta(dados: {
+  titulo: string
+  descricao?: string | null
+  categoria_meta_id?: string | null
+  pilar?: string | null
+  data_alvo?: string | null
+  no_check_diario?: boolean
+}): Promise<void> {
   const { error } = await supabase.from('metas').insert(dados)
   if (error) throw new Error(error.message)
 }
@@ -34,24 +84,20 @@ export async function atualizarMeta(
   if (error) throw new Error(error.message)
 }
 
+export async function encerrarMeta(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('metas')
+    .update({ concluida: true, concluida_em: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
 export async function excluirMeta(id: string): Promise<void> {
   const { error } = await supabase.from('metas').delete().eq('id', id)
   if (error) throw new Error(error.message)
 }
 
-/**
- * Progresso calculado no banco. Só retorna número para meta numérica com
- * link de pilar; para as demais o RPC devolve `null` (ver progresso_meta()).
- */
-export async function progressoMeta(metaId: string): Promise<number | null> {
-  const { data, error } = await supabase.rpc('progresso_meta', {
-    p_meta_id: metaId,
-  })
-  if (error) throw new Error(error.message)
-  return data
-}
-
-// --- Check-ins de hábito --------------------------------------------------
+// --- Check-ins Diários ----------------------------------------------------
 
 export async function listarCheckins(metaId: string): Promise<MetaCheckin[]> {
   const resultado = await supabase
@@ -59,17 +105,9 @@ export async function listarCheckins(metaId: string): Promise<MetaCheckin[]> {
     .select('*')
     .eq('meta_id', metaId)
     .order('data', { ascending: false })
-  return lancarSeErro(resultado) as MetaCheckin[]
+  return (resultado.data ?? []) as MetaCheckin[]
 }
 
-/**
- * Check-ins de um único dia, de todas as metas.
- *
- * Existe separado de `listarCheckins` (que é por meta, e traz o histórico
- * inteiro para calcular streak) porque o bloco de checks da Home precisa do
- * oposto: uma data, várias metas. Buscar por meta ali faria uma requisição por
- * hábito ligado no check do dia.
- */
 export async function listarCheckinsDoDia(
   data: string,
 ): Promise<MetaCheckin[]> {
@@ -77,7 +115,7 @@ export async function listarCheckinsDoDia(
     .from('metas_checkins')
     .select('*')
     .eq('data', data)
-  return lancarSeErro(resultado) as MetaCheckin[]
+  return (resultado.data ?? []) as MetaCheckin[]
 }
 
 export async function alternarCheckin(
