@@ -39,6 +39,7 @@ import {
 import { CardMateria } from '@/features/estudos/componentes/CardMateria'
 import { DialogMateria } from '@/features/estudos/componentes/DialogMateria'
 import { DialogFluxograma } from '@/features/estudos/componentes/DialogFluxograma'
+import { SecaoNotasRecentes } from '@/features/estudos/componentes/SecaoNotasRecentes'
 import { DialogNota } from '@/features/notas/componentes/DialogNota'
 
 export default function EstudosPage() {
@@ -262,6 +263,9 @@ export default function EstudosPage() {
               />
             </CardContent>
           </Card>
+
+          {/* Seção Dedicada de Notas Recentes (Últimos 7 Dias com atalho direto para /notas) */}
+          <SecaoNotasRecentes />
 
           <section className="space-y-3">
             <h2 className="text-sm font-medium">Matérias</h2>

@@ -23,6 +23,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { useMaterias } from '@/features/estudos/hooks'
 import { useSalvarNota } from '../hooks'
 import { schemaNota, type FormularioNota } from '../schemas'
 
@@ -66,6 +67,7 @@ export function DialogNota({
   const [aberto, setAberto] = useState(false)
   const salvar = useSalvarNota()
   const navigate = useNavigate()
+  const materias = useMaterias()
 
   const form = useForm<FormularioNota>({
     resolver: zodResolver(schemaNota),
@@ -78,8 +80,9 @@ export function DialogNota({
   }, [aberto, tituloInicial, form])
 
   async function submeter(valores: FormularioNota) {
+    const idMateriaAlvo = materiaId ?? materias.data?.[0]?.id ?? ''
     const nota = await salvar.mutateAsync({
-      materiaId,
+      materiaId: idMateriaAlvo,
       titulo: valores.titulo,
       // Nasce vazia de propósito: escrever é na página, não aqui.
       conteudo: '',
