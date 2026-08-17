@@ -111,6 +111,10 @@ export function useExcluirMeta() {
   return useMutationMetas(api.excluirMeta, 'Meta excluída')
 }
 
+export function useReordenarMetas() {
+  return useMutationMetas(api.reordenarMetas, null)
+}
+
 // --- Check-ins ---
 
 export function useCheckinsMeta(metaId: string, ativo: boolean) {

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { FolderPlus, Pencil, Plus, Target } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,6 +12,7 @@ import {
   useExcluirCategoriaMeta,
   useExcluirMeta,
   useMetas,
+  useReordenarMetas,
 } from '../hooks'
 import { DialogCategoriaMeta } from './DialogCategoriaMeta'
 import { DialogMeta } from './DialogMeta'
@@ -31,6 +32,10 @@ export function SecaoMetasHome({ hoje }: SecaoMetasHomeProps) {
   const atualizarMeta = useAtualizarMeta()
   const excluirMeta = useExcluirMeta()
   const excluirCategoria = useExcluirCategoriaMeta()
+  const reordenarMetas = useReordenarMetas()
+
+  const [draggedMetaId, setDraggedMetaId] = useState<string | null>(null)
+  const [dropTargetMetaId, setDropTargetMetaId] = useState<string | null>(null)
 
   const checkinsFeitosSet = useMemo(() => {
     const set = new Set<string>()
@@ -61,6 +66,55 @@ export function SecaoMetasHome({ hoje }: SecaoMetasHomeProps) {
   }, [metas, categorias])
 
   const temAlgumaMeta = (metas ?? []).length > 0 || (categorias ?? []).length > 0
+
+  // Drag & Drop handlers
+  function lidarComDragStart(e: React.DragEvent, metaId: string) {
+    setDraggedMetaId(metaId)
+    e.dataTransfer.setData('text/plain', metaId)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  function lidarComDragOver(e: React.DragEvent, metaId: string) {
+    e.preventDefault()
+    if (draggedMetaId && draggedMetaId !== metaId) {
+      setDropTargetMetaId(metaId)
+    }
+  }
+
+  function lidarComDragLeave(metaId: string) {
+    if (dropTargetMetaId === metaId) {
+      setDropTargetMetaId(null)
+    }
+  }
+
+  function lidarComDrop(targetMetaId: string, targetCategoriaId: string | null) {
+    setDropTargetMetaId(null)
+    if (!draggedMetaId || draggedMetaId === targetMetaId) return
+
+    const todas = metas ?? []
+    const arrastada = todas.find((m) => m.id === draggedMetaId)
+    if (!arrastada) return
+
+    const filtradas = todas.filter((m) => m.id !== draggedMetaId)
+    const targetIdx = filtradas.findIndex((m) => m.id === targetMetaId)
+
+    if (targetIdx === -1) return
+
+    const metaAtualizada = {
+      ...arrastada,
+      categoria_meta_id: targetCategoriaId,
+    }
+    filtradas.splice(targetIdx, 0, metaAtualizada)
+
+    const novosItens = filtradas.map((m, idx) => ({
+      id: m.id,
+      ordem: idx,
+      categoria_meta_id: m.categoria_meta_id,
+    }))
+
+    setDraggedMetaId(null)
+    reordenarMetas.mutate(novosItens)
+  }
 
   return (
     <Card className="border-border/80 shadow-md">
@@ -165,6 +219,13 @@ export function SecaoMetasHome({ hoje }: SecaoMetasHomeProps) {
                             })
                           }
                           onExcluir={() => excluirMeta.mutate(meta.id)}
+                          draggable
+                          isDragging={draggedMetaId === meta.id}
+                          isDropTarget={dropTargetMetaId === meta.id}
+                          onDragStart={(e) => lidarComDragStart(e, meta.id)}
+                          onDragOver={(e) => lidarComDragOver(e, meta.id)}
+                          onDragLeave={() => lidarComDragLeave(meta.id)}
+                          onDrop={() => lidarComDrop(meta.id, cat.id)}
                         />
                       ))}
                     </div>
@@ -207,6 +268,13 @@ export function SecaoMetasHome({ hoje }: SecaoMetasHomeProps) {
                           })
                         }
                         onExcluir={() => excluirMeta.mutate(meta.id)}
+                        draggable
+                        isDragging={draggedMetaId === meta.id}
+                        isDropTarget={dropTargetMetaId === meta.id}
+                        onDragStart={(e) => lidarComDragStart(e, meta.id)}
+                        onDragOver={(e) => lidarComDragOver(e, meta.id)}
+                        onDragLeave={() => lidarComDragLeave(meta.id)}
+                        onDrop={() => lidarComDrop(meta.id, null)}
                       />
                     ))}
                   </div>

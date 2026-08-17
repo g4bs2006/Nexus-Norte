@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Check, Clock, MoreHorizontal, Trash2, Zap } from 'lucide-react'
+import { Check, Clock, GripVertical, MoreHorizontal, Trash2, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -20,6 +20,13 @@ interface ItemMetaRowProps {
   onAlternarCheckDiario?: (feito: boolean) => void
   onAlternarConclusaoDirecta?: (concluida: boolean) => void
   onExcluir?: () => void
+  draggable?: boolean
+  onDragStart?: (e: React.DragEvent) => void
+  onDragOver?: (e: React.DragEvent) => void
+  onDragLeave?: (e: React.DragEvent) => void
+  onDrop?: (e: React.DragEvent) => void
+  isDragging?: boolean
+  isDropTarget?: boolean
 }
 
 export function ItemMetaRow({
@@ -28,6 +35,13 @@ export function ItemMetaRow({
   onAlternarCheckDiario,
   onAlternarConclusaoDirecta,
   onExcluir,
+  draggable,
+  onDragStart,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  isDragging,
+  isDropTarget,
 }: ItemMetaRowProps) {
   const [encerrarAberto, setEncerrarAberto] = useState(false)
 
@@ -45,16 +59,33 @@ export function ItemMetaRow({
   return (
     <>
       <div
+        draggable={draggable}
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
         className={cn(
-          'group border-border/50 bg-card/60 hover:bg-accent/40 flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-xs transition-all',
+          'group border-border/50 bg-card/60 hover:bg-accent/40 relative flex items-center justify-between gap-2.5 rounded-lg border px-2.5 py-2 text-xs transition-all select-none',
           meta.concluida && 'bg-muted/20 opacity-60',
+          isDragging && 'opacity-30 border-dashed border-primary',
+          isDropTarget && 'border-t-2 border-t-primary bg-primary/5',
         )}
       >
-        <div className="flex min-w-0 items-center gap-2.5 truncate">
+        <div className="flex min-w-0 items-center gap-2 truncate">
+          {/* Drag Handle */}
+          {draggable && (
+            <span
+              className="text-muted-foreground/40 hover:text-foreground cursor-grab active:cursor-grabbing opacity-0 transition-opacity group-hover:opacity-100 shrink-0"
+              title="Arrastar para reordenar"
+            >
+              <GripVertical className="size-3.5" />
+            </span>
+          )}
+
           <Checkbox
             checked={checado}
             onCheckedChange={(c) => lidarComCliqueCheckbox(Boolean(c))}
-            className="border-border size-4 rounded-xs"
+            className="border-border size-4 rounded-xs shrink-0"
           />
           <span
             className={cn(

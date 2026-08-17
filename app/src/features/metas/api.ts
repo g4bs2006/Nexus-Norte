@@ -60,8 +60,24 @@ export async function listarMetas(): Promise<Meta[]> {
   const resultado = await supabase
     .from('metas')
     .select('*')
+    .order('ordem', { ascending: true })
     .order('criada_em', { ascending: false })
   return (resultado.data ?? []) as Meta[]
+}
+
+export async function reordenarMetas(
+  itens: { id: string; ordem: number; categoria_meta_id?: string | null }[],
+): Promise<void> {
+  const updates = itens.map((item) => {
+    const payload: { ordem: number; categoria_meta_id?: string | null } = {
+      ordem: item.ordem,
+    }
+    if (item.categoria_meta_id !== undefined) {
+      payload.categoria_meta_id = item.categoria_meta_id
+    }
+    return supabase.from('metas').update(payload).eq('id', item.id)
+  })
+  await Promise.all(updates)
 }
 
 export async function criarMeta(dados: {
