@@ -86,12 +86,14 @@ const ATALHOS_INLINE_GREGOS: Record<string, string> = {
 const CampoMatematico = forwardRef<CampoMatematicoHandle, CampoMatematicoProps>(
   function CampoMatematico({ valor, onChange, onConfirmar }, ref) {
     const campo = useRef<MathfieldElement>(null)
+    const bufferRef = useRef('')
 
     useImperativeHandle(ref, () => ({
       inserir(latex: string) {
         if (campo.current) {
           campo.current.executeCommand(['insert', latex])
           campo.current.focus()
+          bufferRef.current = ''
         }
       },
       focar() {
@@ -100,12 +102,15 @@ const CampoMatematico = forwardRef<CampoMatematicoHandle, CampoMatematicoProps>(
     }))
 
     /*
-     * Foco ao montar.
+     * Foco ao montar e desativação dos atalhos automáticos nativos do MathLive.
      */
     useEffect(() => {
       const elemento = campo.current
       if (!elemento) return
       elemento.focus()
+
+      // Zerar atalhos de fundo do MathLive para impedir substituição/seleção ambiente ao digitar
+      elemento.inlineShortcuts = {}
     }, [])
 
     const confirmar = useRef(onConfirmar)
@@ -119,29 +124,42 @@ const CampoMatematico = forwardRef<CampoMatematicoHandle, CampoMatematicoProps>(
         const elementoAtual = campo.current
         if (!elementoAtual) return
 
+        // Interceptação do Tab para conversão determinística por buffer
+        if (evento.key === 'Tab' && !evento.shiftKey) {
+          const palavra = bufferRef.current.trim()
+          const latexSubstituto = ATALHOS_INLINE_GREGOS[palavra]
+
+          if (latexSubstituto) {
+            evento.preventDefault()
+            evento.stopPropagation()
+
+            for (let i = 0; i < palavra.length; i++) {
+              elementoAtual.executeCommand('deleteBackward')
+            }
+            elementoAtual.executeCommand(['insert', latexSubstituto])
+            bufferRef.current = ''
+            return
+          }
+        }
+
+        // Rastreamento do buffer de digitação
+        if (evento.key.length === 1 && /[a-zA-Z]/.test(evento.key)) {
+          bufferRef.current += evento.key
+        } else if (evento.key === 'Backspace') {
+          bufferRef.current = bufferRef.current.slice(0, -1)
+        } else if (
+          ['Space', ' ', 'Enter', 'Escape', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(
+            evento.key,
+          )
+        ) {
+          bufferRef.current = ''
+        }
+
         if (evento.key === 'Enter' && !evento.shiftKey) {
           evento.preventDefault()
           evento.stopPropagation()
           confirmar.current?.(evento.ctrlKey || evento.metaKey)
           return
-        }
-
-        if (evento.key === 'Tab' && !evento.shiftKey) {
-          const val = elementoAtual.value.trimEnd()
-          const matchText = val.match(/\\text\{([a-zA-Z]+)\}$/)
-          const matchWord = val.match(/([a-zA-Z]+)$/)
-          const palavra = matchText?.[1] ?? matchWord?.[1]
-
-          if (palavra && ATALHOS_INLINE_GREGOS[palavra]) {
-            evento.preventDefault()
-            evento.stopPropagation()
-            const latexSubstituto = ATALHOS_INLINE_GREGOS[palavra]
-            for (let i = 0; i < palavra.length; i++) {
-              elementoAtual.executeCommand('deleteBackward')
-            }
-            elementoAtual.executeCommand(['insert', latexSubstituto])
-            return
-          }
         }
 
         const latex = ATALHOS_ABNT[evento.key]
