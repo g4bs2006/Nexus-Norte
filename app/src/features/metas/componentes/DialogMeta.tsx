@@ -252,7 +252,7 @@ export function DialogMeta({
                   </FormControl>
                   <div className="space-y-0.5">
                     <FormLabel className="text-xs font-medium leading-none">
-                      Exibir nos Checks Diários da Home ⚡
+                      Exibir nos Checks Diários da Home
                     </FormLabel>
                     <p className="text-[11px] text-muted-foreground">
                       Aparecerá no bloco do topo diariamente enquanto a meta estiver ativa.

@@ -104,7 +104,7 @@ export function useAtualizarMeta() {
 }
 
 export function useEncerrarMeta() {
-  return useMutationMetas(api.encerrarMeta, 'Meta encerrada com sucesso! 🎉')
+  return useMutationMetas(api.encerrarMeta, 'Meta encerrada com sucesso')
 }
 
 export function useExcluirMeta() {
