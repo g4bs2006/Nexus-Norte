@@ -264,9 +264,6 @@ export default function EstudosPage() {
             </CardContent>
           </Card>
 
-          {/* Seção Dedicada de Notas Recentes (Últimos 7 Dias com atalho direto para /notas) */}
-          <SecaoNotasRecentes />
-
           <section className="space-y-3">
             <h2 className="text-sm font-medium">Matérias</h2>
             <div className="surgir-grupo grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -302,6 +299,9 @@ export default function EstudosPage() {
               ))}
             </div>
           </section>
+
+          {/* Seção Dedicada de Notas Recentes (Últimos 7 Dias com atalho direto para /notas) */}
+          <SecaoNotasRecentes />
 
           <Card>
             <CardHeader>
