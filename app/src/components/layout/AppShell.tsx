@@ -1,5 +1,5 @@
 import { Suspense, useCallback, useState } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import { SkeletonPagina } from '@/components/Skeletons'
 import { Button } from '@/components/ui/button'
@@ -12,12 +12,53 @@ import { BottomNav } from './BottomNav'
 import { ThemeToggle } from './ThemeToggle'
 
 /**
- * Fallback do Suspense do code-splitting. Genérico de propósito: aqui não se
- * sabe qual rota está entrando, então usa a composição mais neutra. Cada page
- * tem o seu próprio esqueleto para o carregamento dos dados.
+ * A composição de esqueleto que mais se aproxima da rota que está entrando.
+ *
+ * Antes era `grade` para todas, com a justificativa de que "aqui não se sabe
+ * qual rota está entrando". Sabe-se: o pathname já mudou quando o Suspense
+ * suspende. E o esqueleto errado custa justamente o que os esqueletos existem
+ * para evitar — a promessa deles é que a FORMA imite o conteúdo real para nada
+ * saltar quando os dados chegam, e uma grade de seis cards dando lugar a uma
+ * página de detalhe salta mais que um espaço vazio teria saltado.
+ *
+ * A regra é a do próprio roteador: segundo segmento em rota de pilar é detalhe
+ * de uma entidade. As exceções são as sub-páginas que são lista, e estão
+ * nomeadas — são quatro, e enumerá-las é mais honesto que inferir por formato.
+ */
+const SUBPAGINAS_LISTA = new Set([
+  'financeiro/lancamentos',
+  'financeiro/planejamento',
+  'calendario/semana',
+  'calendario/historico',
+  'calendario/blocos',
+])
+
+function varianteDaRota(pathname: string): 'financeiro' | 'grade' | 'lista' | 'detalhe' {
+  const rota = pathname.replace(/^\/+|\/+$/g, '')
+
+  // A Home é o resumo de tudo: mini-cards de métrica sobre o bloco de checks.
+  if (rota === '') return 'financeiro'
+  if (SUBPAGINAS_LISTA.has(rota)) return 'lista'
+
+  const [pilar, ...resto] = rota.split('/')
+  // `notas` é lista mesmo na raiz; as outras raízes de pilar são grade de cards.
+  if (resto.length === 0) return pilar === 'notas' ? 'lista' : 'grade'
+  return 'detalhe'
+}
+
+/**
+ * Fallback do Suspense do code-splitting.
+ *
+ * `esqueleto-adiado` é o que impede a piscada em navegação para rota já
+ * carregada — ver o comentário da utilidade em `index.css`.
  */
 function Carregando() {
-  return <SkeletonPagina variante="grade" />
+  const { pathname } = useLocation()
+  return (
+    <div className="esqueleto-adiado">
+      <SkeletonPagina variante={varianteDaRota(pathname)} />
+    </div>
+  )
 }
 
 export function AppShell() {

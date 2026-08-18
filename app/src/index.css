@@ -306,6 +306,65 @@
 }
 
 /* ---------------------------------------------------------------------------
+   Esqueleto adiado — o esqueleto que não pisca.
+
+   O fallback do Suspense montava na hora, então uma navegação para rota já
+   carregada mostrava o esqueleto por uns 40ms e o tirava: um pulso cinza que
+   aparecia e sumia antes de ser lido. Isso é exatamente o que a regra de
+   movimento do brief proíbe — movimento que não comunica estado é ruído —, e
+   pior que não ter esqueleto nenhum, porque a piscada chama atenção para a
+   troca em vez de escondê-la.
+
+   Adiar a APARIÇÃO resolve sem JavaScript e sem estado: durante os primeiros
+   140ms o elemento existe (ocupando o espaço, então nada salta) e está
+   invisível, por causa do `both` que aplica o `from` no atraso. Chegando o
+   conteúdo antes disso, o esqueleto é desmontado sem nunca ter sido visto.
+   Passando de 140ms, ele entra suave — e aí já há espera de verdade a
+   comunicar.
+
+   O atraso NÃO é neutralizado por `prefers-reduced-motion`, e é deliberado: a
+   regra global zera `animation-duration`, não o `animation-delay`. Quem pede
+   menos movimento recebe o esqueleto aparecendo de uma vez, sem transição, mas
+   segue protegido da piscada — o atraso aqui é temporização, não movimento.
+--------------------------------------------------------------------------- */
+
+@keyframes aparecer {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@utility esqueleto-adiado {
+    animation: aparecer 180ms ease-out both;
+    animation-delay: 140ms;
+}
+
+/* O pulso do esqueleto, mais contido que o `animate-pulse` do Tailwind.
+
+   O padrão vai de 1 a 0.5 de opacidade em 2s. Sobre `bg-muted` no tema escuro
+   isso leva as barras a quase desaparecer no vale da animação, e um esqueleto
+   que oscila entre "cheio" e "vazio" sugere conteúdo aparecendo e sumindo — o
+   oposto do que ele quer dizer. Amplitude menor e ciclo um pouco mais longo
+   fazem o bloco respirar em vez de piscar, e a forma nunca deixa de ser
+   legível. */
+@keyframes pulsar-esqueleto {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.62;
+    }
+}
+
+@utility pulso-esqueleto {
+    animation: pulsar-esqueleto 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ---------------------------------------------------------------------------
    Check do dia — a assinatura (Bloco C do brief de design).
 
    É onde a ousadia foi gasta, e o único lugar. A tese declarada do plano é que
