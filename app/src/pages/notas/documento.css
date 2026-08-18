@@ -58,22 +58,60 @@
   border-color: transparent;
 }
 
-/* Leitura no celular: mesma medida e mesma escala, sem o editor. */
-.documento-leitura {
-  font-size: 1rem;
-  line-height: 1.65;
+/* ---------------------------------------------------------------------------
+   Títulos, na escala do documento.
+
+   As medidas de `editorMarkdown.css` (1.35 / 1.15 / 1rem) foram calibradas para
+   o editor dos DIÁLOGOS, que é 0.875rem. Aqui o corpo é 1rem, e o mesmo número
+   absoluto desmancha o contraste: h1 sobre o corpo cai de 1,54× para 1,35×, e
+   `h3` empata EXATAMENTE com o parágrafo — distinguido só pelo peso 600, o que
+   torna um `###` indistinguível de uma frase em negrito.
+
+   Numa nota com subseção por `###`, é a estrutura do texto que desaparece.
+--------------------------------------------------------------------------- */
+
+.documento-nota .editor-markdown h1 {
+  font-size: 1.6rem;
+}
+.documento-nota .editor-markdown h2 {
+  font-size: 1.3rem;
+}
+.documento-nota .editor-markdown h3 {
+  font-size: 1.1rem;
 }
 
 /*
- * Fórmula na leitura, com o mesmo destaque do editor (`editorMarkdown.css`,
- * `.formula-viva`): um degrau de corpo, e nada mais. Sem fundo — numa nota
- * com fórmula em quase todo parágrafo, um retângulo atrás de cada uma mancha
- * a página, e a tipografia do KaTeX já basta para separá-la da frase.
+ * O título cola no que ele titula.
+ *
+ * Sem isto o `margin-top: 1.2em` do título e os `0.6em` do bloco seguinte o
+ * deixavam quase equidistante do parágrafo de cima e do de baixo — flutuando
+ * entre as duas seções em vez de encabeçar a de baixo. Proximidade é o que diz
+ * "isto pertence a mim", e é mais forte que tamanho.
  */
-.documento-leitura .katex {
-  font-size: 1.15em;
-  padding: 0 0.15em;
+.documento-nota .editor-markdown :is(h1, h2, h3) + * {
+  margin-top: 0.3em;
 }
+
+/*
+ * Quebra de seção precisa parecer quebra.
+ *
+ * O `hr` herdava os 0.6em de bloco comum dos dois lados, então a linha lia como
+ * enfeite no meio do texto em vez de separar duas partes da nota.
+ */
+.documento-nota .editor-markdown hr {
+  margin-block: 1.5em;
+}
+
+/*
+ * `.documento-leitura` foi removida junto com o renderizador próprio do
+ * celular: a leitura passou a ser o MESMO editor, travado, então quem dá escala
+ * e fórmula ali é a regra de `.documento-nota .editor-markdown` acima — e não
+ * mais um par de declarações que tinha de concordar com ela de memória.
+ *
+ * A escala da leitura, aliás, nunca concordou: este bloco declarava `1rem`, e o
+ * componente filho aplicava `text-sm` + `leading-relaxed` por cima. A nota lida
+ * era 2px menor e 3,65px mais apertada por linha do que este arquivo dizia.
+ */
 
 /* ---------------------------------------------------------------------------
    Bloco de propriedades — padrão Notion/AFFiNE.

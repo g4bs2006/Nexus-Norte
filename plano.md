@@ -2747,3 +2747,112 @@ reinventa a grafia, e `#regra-da-cadeia` e `#regra-cadeia` viram dois assuntos n
 grafo. O menu mostra os tópicos existentes e oferece criar o novo no topo quando
 o que se digitou ainda não existe: sem essa entrada, o menu inverteria a regra da
 spec e transformaria o vocabulário em cadastro prévio.
+
+### 10.54 Notas: a lista ganha ritmo, e a leitura do celular passa a ser o editor — descoberta em uso
+
+Duas coisas na mesma tela, e a segunda só apareceu porque a primeira foi
+investigada a fundo.
+
+#### O espaçamento das listas
+
+A queixa era que a lista "se distancia um pouco, e a lista dentro da lista
+distancia um pouco mais". Parecia acúmulo de margem. **Era o contrário: não
+havia espaçamento vertical nenhum.**
+
+Medido: `li + li`, `li > ul` e o retorno ao nível do pai valiam **todos zero**.
+O preflight do Tailwind zera margem de `ul`, `ol` e `li`, e a única regra de
+ritmo do editor (`> * + *`) alcança só filhos diretos — a lista inteira é um
+filho. A única declaração de lista que existia era `padding-left: 1.4em`.
+
+Então uma lista de três itens com uma sublista eram nove linhas grudadas com
+entrelinha uniforme, e **a hierarquia inteira dependia de um único sinal: o
+recuo**. Um sinal solitário sempre parece exagerado — foi por isso que 22,4px
+incomodaram, sendo um valor modesto. A correção não foi diminuir o recuo, foi
+dar agrupamento vertical à lista.
+
+O recuo também estava desalinhado. Com `list-style-position: outside`, o
+marcador do filho caía **15px à direita do texto do pai**, sem alinhar com o
+texto nem com o marcador de cima: cada nível abria uma coluna nova e arbitrária.
+O marcador virou `::before` absoluto numa coluna de largura exatamente igual ao
+recuo, o que o põe onde começa o texto do pai — a geometria do Notion.
+`.ProseMirror li` já era `position: relative`, então a âncora existia de graça.
+
+**O espaçamento agora vem do Markdown.** `data-spread` é escrito pelo Milkdown a
+partir da fonte: linha em branco entre itens quer dizer lista *loose*, sem quer
+dizer *tight*. O dado já estava no documento e o CSS o ignorava. Honrá-lo é o
+ritmo saindo da fonte de verdade, que é o princípio que sustenta a feature.
+
+Recuo passou a `rem` (o mesmo Markdown recuava 22,4px no documento e 19,6px nos
+diálogos), com **teto a partir do 4º nível**: em 328px úteis, o 4º nível comia
+27% da largura e sobravam ~27 caracteres por linha. Do 4º em diante o recuo para
+de crescer e a forma do marcador (`•` `◦` `▪`) passa a distinguir. Nada muda no
+`.md`.
+
+**Descartada a guia vertical** por nível: cairia exatamente na coluna onde o
+marcador agora vive, e linha atrás de bullet é ruído.
+
+#### Lista de tarefas não tinha uma linha de CSS
+
+O `gfm` está ativo e o Milkdown escreve `data-item-type="task"` e `data-checked`
+no `li` — e **não havia nenhuma regra para nenhum dos dois**. Um `- [x] revisar`
+renderizava como bullet comum: o estado feito/não feito era invisível. É a lista
+mais usada numa nota de estudo, quebrada em silêncio desde que o gfm entrou.
+Caixa por forma (`☐`/`☑`) mais texto riscado — nunca só cor.
+
+#### O hover do wikilink não funcionava
+
+`background: var(--accent)/80` — sintaxe do Tailwind escrita em CSS puro. O
+navegador descarta a declaração inteira, então o `:hover` **não fazia nada**.
+Virou `color-mix`. E o `.wikilink` era declarado **duas vezes no mesmo arquivo**,
+com o segundo bloco matando o `text-decoration` do primeiro; fundidos.
+`transition: all` num elemento inline animava `padding` e `border`, empurrando o
+texto da linha ao passar o mouse — restrita a cor e borda, e sob
+`prefers-reduced-motion: no-preference`.
+
+#### `h3` era idêntico ao parágrafo
+
+As medidas de título (1.35 / 1.15 / 1rem) foram calibradas para o editor dos
+diálogos, que é `0.875rem`. No documento, que é `1rem`, o contraste desaba: h1
+cai de 1,54× para 1,35× do corpo, e **`h3` empata exatamente com o parágrafo**,
+distinguido só pelo peso. Numa nota com subseção por `###`, é a estrutura do
+texto que desaparece. Escala própria no escopo do documento, e espaço explícito
+depois do título para ele colar no que titula em vez de flutuar entre as duas
+seções.
+
+#### A leitura no celular não era a nota
+
+Investigando o espaçamento, apareceu o defeito maior: **a leitura no mobile não
+renderizava Markdown**. Era `whitespace-pre-wrap` sobre o texto cru, então
+`- item`, `## Título` e `**forte**` apareciam literais. E `documento.css`
+declarava `1rem/1.65` para ela enquanto o componente filho aplicava `text-sm` por
+cima — a nota lida era 2px menor e 3,65px mais apertada por linha do que o
+arquivo dizia. Quatro blocos de `.documento-leitura .wikilink` nunca casavam com
+nada, porque a leitura emitia `data-wikilink` sem a classe.
+
+A decisão original (spec de 14/08) era não carregar o ProseMirror no celular.
+**Mas ela não era sobre peso** — o comentário registra o motivo real: a versão
+anterior caía para `textarea` e isso custava "dois caminhos de inserção, uma
+porta imperativa com dois donos e uma decisão de mobile em cada afordância
+nova".
+
+Escrever um renderizador de Markdown de verdade para a leitura custaria ~40kB gz
+e **uma segunda implementação de cada construção da nota** — fórmula, desenho,
+wikilink, tópico, cerca, tabela. É a mesma armadilha das duas cópias da gramática
+do dialeto (10.53), em escala maior: os quatro blocos de CSS morto e as duas
+escalas de fonte divergentes já eram sintoma dela.
+
+**A leitura passou a ser o mesmo editor, com `editable: () => false`.** Custa
+144 kB gz medidos, uma vez, pré-cacheados pelo service worker, e faz o que se lê
+ser *por construção* o que se edita. MathLive (212 kB gz) e Excalidraw (321 kB
+gz) seguem fora, em `lazy` próprios — e travado nem são alcançáveis. A decisão da
+spec segue de pé: travado não se edita, e o que ela rejeitava era manter dois
+caminhos de inserção, que continuam não existindo.
+
+Travado, os plugins de escrita não são registrados — não por economia, por
+correção: selecionar e passar o mouse continuam possíveis, e sem tirá-los a barra
+de formatação apareceria sobre texto que não se pode formatar, a alça pediria
+para reordenar o que não se move, e o duplo clique numa fórmula baixaria 212 kB
+para um editor que não pode salvar. `ConteudoNota` foi removido.
+
+**A validar no aparelho:** seleção de texto, scroll e toque no wikilink dentro de
+um `contenteditable` travado. É o risco que sobra, e só o uso resolve.

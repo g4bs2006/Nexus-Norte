@@ -27,7 +27,6 @@ import { useUIStore } from '@/stores/ui'
 import { useAutosave } from '@/features/notas/useAutosave'
 import { IndicadorSalvamento } from '@/features/notas/componentes/IndicadorSalvamento'
 import { BlocoPropriedades } from '@/features/notas/componentes/BlocoPropriedades'
-import { ConteudoNota } from '@/features/notas/componentes/ConteudoNota'
 import { PainelConhecimento } from '@/features/notas/componentes/PainelConhecimento'
 import { PeekNota } from '@/features/notas/componentes/PeekNota'
 import {
@@ -45,9 +44,13 @@ import './documento.css'
  * a menor. Agora são a mesma, separadas só pelo foco, como no Notion e no
  * AFFiNE.
  *
- * **No celular só se lê** (decisão do spec). Ali entra `ConteudoNota`, que
- * renderiza tudo e não carrega o ProseMirror — 458 kB que ninguém precisa
- * baixar para consultar uma fórmula antes da aula.
+ * **No celular só se lê** (decisão do spec de 14/08), e desde 18/08 quem
+ * renderiza ali é o MESMO editor, travado por `somenteLeitura`. O renderizador
+ * próprio que existia antes não renderizava Markdown — era `pre-wrap` sobre o
+ * texto cru, então `- item` e `## Título` apareciam literais. Um segundo
+ * renderizador de verdade custaria duas implementações de cada construção da
+ * nota, divergindo em silêncio; o editor travado custa 143 kB gz uma vez, e faz
+ * o que se lê ser por construção o que se edita.
  *
  * O botão de salvar é **provisório**: a fase 4 troca por autosave, e aí ele
  * some. Está aqui para esta fase não deixar o sistema sem como gravar.
@@ -243,7 +246,10 @@ export default function NotaDetalhePage() {
         <article
           className={cn(
             'documento-nota min-w-0 transition-all duration-300 ease-in-out',
-            !trilhoAberto && 'mx-auto w-full max-w-4xl',
+            /* Sem `max-w-*`: `documento-nota` fixa 68ch e, por não estar em
+               camada, vence a camada `utilities` — a classe era inerte e só
+               enganava quem lesse o JSX. */
+            !trilhoAberto && 'mx-auto w-full',
           )}
         >
           {desktop ? (
@@ -310,12 +316,26 @@ export default function NotaDetalhePage() {
                 topicos={atual.topicos}
                 atualizadaEm={atual.atualizada_em}
               />
-              <div className="documento-leitura">
-                <ConteudoNota
-                  conteudo={atual.conteudo}
-                  existentes={existentes}
-                />
-              </div>
+              {/*
+                O MESMO editor, travado — ver `somenteLeitura` em
+                `EditorMarkdownRico`. O renderizador próprio que existia aqui
+                não renderizava Markdown (era texto cru com `pre-wrap`), então
+                lista, título e negrito apareciam literais: a nota lida não era
+                a nota escrita.
+
+                `conteudo`, e não `atual.conteudo`: é o mesmo estado semeado no
+                render, então uma edição feita no desktop e ainda não salva não
+                desaparece se a janela for estreitada.
+              */}
+              <EditorMarkdown
+                key={atual.id}
+                value={conteudo}
+                onChange={setConteudo}
+                somenteLeitura
+                renderizarBloco={renderizarBloco}
+                renderizarDesenho={renderizarDesenho}
+                slugExiste={(slug) => existentes.has(slug)}
+              />
             </>
           )}
         </article>

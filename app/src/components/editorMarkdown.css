@@ -59,16 +59,191 @@
   font-size: 1rem;
 }
 
-.editor-markdown ul,
-.editor-markdown ol {
-  padding-left: 1.4em;
+/* ---------------------------------------------------------------------------
+   Listas — ritmo e geometria.
+
+   ## O que estava errado
+
+   Havia UMA declaração de lista (`padding-left: 1.4em`) e nenhuma de
+   espaçamento. O preflight do Tailwind zera margem de `ul`, `ol` e `li`, e a
+   única regra de ritmo do editor (`> * + *`, acima) alcança só filhos diretos —
+   a lista inteira é um filho. O resultado medido: `li + li`, `li > ul` e o
+   retorno ao nível do pai valiam TODOS zero.
+
+   Então uma lista de três itens com uma sublista eram nove linhas grudadas com
+   entrelinha uniforme, e a hierarquia inteira dependia de um único sinal: o
+   recuo. Um sinal solitário sempre parece exagerado — foi por isso que 22px de
+   recuo incomodaram, sendo um valor modesto. A cura não é diminuí-lo, é dar
+   agrupamento vertical à lista.
+
+   ## O marcador nasce sob o texto do pai
+
+   Com `list-style-position: outside`, o marcador do filho caía ~15px à DIREITA
+   do texto do pai — sem alinhar com o texto nem com o marcador de cima. Cada
+   nível abria uma coluna nova e arbitrária, e é esse desalinhamento que separa
+   "lista com CSS" de lista de editor.
+
+   O marcador passa a ser um `::before` absoluto numa coluna de largura exata
+   igual ao recuo, o que põe o marcador do filho exatamente onde começa o texto
+   do pai — a geometria do Notion. `.ProseMirror li` já é `position: relative`
+   (vem do CSS do ProseMirror), então a âncora existia de graça.
+
+   ## Descartada: a guia vertical
+
+   Guia por nível é bonita em Obsidian, e aqui cairia na mesma coluna do
+   marcador, que agora vive lá. Linha atrás de bullet é ruído, não ajuda.
+--------------------------------------------------------------------------- */
+
+:root {
+  /* rem, e não em: o mesmo Markdown recuava 22,4px no documento (16px) e
+     19,6px nos diálogos (14px). Aninhamento não deve depender do contexto. */
+  --nota-recuo: 1.5rem;
+  /* Vão entre marcador e texto, antes indefinido — era o que o navegador
+     decidisse (~7px no Chrome, outro valor no Safari). */
+  --nota-marcador: 0.5em;
+  --nota-item: 0.15em;
+  --nota-item-solto: 0.5em;
 }
 
-.editor-markdown ul {
-  list-style: disc;
+/* 328px úteis num aparelho de 360px: com 24px/nível o 4º nível come 27% da
+   largura e sobram ~27 caracteres por linha, abaixo do mínimo legível. */
+@media (width < 40rem) {
+  :root {
+    --nota-recuo: 1.25rem;
+  }
 }
+
+.editor-markdown :is(ul, ol) {
+  padding-inline-start: var(--nota-recuo);
+  /* O marcador é nosso `::before`; o nativo sairia junto com ele. */
+  list-style: none;
+  /* Item de lista é fragmento, não parágrafo: 1.65 o faz respirar como prosa e
+     desmancha o bloco. */
+  line-height: 1.55;
+}
+
+/*
+ * A partir do 4º nível o recuo PARA de crescer, e só o marcador distingue.
+ *
+ * Redefinir o token no escopo profundo aproveita a cascata: a coluna do
+ * marcador acompanha sozinha, porque ela é medida pelo mesmo valor. Nada muda
+ * no `.md` — aninhar mais fundo continua permitido, e o Obsidian lê igual.
+ */
+.editor-markdown li li li li :is(ul, ol) {
+  --nota-recuo: 0.75rem;
+}
+
+.editor-markdown li {
+  position: relative;
+}
+
+.editor-markdown li + li {
+  margin-top: var(--nota-item);
+}
+
+/*
+ * Lista "solta" respira mais — e a intenção vem do MARKDOWN.
+ *
+ * `data-spread` é escrito pelo Milkdown a partir da fonte: linha em branco
+ * entre os itens quer dizer lista loose, e sem quer dizer tight. O dado já
+ * estava no documento e o CSS o ignorava — honrá-lo é o espaçamento saindo da
+ * fonte de verdade, que é o princípio que sustenta esta feature inteira.
+ */
+.editor-markdown li[data-spread='true'] + li {
+  margin-top: var(--nota-item-solto);
+}
+
+.editor-markdown li > :is(ul, ol) {
+  margin-top: var(--nota-item);
+}
+
+/* Fechar uma lista pede mais espaço do que separar dois itens dela. */
+.editor-markdown > :is(ul, ol) + * {
+  margin-top: 0.8em;
+}
+
+/*
+ * O marcador, na sua própria coluna.
+ *
+ * `inset-inline-start` negativo tira o marcador do fluxo do texto e o põe no
+ * começo da coluna que o `padding-inline-start` da lista reservou.
+ */
+.editor-markdown li::before {
+  position: absolute;
+  inset-inline-start: calc(-1 * var(--nota-recuo));
+  width: calc(var(--nota-recuo) - var(--nota-marcador));
+  color: var(--muted-foreground);
+  /* A coluna não recebe clique: o marcador é enfeite, o texto é o conteúdo. */
+  pointer-events: none;
+}
+
+/*
+ * Forma diferente por nível, como Notion e Obsidian.
+ *
+ * Não é enfeite: num aninhamento onde o recuo já tem teto (4º nível adiante), a
+ * forma do marcador passa a ser o que distingue os níveis. E atende a regra de
+ * nunca transmitir informação só por cor.
+ */
+.editor-markdown ul > li::before {
+  content: '•';
+}
+.editor-markdown ul ul > li::before {
+  content: '◦';
+}
+.editor-markdown ul ul ul > li::before {
+  content: '▪';
+}
+
+/*
+ * Numeração própria, porque `list-style: none` desliga o contador automático.
+ *
+ * Alinhada à DIREITA da coluna, ao contrário do bullet: assim o ponto fica no
+ * mesmo x em toda a lista e `9.` e `10.` não desencontram. `tabular-nums` é o
+ * que garante isso quando os dígitos têm larguras diferentes.
+ */
 .editor-markdown ol {
-  list-style: decimal;
+  counter-reset: nota-item;
+}
+.editor-markdown ol > li {
+  counter-increment: nota-item;
+}
+.editor-markdown ol > li::before {
+  content: counter(nota-item) '.';
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9em;
+}
+
+/* ---------------------------------------------------------------------------
+   Lista de tarefas (`- [ ]` / `- [x]`).
+
+   O `gfm` está ativo e o Milkdown já escreve `data-item-type="task"` e
+   `data-checked` no `li` — mas não havia UMA linha de CSS para nenhum dos dois.
+   Um `- [x] revisar` renderizava como bullet comum: o estado feito/não feito era
+   invisível. É a lista mais usada numa nota de estudo, quebrada em silêncio.
+
+   Caixa por FORMA (☐/☑) e texto riscado, nunca só cor — a regra do brief. E sai
+   como `- [x]` no Markdown, então o Obsidian lê.
+--------------------------------------------------------------------------- */
+
+.editor-markdown li[data-item-type='task']::before {
+  content: '☐';
+  /* Caixa vazia é mais fina que o bullet e some ao lado dele; um degrau de
+     corpo devolve o peso visual sem mexer na linha. */
+  font-size: 1.1em;
+  line-height: 1;
+}
+
+.editor-markdown li[data-item-type='task'][data-checked='true']::before {
+  content: '☑';
+  color: var(--estudos);
+}
+
+.editor-markdown li[data-item-type='task'][data-checked='true'] {
+  color: var(--muted-foreground);
+  text-decoration: line-through;
+  /* A linha atravessa o texto, não o espaço entre palavras da linha seguinte. */
+  text-decoration-thickness: 1px;
 }
 
 .editor-markdown blockquote {
@@ -173,11 +348,61 @@
     height: auto;
 }
 
+/* ---------------------------------------------------------------------------
+   Wikilink — a pílula.
+
+   Este bloco era DOIS, no mesmo arquivo, um sublinhando e o outro fazendo
+   pílula: o segundo sobrescrevia `color` e matava o `text-decoration`, deixando
+   o `text-decoration-style: dashed` do primeiro inerte. Fundidos aqui.
+
+   Havia também quatro regras para `.documento-leitura .wikilink` que nunca
+   casaram com nada — a leitura emitia `data-wikilink` sem a classe. Saíram
+   junto com o renderizador próprio: a leitura agora é o editor.
+--------------------------------------------------------------------------- */
+
 .editor-markdown .wikilink {
-    color: var(--estudos);
-    text-decoration: underline;
-    text-underline-offset: 2px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.1rem 0.45rem;
+    margin: 0 0.15rem;
+    border-radius: var(--radius-md);
+    /* `em`, não `rem`: absoluto encolhia o link para 13px dentro de um `h1` de
+       25,6px, como se a citação fosse menos importante que a frase. */
+    font-size: 0.9em;
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--primary);
+    background: var(--accent);
+    border: 1px solid var(--border);
+    text-decoration: none;
     cursor: pointer;
+    position: relative;
+}
+
+/*
+ * `var(--accent)/80` era o que estava aqui — sintaxe do Tailwind, não CSS. O
+ * navegador descartava a declaração inteira, então o hover não fazia NADA.
+ * `color-mix` é a forma nativa de dizer a mesma coisa.
+ */
+.editor-markdown .wikilink:hover {
+    background: color-mix(in oklab, var(--accent) 80%, transparent);
+    border-color: color-mix(in oklab, var(--primary) 30%, transparent);
+}
+
+/*
+ * Só cor e borda fazem transição, e só para quem aceita movimento.
+ *
+ * Era `transition: all`, que num elemento inline anima `padding` e `border` —
+ * propriedades de layout, então passar o mouse empurrava o texto da linha. E
+ * `all` não passava por `prefers-reduced-motion` nenhum.
+ */
+@media (prefers-reduced-motion: no-preference) {
+    .editor-markdown .wikilink {
+        transition:
+            background-color 150ms ease,
+            border-color 150ms ease;
+    }
 }
 
 /*
@@ -187,13 +412,29 @@
  */
 .editor-markdown .wikilink[data-pendente='sim'] {
     color: var(--muted-foreground);
-    text-decoration-style: dashed;
+    border-style: dashed;
+    opacity: 0.8;
 }
 
 /* Selecionado pelo ProseMirror: é nó atômico, então some inteiro ou fica. */
 .editor-markdown .wikilink.ProseMirror-selectednode {
     background: var(--estudos-soft);
     border-radius: var(--radius-sm);
+}
+
+/*
+ * Alvo de toque de 44px no celular (resolução 10.28), sem mexer no layout.
+ *
+ * A pílula mede ~22px de altura. Crescer por `padding-block` empurraria a
+ * entrelinha de toda a lista que a contém; uma área de acerto invisível
+ * resolve sem deslocar um pixel do texto.
+ */
+@media (width < 48rem) {
+    .editor-markdown .wikilink::after {
+        content: '';
+        position: absolute;
+        inset: -11px 0;
+    }
 }
 
 /* ---------------------------------------------------------------------------
@@ -343,8 +584,7 @@
  * marca-texto, não paleta. Resolve o caso real — marcar o que cai na prova —
  * e sobrevive à exportação, que uma cor em <span style> não faria.
  */
-.editor-markdown mark.destaque,
-.documento-leitura mark.destaque {
+.editor-markdown mark.destaque {
     background: var(--sono-soft);
     color: inherit;
     border-radius: var(--radius-sm);
@@ -395,43 +635,14 @@
     }
 }
 
-.editor-markdown .wikilink,
-.documento-leitura .wikilink {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.1rem 0.45rem;
-  margin: 0 0.15rem;
-  border-radius: var(--radius-md);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--primary);
-  background: var(--accent);
-  border: 1px solid var(--border);
-  text-decoration: none;
-  transition: all 150ms ease;
-  line-height: 1.3;
-}
-
-.editor-markdown .wikilink:hover,
-.documento-leitura .wikilink:hover {
-  background: var(--accent)/80;
-  border-color: var(--primary)/30;
-}
-
-.editor-markdown .wikilink[data-pendente='sim'],
-.documento-leitura .wikilink[data-pendente='sim'] {
-  color: var(--muted-foreground);
-  border-style: dashed;
-  opacity: 0.8;
-}
+/* O bloco de `.wikilink` que existia aqui foi fundido com o de cima — eram dois
+   no mesmo arquivo, brigando entre si. */
 
 /*
  * Destaque de seleção de texto customizado.
  * Substitui o azul padrão nativo do sistema por um tom orgânico do tema.
  */
-.editor-markdown ::selection,
-.documento-leitura ::selection {
+.editor-markdown ::selection {
   background: var(--accent);
   color: var(--foreground);
 }

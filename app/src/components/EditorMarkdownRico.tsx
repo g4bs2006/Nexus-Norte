@@ -91,6 +91,29 @@ interface EditorRicoProps {
    * catálogo de símbolos.
    */
   buscarTopicos?: (termo: string) => Promise<ItemMenu[]>
+  /**
+   * Renderiza sem permitir escrita — é assim que a nota aparece no celular.
+   *
+   * Antes o celular tinha um renderizador PRÓPRIO (`ConteudoNota`), para não
+   * baixar o ProseMirror. Só que ele não renderizava Markdown: era
+   * `whitespace-pre-wrap` sobre o texto cru, então lista, título e negrito
+   * apareciam literais (`- item`, `## Título`, `**forte**`), e a nota lida não
+   * era a nota escrita. Corrigir aquilo exigiria um segundo renderizador de
+   * Markdown completo — e um segundo renderizador é a mesma armadilha das duas
+   * cópias da gramática do dialeto: cada construção nova (fórmula, desenho,
+   * wikilink, tópico, cerca, tabela) passaria a precisar de duas
+   * implementações, que divergem em silêncio.
+   *
+   * Montar ESTE editor, travado, custa 143 kB gz uma vez — pré-cacheados pelo
+   * service worker — e faz o que se lê ser, por construção, o que se edita. O
+   * MathLive (212 kB gz) e o Excalidraw (321 kB gz) continuam fora: são `lazy`
+   * à parte e só carregam ao editar fórmula ou desenho.
+   *
+   * A decisão da spec de 14/08 — "no celular não se edita" — segue de pé, e por
+   * isso é `editable: false` e não uma edição mobile: o que ela rejeitava era
+   * manter DOIS caminhos de inserção, e travado não há inserção nenhuma.
+   */
+  somenteLeitura?: boolean
 }
 
 /**
@@ -133,7 +156,15 @@ function Interno({
   enviarImagem,
   buscarReferencias,
   buscarTopicos,
+  somenteLeitura = false,
 }: EditorRicoProps) {
+  /*
+   * Lido uma vez, como `inicial`: o Milkdown remonta o editor inteiro a cada
+   * mudança de configuração, e alternar isto em uso perderia cursor e histórico.
+   * Não há caminho na UI que alterne — o modo vem da largura da tela, e mudar de
+   * largura já remonta a página.
+   */
+  const travado = useRef(somenteLeitura)
   const buscarRef = useRef(buscarReferencias)
   buscarRef.current = buscarReferencias
 
@@ -285,9 +316,21 @@ function Interno({
         ctx.set(defaultValueCtx, inicial.current)
         ctx.update(editorViewOptionsCtx, (anterior) => ({
           ...anterior,
+          /*
+           * `editable` é o que trava a escrita no celular. O ProseMirror deixa
+           * de aceitar entrada, então o teclado virtual não abre e nenhuma
+           * input rule dispara — mas o documento continua sendo o mesmo, com as
+           * mesmas node views: a fórmula desenha, o desenho aparece, o wikilink
+           * é clicável.
+           */
+          editable: () => !travado.current,
           attributes: {
             class: 'editor-markdown',
-            ...(placeholder ? { 'data-placeholder': placeholder } : {}),
+            /* Sem convite a escrever onde não se escreve. */
+            ...(placeholder && !travado.current
+              ? { 'data-placeholder': placeholder }
+              : {}),
+            ...(travado.current ? { 'data-somente-leitura': 'sim' } : {}),
           },
         }))
         ctx.get(listenerCtx).markdownUpdated((_, markdown, anterior) => {
@@ -308,10 +351,10 @@ function Interno({
           displayMode: true,
         })
       })
+      /* ---- o que desenha a nota: vale nos dois modos ---------------------- */
       .use(commonmark)
       .use(gfm)
       .use(math)
-      .use(history)
       .use(listener)
       // O dialeto vem depois dos presets: ele reescreve nós de texto que o
       // commonmark já produziu.
@@ -324,31 +367,45 @@ function Interno({
       // Depois de `math`: substitui o schema do nó pelo mesmo sem `atom`.
       .use(mathInlineEditavel)
       .use(viewMatematica)
-      .use(focoMatematica)
+      .use(destaqueSchema)
+      .use(views.current.desenho)
+      /* ---- o que só serve escrevendo ------------------------------------- */
+      /*
+       * Travado, estes saem — e não por economia, por correção. A escrita para,
+       * mas SELECIONAR e passar o mouse continuam possíveis: sem tirá-los, a
+       * barra de formatação apareceria ao selecionar um trecho que não se pode
+       * formatar, a alça de arrasto pediria para reordenar o que não se move, e
+       * o duplo clique numa fórmula abriria o MathLive — 212 kB baixados para
+       * um editor que não pode salvar.
+       *
+       * As input rules e os atalhos de teclado seriam inertes de qualquer jeito
+       * (não há digitação), mas ficam de fora pelo mesmo motivo de clareza: o
+       * que não pode agir não é registrado.
+       */
+      .use(travado.current ? [] : history)
+      .use(travado.current ? [] : focoMatematica)
       // Depois do commonmark: na primeira `*` a regra de ênfase não casa
       // (falta o par), então a nossa age antes de existir um `*itálico*`.
-      .use(multiplicacaoFormula)
-      .use(pluginEditarFormula.current)
+      .use(travado.current ? [] : multiplicacaoFormula)
+      .use(travado.current ? [] : pluginEditarFormula.current)
       // Antes de navegarBuracos: dentro da fórmula, Enter sai; Tab anda.
-      .use(sairDaFormula)
-      .use(destaqueSchema)
+      .use(travado.current ? [] : sairDaFormula)
       // Depois dos presets: as regras de tipografia não competem com nenhuma
       // input rule do commonmark, mas a ordem deixa isso explícito.
-      .use(tipografia)
-      .use(pluginImagens.current ?? [])
-      .use(barra.current)
-      .use(views.current.desenho)
-      .use(gatilhoSimbolos.plugin)
-      .use(gatilhoBlocos.plugin)
-      .use(gatilhoReferencias.plugin)
-      .use(gatilhoTopicos.plugin)
+      .use(travado.current ? [] : tipografia)
+      .use(travado.current ? [] : (pluginImagens.current ?? []))
+      .use(travado.current ? [] : barra.current)
+      .use(travado.current ? [] : gatilhoSimbolos.plugin)
+      .use(travado.current ? [] : gatilhoBlocos.plugin)
+      .use(travado.current ? [] : gatilhoReferencias.plugin)
+      .use(travado.current ? [] : gatilhoTopicos.plugin)
       // Depois do gatilho: o Tab do menu tem precedência sobre o Tab que anda
       // pelos buracos, senão escolher um símbolo pularia para o buraco errado.
-      .use(navegarBuracos)
+      .use(travado.current ? [] : navegarBuracos)
       // POR ÚLTIMO entre os que leem Tab: só segura a tecla quando lista,
       // fórmula e menu já disseram que não a queriam.
-      .use(tabNaoEscapa)
-      .use(block),
+      .use(travado.current ? [] : tabNaoEscapa)
+      .use(travado.current ? [] : block),
   )
 
   useEffect(() => {
@@ -449,6 +506,16 @@ function Interno({
       visao.focus()
     })
   }
+
+  /*
+   * Travado, só o documento é renderizado.
+   *
+   * A alça e os menus estariam inertes de qualquer forma — os plugins que os
+   * alimentam não foram registrados —, mas a alça é um `div` posicionado que
+   * responde ao mouse por conta própria, então ela precisa sair do DOM e não só
+   * ficar sem dados.
+   */
+  if (travado.current) return <Milkdown />
 
   return (
     <>

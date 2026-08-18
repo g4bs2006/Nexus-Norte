@@ -69,6 +69,13 @@ export interface EditorMarkdownProps {
   /** Os tópicos que o `#` oferece. Ver `features/notas/topicos.ts`. */
   buscarTopicos?: (termo: string) => Promise<ItemMenu[]>
   /**
+   * Renderiza a nota sem permitir escrita — o modo do celular.
+   *
+   * Ver `EditorMarkdownRico`, que documenta por que a nota lida passou a ser o
+   * mesmo editor em vez de um renderizador à parte.
+   */
+  somenteLeitura?: boolean
+  /**
    * Grava um desenho novo e devolve o id, que vira `![[desenho:id]]`.
    *
    * Ausente quando o dono do desenho ainda não existe — desenho pertence a uma
@@ -129,6 +136,7 @@ export function EditorMarkdown({
   placeholder,
   buscarReferencias,
   buscarTopicos,
+  somenteLeitura = false,
   onSalvarDesenho,
   renderizarBloco,
   renderizarDesenho,
@@ -190,8 +198,7 @@ export function EditorMarkdown({
 
   return (
     <div className="space-y-2">
-
-      {onSalvarDesenho && (
+      {onSalvarDesenho && !somenteLeitura && (
         <Dialog open={desenhando} onOpenChange={setDesenhando}>
           <DialogContent className="max-w-5xl!">
             <DialogHeader>
@@ -228,19 +235,22 @@ export function EditorMarkdown({
         símbolo do dia a dia entra pelo `//`, que é mais rápido que qualquer
         editor visual.
       */}
-      <DialogFormula
-        aberto={formulaAberta}
-        onAbertoChange={(aberto) => {
-          setFormulaAberta(aberto)
-          // Fechar limpa a edição, senão o próximo `/formula` abriria com a
-          // fórmula anterior dentro e a salvaria por cima dela.
-          if (!aberto) setFormulaEmEdicao(null)
-        }}
-        inicial={formulaEmEdicao}
-        onInserir={(latex, bloco) =>
-          inserirFormulaRef.current?.(latex, bloco, formulaEmEdicao?.posicao)
-        }
-      />
+      {/* Travado não há o que inserir, e o diálogo não tem como salvar. */}
+      {!somenteLeitura && (
+        <DialogFormula
+          aberto={formulaAberta}
+          onAbertoChange={(aberto) => {
+            setFormulaAberta(aberto)
+            // Fechar limpa a edição, senão o próximo `/formula` abriria com a
+            // fórmula anterior dentro e a salvaria por cima dela.
+            if (!aberto) setFormulaEmEdicao(null)
+          }}
+          inicial={formulaEmEdicao}
+          onInserir={(latex, bloco) =>
+            inserirFormulaRef.current?.(latex, bloco, formulaEmEdicao?.posicao)
+          }
+        />
+      )}
 
       <Suspense
         fallback={<div className="bg-muted/40 h-64 animate-pulse rounded-md" />}
@@ -263,6 +273,7 @@ export function EditorMarkdown({
           enviarImagem={enviarImagem}
           buscarReferencias={buscarReferencias}
           buscarTopicos={buscarTopicos}
+          somenteLeitura={somenteLeitura}
         />
       </Suspense>
     </div>
