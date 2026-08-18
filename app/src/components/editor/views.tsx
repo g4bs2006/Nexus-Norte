@@ -5,6 +5,7 @@ import type { Node } from '@milkdown/kit/prose/model'
 import type { NodeView } from '@milkdown/kit/prose/view'
 import type { ReactNode } from 'react'
 import { desenhoSchema, wikilinkSchema } from './dialeto'
+import { criarCabecalhoCerca } from './cabecalhoCerca'
 
 /**
  * Node views: o editor mostra o que a leitura mostra.
@@ -82,17 +83,50 @@ function montarReact(pai: HTMLElement, conteudo: ReactNode): () => void {
 }
 
 /**
- * Cerca de código: render em cima, fonte editável embaixo.
+ * Cerca de código: cabeçalho em cima, render, fonte editável embaixo.
  *
  * A fonte **não** é escondida quando o bloco perde a seleção, embora o Notion
  * esconda. Numa nota de estudo o texto do mermaid é tão consultado quanto o
  * desenho que ele gera — esconder obrigaria a clicar para lembrar o que se
  * escreveu. Fica menor e apagada, não invisível.
+ *
+ * O cabeçalho (linguagem, copiar, quebra) é DOM puro de `cabecalhoCerca` — ver
+ * lá por que não é React. Quem colore o texto é `realce.ts`, por decoration:
+ * nada aqui reescreve o conteúdo do bloco.
  */
-export function criarViewCerca(renderizar: RenderizarBloco) {
-  return $view(codeBlockSchema.node, () => (node) => {
+export function criarViewCerca(renderizar: RenderizarBloco, editavel: boolean) {
+  return $view(codeBlockSchema.node, () => (node, view, getPos) => {
     const dom = document.createElement('div')
     dom.className = 'bloco-cerca'
+
+    const cabecalho = criarCabecalhoCerca({
+      editavel,
+      lerCodigo: () => codigo ?? '',
+      aoAlternarQuebra: (quebrar) => {
+        dom.dataset.quebra = quebrar ? 'sim' : 'nao'
+      },
+      /*
+       * Trocar a linguagem é mexer no ATRIBUTO do nó, e não no texto: o
+       * serializer lê `language` para escrever o info string da cerca, então
+       * `setNodeMarkup` é o que faz ```` ```python ```` aparecer no arquivo.
+       *
+       * Passa pelo histórico como qualquer edição — Ctrl+Z desfaz a troca, que
+       * é o que se espera de algo que muda o Markdown salvo.
+       */
+      aoTrocarLinguagem: (chave) => {
+        const posicao = getPos()
+        if (posicao === undefined) return
+        const atual = view.state.doc.nodeAt(posicao)
+        if (!atual) return
+        view.dispatch(
+          view.state.tr.setNodeMarkup(posicao, undefined, {
+            ...atual.attrs,
+            language: chave,
+          }),
+        )
+        view.focus()
+      },
+    })
 
     const previa = document.createElement('div')
     previa.className = 'bloco-cerca-previa'
@@ -107,7 +141,8 @@ export function criarViewCerca(renderizar: RenderizarBloco) {
     const code = document.createElement('code')
     pre.append(code)
 
-    dom.append(previa, pre)
+    dom.append(cabecalho.elemento, previa, pre)
+    dom.dataset.quebra = 'nao'
 
     let desmontar: (() => void) | null = null
     let linguagem: string | null = null
@@ -116,6 +151,13 @@ export function criarViewCerca(renderizar: RenderizarBloco) {
     function pintar(atual: Node) {
       const novaLinguagem = (atual.attrs.language as string | undefined) ?? ''
       const novoCodigo = atual.textContent
+
+      /*
+       * O chip é redesenhado ANTES da guarda: ele mostra o info string cru, que
+       * pode mudar sem que o texto mude, e sair pela guarda deixaria o chip
+       * dizendo "Texto" num bloco que já é Python.
+       */
+      cabecalho.atualizar(novaLinguagem)
 
       /*
        * Só remonta quando o que importa mudou. Sem esta guarda, digitar em
@@ -136,7 +178,7 @@ export function criarViewCerca(renderizar: RenderizarBloco) {
 
     pintar(node)
 
-    const view: NodeView = {
+    const nodeView: NodeView = {
       dom,
       contentDOM: code,
       update: (atual) => {
@@ -157,9 +199,12 @@ export function criarViewCerca(renderizar: RenderizarBloco) {
        * Prévia, e até o `data-renderizado` no elemento raiz, são desenho.
        */
       ignoreMutation: (mutacao) => !code.contains(mutacao.target),
-      destroy: () => desmontar?.(),
+      destroy: () => {
+        cabecalho.destruir()
+        desmontar?.()
+      },
     }
-    return view
+    return nodeView
   })
 }
 

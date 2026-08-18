@@ -310,8 +310,23 @@
    nota transformava diagrama e gráfico em cerca de código crua.
 --------------------------------------------------------------------------- */
 
+/*
+ * O fundo e a moldura passaram do `<pre>` para o BLOCO, porque agora o bloco
+ * tem cabeçalho: mantê-los no `<pre>` desenharia duas caixas empilhadas, uma
+ * com os botões flutuando fora.
+ */
 .editor-markdown .bloco-cerca {
     margin: 0.6em 0;
+    background: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.editor-markdown .bloco-cerca pre {
+    background: none;
+    border-radius: 0;
+    margin: 0;
 }
 
 /*
@@ -332,6 +347,270 @@
 
 .editor-markdown .bloco-cerca-previa:empty {
     display: none;
+}
+
+/*
+ * Quebra de linha: estado da VISTA, ligado pelo botão do cabeçalho.
+ *
+ * O padrão é rolar, como no Notion — uma linha de 200 colunas quebrada em seis
+ * desmancha a indentação, que numa nota de Python é o que se veio ler.
+ */
+.editor-markdown .bloco-cerca[data-quebra='sim'] pre {
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: visible;
+}
+
+/* ---------------------------------------------------------------------------
+   Cabeçalho da cerca: linguagem, copiar, quebra.
+
+   O chip fica sempre visível — é ele que responde "que linguagem é esta?", e
+   uma resposta que só aparece com o mouse em cima não é uma resposta. As ações
+   aparecem no hover, porque perguntar "quero copiar?" o tempo todo é ruído.
+--------------------------------------------------------------------------- */
+
+.editor-markdown .bloco-cerca-cabecalho {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.25rem 0.35rem 0.25rem 0.5rem;
+    border-bottom: 1px solid transparent;
+    user-select: none;
+}
+
+.editor-markdown .bloco-cerca:hover .bloco-cerca-cabecalho,
+.editor-markdown .bloco-cerca:focus-within .bloco-cerca-cabecalho {
+    border-bottom-color: var(--border);
+}
+
+.editor-markdown .cerca-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--muted-foreground);
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: background 120ms ease, color 120ms ease;
+}
+
+.editor-markdown .cerca-chip:hover:not(:disabled) {
+    background: var(--accent);
+    color: var(--foreground);
+}
+
+.editor-markdown .cerca-chip:disabled {
+    cursor: default;
+}
+
+.editor-markdown .cerca-chip-seta {
+    font-size: 0.7rem;
+    line-height: 1;
+    opacity: 0.6;
+}
+
+.editor-markdown .cerca-acoes {
+    display: flex;
+    gap: 0.1rem;
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.editor-markdown .bloco-cerca:hover .cerca-acoes,
+.editor-markdown .bloco-cerca:focus-within .cerca-acoes {
+    opacity: 1;
+}
+
+.editor-markdown .cerca-acao {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    border: none;
+    background: none;
+    border-radius: var(--radius-sm);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: background 120ms ease, color 120ms ease;
+}
+
+.editor-markdown .cerca-acao svg {
+    width: 0.8rem;
+    height: 0.8rem;
+}
+
+.editor-markdown .cerca-acao:hover {
+    background: var(--accent);
+    color: var(--foreground);
+}
+
+.editor-markdown .cerca-acao[aria-pressed='true'] {
+    background: var(--accent);
+    color: var(--foreground);
+}
+
+/* Confirmação de que copiou, sem toast: o ícone vira um ✓ verde por 1,4s. */
+.editor-markdown .cerca-acao[data-copiado='sim'] {
+    color: var(--cod-string);
+}
+
+/* ---------------------------------------------------------------------------
+   O seletor de linguagem.
+
+   Fora de `.editor-markdown` de propósito: mora no `document.body`, porque
+   dentro do bloco o `overflow` do `<pre>` o cortaria.
+--------------------------------------------------------------------------- */
+
+.cerca-seletor {
+    position: fixed;
+    z-index: 50;
+    width: 13rem;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--popover);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 10px 30px -10px rgb(0 0 0 / 0.35);
+}
+
+.cerca-seletor-busca {
+    padding: 0.45rem 0.65rem;
+    border: none;
+    border-bottom: 1px solid var(--border);
+    background: none;
+    color: var(--foreground);
+    font-size: 0.75rem;
+    outline: none;
+}
+
+.cerca-seletor-itens {
+    max-height: 13rem;
+    overflow-y: auto;
+    padding: 0.25rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.cerca-seletor-item {
+    text-align: left;
+    padding: 0.3rem 0.5rem;
+    border: none;
+    background: none;
+    border-radius: var(--radius-sm);
+    color: var(--muted-foreground);
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+
+.cerca-seletor-item[data-selecionado='sim'],
+.cerca-seletor-item:hover {
+    background: var(--accent);
+    color: var(--foreground);
+}
+
+/* ---------------------------------------------------------------------------
+   Realce de sintaxe.
+
+   As classes são as do highlight.js, postas por `realce.ts` como decoration —
+   o texto continua sendo texto do ProseMirror, e isto aqui é só cor.
+
+   A paleta é One Light / One Dark, e não a do highlight.js: os temas prontos do
+   pacote trazem `background` e `color` no `.hljs`, que brigariam com o fundo do
+   bloco e com o tema do app. Só as cores de token entram.
+--------------------------------------------------------------------------- */
+
+:root {
+    --cod-palavra: #a626a4;
+    --cod-string: #50a14f;
+    --cod-numero: #986801;
+    --cod-comentario: #a0a1a7;
+    --cod-funcao: #4078f2;
+    --cod-tipo: #c18401;
+    --cod-variavel: #e45649;
+    --cod-embutido: #0184bc;
+}
+
+.dark {
+    --cod-palavra: #c678dd;
+    --cod-string: #98c379;
+    --cod-numero: #d19a66;
+    --cod-comentario: #7f848e;
+    --cod-funcao: #61afef;
+    --cod-tipo: #e5c07b;
+    --cod-variavel: #e06c75;
+    --cod-embutido: #56b6c2;
+}
+
+.editor-markdown pre .hljs-keyword,
+.editor-markdown pre .hljs-selector-tag,
+.editor-markdown pre .hljs-literal,
+.editor-markdown pre .hljs-operator {
+    color: var(--cod-palavra);
+}
+
+.editor-markdown pre .hljs-string,
+.editor-markdown pre .hljs-regexp,
+.editor-markdown pre .hljs-addition,
+.editor-markdown pre .hljs-quote {
+    color: var(--cod-string);
+}
+
+.editor-markdown pre .hljs-number,
+.editor-markdown pre .hljs-symbol,
+.editor-markdown pre .hljs-bullet,
+.editor-markdown pre .hljs-meta {
+    color: var(--cod-numero);
+}
+
+.editor-markdown pre .hljs-comment,
+.editor-markdown pre .hljs-doctag {
+    color: var(--cod-comentario);
+    font-style: italic;
+}
+
+.editor-markdown pre .hljs-title,
+.editor-markdown pre .hljs-section,
+.editor-markdown pre .hljs-name,
+.editor-markdown pre .hljs-selector-id,
+.editor-markdown pre .hljs-selector-class {
+    color: var(--cod-funcao);
+}
+
+.editor-markdown pre .hljs-type,
+.editor-markdown pre .hljs-class,
+.editor-markdown pre .hljs-attr,
+.editor-markdown pre .hljs-attribute {
+    color: var(--cod-tipo);
+}
+
+.editor-markdown pre .hljs-variable,
+.editor-markdown pre .hljs-template-variable,
+.editor-markdown pre .hljs-tag,
+.editor-markdown pre .hljs-deletion,
+.editor-markdown pre .hljs-property {
+    color: var(--cod-variavel);
+}
+
+.editor-markdown pre .hljs-built_in,
+.editor-markdown pre .hljs-params,
+.editor-markdown pre .hljs-formula,
+.editor-markdown pre .hljs-link {
+    color: var(--cod-embutido);
+}
+
+.editor-markdown pre .hljs-emphasis {
+    font-style: italic;
+}
+
+.editor-markdown pre .hljs-strong {
+    font-weight: 600;
 }
 
 /*

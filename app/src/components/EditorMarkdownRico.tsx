@@ -31,6 +31,7 @@ import { MenuSimbolos, type ItemMenu } from './editor/MenuSimbolos'
 import { MenuReferencias } from './editor/MenuReferencias'
 import { navegarBuracos } from './editor/buracos'
 import { escreverTopico, escreverWikilink } from './editor/gramatica'
+import { realceCodigo } from './editor/realce'
 import { tabNaoEscapa } from './editor/tabNaoEscapa'
 import { tipografia } from './editor/tipografia'
 import { criarPluginImagens, type EnviarImagem } from './editor/imagens'
@@ -104,7 +105,11 @@ interface EditorRicoProps {
    * wikilink, tópico, cerca, tabela) passaria a precisar de duas
    * implementações, que divergem em silêncio.
    *
-   * Montar ESTE editor, travado, custa 143 kB gz uma vez — pré-cacheados pelo
+   * (Eram 143 kB antes do realce de sintaxe: `lowlight` mais as 17 gramáticas
+   * do catálogo de `linguagens.ts` custam ~32 kB gz. É o preço de o bloco de
+   * código ser lido colorido no celular, e não só escrito colorido no desktop.)
+   *
+   * Montar ESTE editor, travado, custa 175 kB gz uma vez — pré-cacheados pelo
    * service worker — e faz o que se lê ser, por construção, o que se edita. O
    * MathLive (212 kB gz) e o Excalidraw (321 kB gz) continuam fora: são `lazy`
    * à parte e só carregam ao editar fórmula ou desenho.
@@ -175,7 +180,7 @@ function Interno({
   existeRef.current = slugExiste
 
   const views = useRef({
-    cerca: criarViewCerca(renderizarBloco),
+    cerca: criarViewCerca(renderizarBloco, !travado.current),
     desenho: criarViewDesenho(renderizarDesenho),
     wikilink: criarViewWikilink((slug) => existeRef.current?.(slug) ?? true),
   })
@@ -363,6 +368,12 @@ function Interno({
       .use(topicoSchema)
       .use(desenhoSchema)
       .use(views.current.cerca)
+      /*
+       * Nos DOIS modos: realce é o que a nota mostra, não o que ela aceita
+       * escrever. Tirá-lo no celular faria ler e escrever divergirem — a mesma
+       * razão que trouxe a leitura para dentro deste editor.
+       */
+      .use(realceCodigo)
       .use(views.current.wikilink)
       // Depois de `math`: substitui o schema do nó pelo mesmo sem `atom`.
       .use(mathInlineEditavel)

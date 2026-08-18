@@ -5,7 +5,6 @@ import {
   toggleEmphasisCommand,
   toggleInlineCodeCommand,
   toggleStrongCommand,
-  turnIntoTextCommand,
   wrapInBlockquoteCommand,
   wrapInBulletListCommand,
   wrapInHeadingCommand,
@@ -34,7 +33,6 @@ import type { Ctx } from '@milkdown/kit/ctx'
 /** O que o `/` pode fazer, além de inserir texto. */
 export type ComandoEscrita =
   | { tipo: 'titulo'; nivel: 1 | 2 | 3 }
-  | { tipo: 'texto' }
   | { tipo: 'lista' }
   | { tipo: 'listaNumerada' }
   | { tipo: 'citacao' }
@@ -73,9 +71,6 @@ export function aplicarComando(comando: ComandoEscrita) {
     switch (comando.tipo) {
       case 'titulo':
         callCommand(wrapInHeadingCommand.key, comando.nivel)(ctx)
-        return
-      case 'texto':
-        callCommand(turnIntoTextCommand.key)(ctx)
         return
       case 'lista':
         callCommand(wrapInBulletListCommand.key)(ctx)

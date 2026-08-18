@@ -18,6 +18,12 @@ export interface ItemEscrita extends ItemMenu {
  *
  * A ordem é de frequência, não alfabética. Título e lista são o que se usa a
  * cada três parágrafos; tabela e divisor, uma vez por nota.
+ *
+ * **"Texto simples" saiu.** Um `/` aberto numa linha vazia já é texto simples —
+ * o item só existia para DESFAZER formatação, coisa que Backspace no começo do
+ * bloco faz melhor. Na prática ele era clicado por engano no lugar de "Fórmula",
+ * porque ocupava o meio da lista, onde o dedo cai. Custo de tirar: zero; ganho:
+ * uma linha a menos entre o `/` e o que se queria de fato.
  */
 export const CATALOGO_ESCRITA: readonly ItemEscrita[] = [
   {
@@ -61,13 +67,6 @@ export const CATALOGO_ESCRITA: readonly ItemEscrita[] = [
     amostra: '❝',
     sinonimos: 'citacao quote destaque enunciado',
     comando: { tipo: 'citacao' },
-  },
-  {
-    chave: 'texto',
-    rotulo: 'Texto simples',
-    amostra: '¶',
-    sinonimos: 'texto paragrafo limpar normal',
-    comando: { tipo: 'texto' },
   },
   {
     chave: 'divisor',
