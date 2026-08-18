@@ -464,6 +464,29 @@ export async function listarTopicos(): Promise<Topico[]> {
   return lancarSeErro(await supabase.from('topicos').select('*').order('nome'))
 }
 
+/**
+ * Tópicos que casam com o que se digitou depois de `#`, para o menu do editor.
+ *
+ * Existe porque `#` era o único vocabulário do sistema sem autocomplete: a
+ * marcação nasce do texto (é o que a spec pede), mas sem ver o que já existe
+ * cada nota reinventa a grafia — `#regra-da-cadeia` numa, `#regra-cadeia` na
+ * outra, e o vocabulário se fragmenta em sinônimos que o grafo lê como
+ * assuntos diferentes.
+ *
+ * Termo vazio devolve os mais usados, e não os mais recentes: quando se abre a
+ * lista sem digitar, a pergunta é "que vocabulário eu já uso?".
+ */
+export async function buscarTopicos(termo: string): Promise<Topico[]> {
+  const consulta = supabase.from('topicos').select('*')
+  const busca = termo.trim()
+
+  return lancarSeErro(
+    await (busca === ''
+      ? consulta.order('nome').limit(8)
+      : consulta.ilike('nome', `%${busca}%`).order('nome').limit(8)),
+  )
+}
+
 // --- Escrita ----------------------------------------------------------------
 
 export type EntradaNota = {

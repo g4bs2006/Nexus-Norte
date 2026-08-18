@@ -2621,3 +2621,129 @@ abandonada no meio (2 de 12 séries) viraria "treino feito" na frequência, que 
 justamente o que a 10.21 evita ao criar `finalizado_em`. E o carimbo receberia um
 horário inventado — o erro que a 10.24 corrigiu. Distinguir "acabei e esqueci de
 fechar" de "desisti no meio" exige a informação que só o usuário tem.
+
+### 10.53 Editor de notas: Tab, menções e tópicos (corrige 10.50 e a noite de 16/08) — descoberta em uso
+
+Três problemas com a mesma forma: **a mesma verdade escrita em dois ou três
+lugares**, divergindo em silêncio.
+
+#### O Tab que parou de converter
+
+`alpha` + `Tab` no diálogo da fórmula deixou de virar α. O histórico mostra três
+commits na mesma noite tentando consertar — `004ec55`, `8903710`, `960bb54` — e o
+último foi o que ficou.
+
+Os atalhos nativos do MathLive convertem **sozinhos** enquanto se digita, sem
+Tab. Desligá-los foi certo: conversão automática tira a escolha de quem escreve,
+e escrever `beta` querendo as quatro letras vira briga com o editor. O que não
+funcionou foi a substituição — um `bufferRef` alimentado pelo `keydown`, que
+dessincronizava do campo por três caminhos, todos comuns:
+
+- só letras entravam nele e só espaço, Enter e setas o zeravam, então `x+alpha`
+  acumulava `xalpha` e não casava com nada. **Bastava ter digitado uma letra
+  antes na fórmula para o atalho nunca mais funcionar** — e como o Tab sem
+  casamento não fazia `preventDefault`, o foco ainda pulava para fora do campo;
+- clicar para reposicionar o cursor não zerava nada, e o `deleteBackward`
+  seguinte apagava no lugar errado — isso corrompia a fórmula, não só falhava;
+- `/` e `^`, os atalhos de ABNT2, inseriam sem tocar no buffer.
+
+**A palavra passa a ser lida do campo** (`mf.position` + `mf.getValue`), e não de
+um registro paralelo das teclas. Sem segundo estado, não há o que divergir do
+primeiro: `x+alpha` funciona sem tratamento especial. O casamento pega o maior
+sufixo do catálogo e é sensível à caixa, então `Delta` dá `\Delta` e `delta` dá
+`\delta`. A busca é função pura (`simboloPorPalavra`), testada sem DOM — é o que
+impede a quarta tentativa.
+
+Descartada a alternativa de consertar as regras de zerar o buffer: a lista de
+exceções a tratar não fecha, e três commits já tinham mostrado isso.
+
+#### Três catálogos de símbolos, três respostas
+
+`gamma` existia no Tab do MathLive e na barra de botões, e **não** no catálogo do
+`//`. Então `//gama` nunca funcionou enquanto `gamma`+Tab e o botão γ
+funcionavam. Não era um bug com três sintomas — eram três listas independentes:
+`latex.ts` (26 símbolos), `ATALHOS_INLINE_GREGOS` (41) e
+`SIMBOLOS_GREGOS`/`SIMBOLOS_OPERADORES` (20).
+
+Agora há **um**: `components/editor/catalogoSimbolos.ts`, ao lado de
+`catalogoEscrita.ts`, que é o análogo exato — o catálogo do `/`. Subiu para o
+kernel porque quem o consome é kernel (`DialogFormula` e `CampoMatematico` são
+`components/`), e componente do kernel não importa de feature;
+`features/notas/simbolos.ts` segue sendo a ponte para o `//`. O campo `rapido`
+marca o que aparece na barra de botões. Acrescentar um símbolo virou uma linha,
+num lugar, valendo nos três caminhos.
+
+A unificação expôs uma discordância que ninguém tinha visto: `delta` produzia
+`\Delta` no `//` e `\delta` no Tab. Ficou a minúscula, com `Delta` ganhando
+entrada própria — é a convenção do resto da lista.
+
+#### Menções e tópicos sumindo ao salvar
+
+Medido, e é o mesmo bug que a 10.50 documentou ter matado:
+
+    [[series-de-taylor]]   →  \[\[series-de-taylor]]
+    #regra-da-cadeia       →  \#regra-da-cadeia      (só no início do parágrafo)
+
+O `dialeto.ts` curou isso transformando wikilink e desenho em **nós**. Mas o menu
+de menções inseria `[[slug]]` como TEXTO (`insertText`), e texto que se parece
+com sintaxe não é sintaxe: nenhum parse dispara, e o serializer escapa o que vê
+como colchete solto. A menção sumia de `links_nota` a cada salvamento. Tópico
+nunca foi nó, e a cerquilha no início de linha é escapada para não ser relida
+como heading — então `extrairTopicos` perdia a marcação, mas só quando ela abria
+o parágrafo, que é o caso mais comum.
+
+Duas correções estruturais:
+
+- **O menu nunca insere sintaxe como texto.** `ResultadoEscolha` ganhou
+  `{ tipo: 'markdown' }`, que passa pelo `parserCtx` — o mesmo pipeline que lê a
+  nota salva. O que o menu insere é por construção idêntico ao que o arquivo
+  produz ao reabrir. `formula` continua com ramo próprio porque precisa
+  posicionar o cursor no buraco.
+- **Tópico virou nó do dialeto**, com handler de saída que escreve `#slug` sem
+  escape, como wikilink e destaque já faziam.
+
+Descartado tolerar `\#` na `RE_TOPICO`: resolveria o sintoma e deixaria `\#` no
+`.md` exportado, derrubando o argumento — Markdown legível como fonte de verdade
+— que escolheu o Milkdown, a exportação e a busca.
+
+#### A causa comum: duas cópias da gramática
+
+`RE_DIALETO` (em `dialeto.ts`) e `RE_LINK` (em `markdown.ts`) eram **byte a byte
+a mesma regex**, em arquivos com donos diferentes. Parecia coordenação e era
+coincidência. Quando o editor passou a emitir texto escapado, só um dos lados
+soube.
+
+As regexes moram agora em `components/editor/gramatica.ts` — sem import de
+Milkdown, para que `markdown.ts` continue puro —, e os dois lados leem de lá.
+
+#### Por que nada disso apareceu nos testes
+
+Os 546 testes passavam. Todos eram de função pura, e os três bugs vivem na
+**fronteira** entre editor e Markdown, que ninguém testava: `dialeto.test.ts`
+verificava o round-trip do texto, e `markdown.test.ts` verificava os extratores,
+cada um sozinho. Faltava a asserção do encontro.
+
+O teste de tópico que existia usava `#taylor` no MEIO da linha — justamente o
+caso que sempre funcionou.
+
+Entrou um bloco de contrato: round-trip do editor **e depois** `extrairLinks`,
+`extrairTopicos` e `extrairReferenciasDesenho` sobre o resultado. Se falhar, uma
+nota salva está perdendo aresta do grafo ou vocabulário sem erro na tela. Ele
+importa de `features/notas`, o que o kernel não pode fazer — é deliberado e vale
+só ali: teste de contrato precisa das duas pontas, e a regra vale para código de
+produção.
+
+#### Higiene do `/` e o `#` ganhando menu
+
+O `/` de bloco não recebia `apenasInicioDeLinha`, que `gatilhoMenu` documentava
+desde sempre: o menu completo abria depois de qualquer espaço, no meio de
+qualquer frase. E `/` e `//` casam no mesmo ponto — os dois menus só não
+apareciam juntos porque `filtrarEscrita('/alpha')` devolve lista vazia, correção
+por coincidência. Agora o gatilho mais longo vence, declarado (`excluir`).
+
+O `#` era o único vocabulário do sistema **sem autocomplete**. A marcação nasce
+do texto, que é o que a spec pede — mas sem ver o que já existe, cada nota
+reinventa a grafia, e `#regra-da-cadeia` e `#regra-cadeia` viram dois assuntos no
+grafo. O menu mostra os tópicos existentes e oferece criar o novo no topo quando
+o que se digitou ainda não existe: sem essa entrada, o menu inverteria a regra da
+spec e transformaria o vocabulário em cadastro prévio.

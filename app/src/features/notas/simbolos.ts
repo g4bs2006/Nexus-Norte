@@ -1,4 +1,4 @@
-import { filtrarSimbolos, montarInsercao, simboloPorGatilho } from './latex'
+import { filtrarSimbolos, montarInsercao, simboloPorGatilho } from '@/components/editor/catalogoSimbolos'
 
 /**
  * O catálogo do `//`, no formato que o editor do kernel entende.

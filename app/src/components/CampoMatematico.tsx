@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import 'mathlive'
 import type { MathfieldElement } from 'mathlive'
+import { simboloPorPalavra } from './editor/catalogoSimbolos'
 
 export interface CampoMatematicoHandle {
   inserir: (latex: string) => void
@@ -26,58 +27,44 @@ interface CampoMatematicoProps {
 
 /**
  * Teclas que o MathLive não reconhece em teclado brasileiro.
+ *
+ * Ele TEM os dois atalhos embutidos — `/` vira fração e `^` vira expoente —,
+ * mas casa a tecla pelo `code` (a POSIÇÃO física) contra um mapa de layout, e
+ * os layouts que ele traz são só Dvorak, inglês, francês, alemão e espanhol.
+ * Não há ABNT2. No teclado brasileiro a `/` sai da tecla `IntlRo`, que não
+ * existe no mapa americano, e o `^` é tecla morta de acento — nenhum dos dois
+ * chega ao atalho, e por isso os dois entravam como caractere solto.
+ *
+ * A chave aqui é `event.key`, que é o CARACTERE digitado e não depende de onde
+ * ele mora no teclado. Em layout que o MathLive já entende o resultado é o
+ * mesmo LaTeX, então isto não atrapalha quem não é brasileiro.
+ *
+ * `#@` é "o que já está antes do cursor" e `#?` é um espaço a preencher — é a
+ * mesma notação que o próprio MathLive usa nos atalhos que traz de fábrica.
+ *
+ * (Este comentário foi apagado por engano num refactor e restaurado depois: sem
+ * ele, o mapa parece redundante com o que a biblioteca já faz, e o caminho
+ * óbvio é "limpar" justamente o que faz o teclado brasileiro funcionar.)
  */
 const ATALHOS_ABNT: Record<string, string> = {
   '/': '\\frac{#@}{#?}',
   '^': '^{#?}',
 }
 
+/** Quanto texto olhar para trás ao procurar a palavra sob o cursor. */
+const JANELA_PALAVRA = 24
+
 /**
- * Dicionário estendido de atalhos por palavra para o MathLive.
+ * Traduz os buracos do catálogo para os do MathLive.
  *
- * Permite digitar o nome da letra grega ou operador (ex: `epsilon`, `alpha`, `theta`)
- * no teclado e converter instantaneamente na letra grega ou símbolo LaTeX correspondente.
+ * O catálogo escreve `{}` porque é a notação do LaTeX e é o que o editor de
+ * texto usa para posicionar o `Tab` (ver `montarInsercao`). O MathLive marca
+ * espaço a preencher com `#?`, e sem a tradução `\int_{}^{}` entra com dois
+ * grupos vazios que o cursor não visita — o símbolo aparece e a conta continua
+ * a ser digitada na mão.
  */
-const ATALHOS_INLINE_GREGOS: Record<string, string> = {
-  alpha: '\\alpha',
-  beta: '\\beta',
-  gamma: '\\gamma',
-  delta: '\\delta',
-  epsilon: '\\epsilon',
-  zeta: '\\zeta',
-  eta: '\\eta',
-  theta: '\\theta',
-  iota: '\\iota',
-  kappa: '\\kappa',
-  lambda: '\\lambda',
-  mu: '\\mu',
-  nu: '\\nu',
-  xi: '\\xi',
-  pi: '\\pi',
-  rho: '\\rho',
-  sigma: '\\sigma',
-  tau: '\\tau',
-  phi: '\\phi',
-  chi: '\\chi',
-  psi: '\\psi',
-  omega: '\\omega',
-  Delta: '\\Delta',
-  Gamma: '\\Gamma',
-  Theta: '\\Theta',
-  Lambda: '\\Lambda',
-  Sigma: '\\Sigma',
-  Phi: '\\Phi',
-  Omega: '\\Omega',
-  inf: '\\infty',
-  infty: '\\infty',
-  partial: '\\partial',
-  lim: '\\lim_{#?}',
-  sqrt: '\\sqrt{#?}',
-  int: '\\int_{#?}^{#?}',
-  sum: '\\sum_{#?}^{#?}',
-  prod: '\\prod_{#?}^{#?}',
-  neq: '\\neq',
-  approx: '\\approx',
+function paraMathlive(latex: string): string {
+  return latex.replace(/\{\}/g, '{#?}')
 }
 
 /**
@@ -86,14 +73,18 @@ const ATALHOS_INLINE_GREGOS: Record<string, string> = {
 const CampoMatematico = forwardRef<CampoMatematicoHandle, CampoMatematicoProps>(
   function CampoMatematico({ valor, onChange, onConfirmar }, ref) {
     const campo = useRef<MathfieldElement>(null)
-    const bufferRef = useRef('')
 
     useImperativeHandle(ref, () => ({
+      /*
+       * Traduz aqui, e não em quem chama: a barra de botões do diálogo passa o
+       * LaTeX do catálogo, que escreve buraco como `{}`. Sem a tradução o botão
+       * `√` inseriria `\sqrt{}` — desenhado certo, mas com o cursor fora do
+       * radicando, então o próximo caractere sai ao lado da raiz e não dentro.
+       */
       inserir(latex: string) {
         if (campo.current) {
-          campo.current.executeCommand(['insert', latex])
+          campo.current.executeCommand(['insert', paraMathlive(latex)])
           campo.current.focus()
-          bufferRef.current = ''
         }
       },
       focar() {
@@ -101,15 +92,22 @@ const CampoMatematico = forwardRef<CampoMatematicoHandle, CampoMatematicoProps>(
       },
     }))
 
-    /*
-     * Foco ao montar e desativação dos atalhos automáticos nativos do MathLive.
-     */
     useEffect(() => {
       const elemento = campo.current
       if (!elemento) return
       elemento.focus()
 
-      // Zerar atalhos de fundo do MathLive para impedir substituição/seleção ambiente ao digitar
+      /*
+       * Os atalhos nativos do MathLive ficam desligados de propósito.
+       *
+       * Eles convertem SOZINHOS enquanto se digita: escrever `beta` já vira β
+       * sem que se peça, e quem queria as quatro letras não tem como recusar. A
+       * conversão passa a ser um ato — digita-se a palavra e aperta-se `Tab` —,
+       * que é o que a linha de dicas do diálogo promete e o que dá controle a
+       * quem escreve.
+       *
+       * O `Tab` é implementado em `aoTeclar`, lendo o conteúdo do campo.
+       */
       elemento.inlineShortcuts = {}
     }, [])
 
@@ -124,35 +122,41 @@ const CampoMatematico = forwardRef<CampoMatematicoHandle, CampoMatematicoProps>(
         const elementoAtual = campo.current
         if (!elementoAtual) return
 
-        // Interceptação do Tab para conversão determinística por buffer
+        /*
+         * `Tab` converte a palavra sob o cursor no símbolo que ela nomeia.
+         *
+         * A palavra é lida do CAMPO (`position` + `getValue`), e não de um
+         * registro paralelo das teclas digitadas — ver `simboloPorPalavra`,
+         * que documenta os três jeitos pelos quais o registro paralelo
+         * dessincronizava.
+         *
+         * Não havendo palavra convertível, o `Tab` segue seu caminho: dentro de
+         * uma fórmula com buracos ele anda entre eles, que é comportamento do
+         * próprio MathLive e não cabe a este componente sequestrar.
+         */
         if (evento.key === 'Tab' && !evento.shiftKey) {
-          const palavra = bufferRef.current.trim()
-          const latexSubstituto = ATALHOS_INLINE_GREGOS[palavra]
+          const cursor = elementoAtual.position
+          const inicio = Math.max(0, cursor - JANELA_PALAVRA)
+          const antes = elementoAtual.getValue(inicio, cursor, 'latex')
+          const simbolo = simboloPorPalavra(antes)
 
-          if (latexSubstituto) {
+          if (simbolo) {
             evento.preventDefault()
             evento.stopPropagation()
 
-            for (let i = 0; i < palavra.length; i++) {
-              elementoAtual.executeCommand('deleteBackward')
+            /*
+             * Seleciona a palavra e deixa o `insert` substituí-la — o modo
+             * padrão do MathLive é `replaceSelection`. Um laço de
+             * `deleteBackward` por caractere, que era o que havia antes,
+             * pressupõe um átomo por letra: depois de um `\frac` o cursor está
+             * dentro de um grupo, e a conta erra.
+             */
+            elementoAtual.selection = {
+              ranges: [[cursor - simbolo.gatilho.length, cursor]],
             }
-            elementoAtual.executeCommand(['insert', latexSubstituto])
-            bufferRef.current = ''
+            elementoAtual.executeCommand(['insert', paraMathlive(simbolo.latex)])
             return
           }
-        }
-
-        // Rastreamento do buffer de digitação
-        if (evento.key.length === 1 && /[a-zA-Z]/.test(evento.key)) {
-          bufferRef.current += evento.key
-        } else if (evento.key === 'Backspace') {
-          bufferRef.current = bufferRef.current.slice(0, -1)
-        } else if (
-          ['Space', ' ', 'Enter', 'Escape', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(
-            evento.key,
-          )
-        ) {
-          bufferRef.current = ''
         }
 
         if (evento.key === 'Enter' && !evento.shiftKey) {

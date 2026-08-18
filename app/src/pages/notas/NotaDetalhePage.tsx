@@ -15,6 +15,7 @@ import {
   salvarDesenho,
 } from '@/features/notas/api'
 import { fonteSimbolos } from '@/features/notas/simbolos'
+import { fonteTopicos } from '@/features/notas/topicos'
 import { criarFonteBlocos } from '@/features/notas/blocos'
 import {
   useExcluirNota,
@@ -283,6 +284,7 @@ export default function NotaDetalhePage() {
                 onChange={setConteudo}
                 placeholder="Escreva aqui…"
                 buscarReferencias={buscarReferencias}
+                buscarTopicos={fonteTopicos}
                 renderizarBloco={renderizarBloco}
                 renderizarDesenho={renderizarDesenho}
                 simbolos={fonteSimbolos}

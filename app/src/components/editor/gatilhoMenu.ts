@@ -31,6 +31,14 @@ interface Opcoes {
    * exigir a linha vazia evita que escrever "e/ou" abra o menu.
    */
   apenasInicioDeLinha?: boolean
+  /**
+   * Gatilho mais específico que tem precedência sobre este.
+   *
+   * `/` e `//` casam no mesmo ponto do texto: digitar `//` satisfaz os dois
+   * padrões, e sem isto os dois menus abrem juntos. O mais LONGO vence, porque
+   * é o mais específico — quem digitou a segunda barra pediu o de símbolos.
+   */
+  excluir?: string
   /** Chamado a cada mudança: estado ou `null` quando o menu deve fechar. */
   aoMudar: (estado: EstadoGatilho | null) => void
   /**
@@ -106,6 +114,20 @@ export function criarGatilhoMenu(opcoes: Opcoes) {
     if (!achado) return null
 
     const termo = achado[1] ?? ''
+
+    /*
+     * Cede a vez ao gatilho mais longo quando ele também casa aqui. Sem isto,
+     * `//int` abriria o menu de blocos com o termo `/int` ao lado do menu de
+     * símbolos com o termo `int`.
+     */
+    if (opcoes.excluir !== undefined) {
+      const maisLongo = new RegExp(
+        prefixo + escapar(opcoes.excluir) + '([^\\n\\]]*)$',
+        'u',
+      )
+      if (maisLongo.test(antes)) return null
+    }
+
     const de = posicao.pos - termo.length - gatilho.length
     const coords = view.coordsAtPos(de)
 

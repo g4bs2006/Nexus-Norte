@@ -18,6 +18,7 @@ import {
   desenhoSchema,
   destaqueSchema,
   dialetoRemark,
+  topicoSchema,
   wikilinkSchema,
 } from './editor/dialeto'
 import { BarraSelecao } from './editor/BarraSelecao'
@@ -26,9 +27,10 @@ import {
   type AncoraSelecao,
 } from './editor/pluginSelecao'
 import { aplicarMarca, type MarcaEscrita } from './editor/comandos'
-import { MenuSimbolos } from './editor/MenuSimbolos'
+import { MenuSimbolos, type ItemMenu } from './editor/MenuSimbolos'
 import { MenuReferencias } from './editor/MenuReferencias'
 import { navegarBuracos } from './editor/buracos'
+import { escreverTopico, escreverWikilink } from './editor/gramatica'
 import { tabNaoEscapa } from './editor/tabNaoEscapa'
 import { tipografia } from './editor/tipografia'
 import { criarPluginImagens, type EnviarImagem } from './editor/imagens'
@@ -82,6 +84,13 @@ interface EditorRicoProps {
   slugExiste?: SlugExiste
   enviarImagem?: EnviarImagem
   buscarReferencias?: (termo: string) => Promise<Referencia[]>
+  /**
+   * Os tópicos que o `#` oferece, já no formato do menu.
+   *
+   * Assíncrona porque o vocabulário mora no banco, e não numa constante como o
+   * catálogo de símbolos.
+   */
+  buscarTopicos?: (termo: string) => Promise<ItemMenu[]>
 }
 
 /**
@@ -123,9 +132,13 @@ function Interno({
   slugExiste,
   enviarImagem,
   buscarReferencias,
+  buscarTopicos,
 }: EditorRicoProps) {
   const buscarRef = useRef(buscarReferencias)
   buscarRef.current = buscarReferencias
+
+  const topicosRef = useRef(buscarTopicos)
+  topicosRef.current = buscarTopicos
 
   const existeRef = useRef(slugExiste)
   existeRef.current = slugExiste
@@ -160,10 +173,22 @@ function Interno({
     () => editorRef.current ?? undefined,
   )
 
+  /*
+   * `apenasInicioDeLinha` é o que `gatilhoMenu` sempre documentou para o `/` de
+   * bloco, e o que ninguém estava passando: sem ele o menu completo abria depois
+   * de qualquer espaço, no meio de qualquer frase.
+   *
+   * `excluir: '//'` resolve a sobreposição com o menu de símbolos. Digitar `//`
+   * satisfaz os dois padrões ao mesmo tempo, e até aqui os dois menus não
+   * apareciam juntos só porque `filtrarEscrita('/alpha')` devolve lista vazia —
+   * correção por coincidência, que a primeira entrada nova do catálogo com uma
+   * barra no nome desfaria.
+   */
   const gatilhoBlocos = useGatilho(
     '/',
     blocos ?? FONTE_VAZIA,
     () => editorRef.current ?? undefined,
+    { apenasInicioDeLinha: true, excluir: '//' },
   )
 
   const [referenciasEncontradas, setReferenciasEncontradas] = useState<Referencia[]>([])
@@ -180,10 +205,14 @@ function Interno({
           detalhe: ref.contexto,
           sinonimos: ref.slug,
         })),
+      /*
+       * `markdown`, e não `inserir`: a menção precisa virar NÓ. Como texto ela
+       * era escapada para `\[\[slug]]` ao salvar e sumia de `links_nota` — ver
+       * o comentário de `ResultadoEscolha`.
+       */
       montar: (item: { chave: string }) => ({
-        tipo: 'inserir',
-        texto: `[[${item.chave}]]`,
-        buracos: [],
+        tipo: 'markdown',
+        texto: escreverWikilink(item.chave),
       }),
     }),
     [referenciasEncontradas],
@@ -194,6 +223,49 @@ function Interno({
     fonteReferencias,
     () => editorRef.current ?? undefined,
   )
+
+  const [topicosEncontrados, setTopicosEncontrados] = useState<ItemMenu[]>([])
+
+  /*
+   * O kernel não sabe o que é um tópico: recebe itens já prontos de quem
+   * pesquisou, e só escreve a marcação. Quem decide o slug e o que fazer com um
+   * tópico ainda inexistente é `features/notas/topicos.ts` — mesma divisão de
+   * `fonteSimbolos`, onde a chave é a ponte e a regra fica na feature.
+   */
+  const fonteTopicos = useMemo<FonteItens>(
+    () => ({
+      filtrar: () => topicosEncontrados,
+      montar: (item: { chave: string }) => ({
+        tipo: 'markdown',
+        texto: escreverTopico(item.chave),
+      }),
+    }),
+    [topicosEncontrados],
+  )
+
+  const gatilhoTopicos = useGatilho(
+    '#',
+    fonteTopicos,
+    () => editorRef.current ?? undefined,
+    /*
+     * `apenasInicioDeLinha` NÃO entra aqui: tópico se marca no meio da frase, e
+     * é justamente no começo da linha que `#` é heading. O `ler` do gatilho já
+     * exige começo de bloco ou espaço antes, que é a mesma fronteira da
+     * `RE_TOPICO` — e o heading é `# ` com espaço, que nunca casa porque o
+     * termo teria de começar por espaço.
+     */
+  )
+
+  useEffect(() => {
+    if (!gatilhoTopicos.estado || !topicosRef.current) return
+    let cancelado = false
+    void topicosRef.current(gatilhoTopicos.estado.termo).then((achados) => {
+      if (!cancelado) setTopicosEncontrados(achados ?? [])
+    })
+    return () => {
+      cancelado = true
+    }
+  }, [gatilhoTopicos.estado?.termo])
 
   useEffect(() => {
     if (!gatilhoReferencias.estado || !buscarRef.current) return
@@ -245,6 +317,7 @@ function Interno({
       // commonmark já produziu.
       .use(dialetoRemark)
       .use(wikilinkSchema)
+      .use(topicoSchema)
       .use(desenhoSchema)
       .use(views.current.cerca)
       .use(views.current.wikilink)
@@ -268,6 +341,7 @@ function Interno({
       .use(gatilhoSimbolos.plugin)
       .use(gatilhoBlocos.plugin)
       .use(gatilhoReferencias.plugin)
+      .use(gatilhoTopicos.plugin)
       // Depois do gatilho: o Tab do menu tem precedência sobre o Tab que anda
       // pelos buracos, senão escolher um símbolo pularia para o buraco errado.
       .use(navegarBuracos)
@@ -414,6 +488,14 @@ function Interno({
           itens={gatilhoReferencias.itens}
           indice={gatilhoReferencias.indice}
           onEscolher={gatilhoReferencias.escolher}
+        />
+      )}
+      {buscarTopicos && (
+        <MenuSimbolos
+          estado={gatilhoTopicos.estado}
+          itens={gatilhoTopicos.itens}
+          indice={gatilhoTopicos.indice}
+          onEscolher={gatilhoTopicos.escolher}
         />
       )}
     </>

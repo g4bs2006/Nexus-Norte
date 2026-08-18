@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import type { Editor } from '@milkdown/kit/core'
-import { editorViewCtx } from '@milkdown/kit/core'
+import { editorViewCtx, parserCtx } from '@milkdown/kit/core'
+import { Fragment } from '@milkdown/kit/prose/model'
 import { TextSelection } from '@milkdown/kit/prose/state'
 import {
   aplicarComando,
@@ -34,6 +35,20 @@ export interface FonteItens {
 export type ResultadoEscolha =
   | { tipo: 'inserir'; texto: string; buracos: number[] }
   /**
+   * Markdown parseado pelo pipeline do editor, e inserido como NÓ.
+   *
+   * É como toda sintaxe do dialeto deve entrar — `[[menção]]`, `#tópico`, e o
+   * que vier depois. `inserir` grava TEXTO, e texto que se parece com sintaxe
+   * não é sintaxe: o menu de menções devolvia `[[slug]]` por ali, o
+   * `insertText` não dispara parse nenhum, e o serializer então escapava o que
+   * via como colchete solto (`\[\[slug]]`). A menção sumia de `links_nota` ao
+   * salvar, que é o mesmo bug que o dialeto tinha sido escrito para matar.
+   *
+   * Passando pelo `parserCtx`, o que o menu insere é por construção idêntico ao
+   * que o arquivo produz ao ser reaberto — não há dois caminhos para divergir.
+   */
+  | { tipo: 'markdown'; texto: string }
+  /**
    * Vira um nó de fórmula, já renderizado.
    *
    * Existe porque texto cru NÃO renderiza: as input rules do `plugin-math` só
@@ -62,7 +77,7 @@ export function useGatilho(
   gatilho: string,
   fonte: FonteItens,
   obterEditor: () => Editor | undefined,
-  opcoes: { apenasInicioDeLinha?: boolean } = {},
+  opcoes: { apenasInicioDeLinha?: boolean; excluir?: string } = {},
 ) {
   const [estado, setEstado] = useState<EstadoGatilho | null>(null)
   const [indice, setIndice] = useState(0)
@@ -153,6 +168,38 @@ export function useGatilho(
               depois.state.tr.insertText(resultado.corpo, $from.pos),
             )
           }
+          view.focus()
+          return
+        }
+
+        if (resultado.tipo === 'markdown') {
+          const doc = ctx.get(parserCtx)(resultado.texto)
+          /*
+           * O parser devolve um documento; o que se quer é o miolo INLINE dele.
+           * Inserir o bloco inteiro empurraria um parágrafo para dentro do
+           * parágrafo onde se está escrevendo, o que o schema recusa.
+           */
+          const bloco = doc?.firstChild
+          const conteudo = bloco ? bloco.content : Fragment.empty
+          if (conteudo.size === 0) return
+
+          const transacao = view.state.tr.replaceWith(
+            posicao.de,
+            posicao.ate,
+            conteudo,
+          )
+          /*
+           * Cursor DEPOIS do que entrou, e não dentro: menção e tópico são nós
+           * atômicos, então "dentro" não existe — quem escolheu da lista quer
+           * seguir escrevendo a frase.
+           */
+          transacao.setSelection(
+            TextSelection.create(
+              transacao.doc,
+              posicao.de + conteudo.size,
+            ),
+          )
+          view.dispatch(transacao)
           view.focus()
           return
         }
@@ -257,6 +304,7 @@ export function useGatilho(
     criarGatilhoMenu({
       gatilho,
       apenasInicioDeLinha: opcoes.apenasInicioDeLinha,
+      excluir: opcoes.excluir,
       aoMudar: (novo) => {
         setEstado(novo)
         setIndice(0)

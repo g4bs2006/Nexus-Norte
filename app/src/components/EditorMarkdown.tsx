@@ -18,6 +18,7 @@ import type { FonteItens, ResultadoEscolha } from './editor/useGatilho'
 import type { EnviarImagem } from './editor/imagens'
 import type { FormulaEmEdicao } from './editor/editarFormula'
 import { filtrarEscrita, CATALOGO_ESCRITA } from './editor/catalogoEscrita'
+import type { ItemMenu } from './editor/MenuSimbolos'
 
 const EditorRico = lazy(() => import('./EditorMarkdownRico'))
 const EditorDesenho = lazy(() => import('./EditorDesenho'))
@@ -65,6 +66,8 @@ export interface EditorMarkdownProps {
    * `[[` volta a ser texto comum, que continua virando link ao salvar.
    */
   buscarReferencias?: (termo: string) => Promise<Referencia[]>
+  /** Os tópicos que o `#` oferece. Ver `features/notas/topicos.ts`. */
+  buscarTopicos?: (termo: string) => Promise<ItemMenu[]>
   /**
    * Grava um desenho novo e devolve o id, que vira `![[desenho:id]]`.
    *
@@ -125,6 +128,7 @@ export function EditorMarkdown({
   onChange,
   placeholder,
   buscarReferencias,
+  buscarTopicos,
   onSalvarDesenho,
   renderizarBloco,
   renderizarDesenho,
@@ -258,6 +262,7 @@ export function EditorMarkdown({
           slugExiste={slugExiste}
           enviarImagem={enviarImagem}
           buscarReferencias={buscarReferencias}
+          buscarTopicos={buscarTopicos}
         />
       </Suspense>
     </div>

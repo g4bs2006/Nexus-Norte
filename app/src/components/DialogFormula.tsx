@@ -11,35 +11,20 @@ import {
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { Formula } from './Formula'
+import { simbolosRapidos } from './editor/catalogoSimbolos'
 import type { CampoMatematicoHandle } from './CampoMatematico'
 
 const CampoMatematico = lazy(() => import('./CampoMatematico'))
 
-const SIMBOLOS_GREGOS = [
-  { rotulo: 'α', latex: '\\alpha' },
-  { rotulo: 'β', latex: '\\beta' },
-  { rotulo: 'γ', latex: '\\gamma' },
-  { rotulo: 'δ', latex: '\\delta' },
-  { rotulo: 'ε', latex: '\\epsilon' },
-  { rotulo: 'θ', latex: '\\theta' },
-  { rotulo: 'λ', latex: '\\lambda' },
-  { rotulo: 'μ', latex: '\\mu' },
-  { rotulo: 'π', latex: '\\pi' },
-  { rotulo: 'σ', latex: '\\sigma' },
-  { rotulo: 'ω', latex: '\\omega' },
-  { rotulo: 'Δ', latex: '\\Delta' },
-  { rotulo: 'Ω', latex: '\\Omega' },
-]
-
-const SIMBOLOS_OPERADORES = [
-  { rotulo: '∞', latex: '\\infty' },
-  { rotulo: '∂', latex: '\\partial' },
-  { rotulo: '√', latex: '\\sqrt{#?}' },
-  { rotulo: '∫', latex: '\\int_{#?}^{#?}' },
-  { rotulo: '∑', latex: '\\sum_{#?}^{#?}' },
-  { rotulo: '≈', latex: '\\approx' },
-  { rotulo: '≠', latex: '\\neq' },
-]
+/*
+ * A barra sai do catálogo único, e não de uma lista própria.
+ *
+ * Ela era a terceira cópia — havia esta, a do `//` e a do `Tab`, e as três
+ * discordavam sobre quais símbolos existem. Agora `rapido` marca no catálogo o
+ * que aparece aqui, e um símbolo novo entra nos três caminhos de uma vez.
+ */
+const SIMBOLOS_GREGOS = simbolosRapidos('grega')
+const SIMBOLOS_OPERADORES = simbolosRapidos('operador')
 
 /** Uma tecla a digitar, na linha de dicas. */
 function Atalho({ children }: { children: string }) {
@@ -155,23 +140,23 @@ export function DialogFormula({
             <span className="text-[11px] font-medium text-muted-foreground mr-1">Gregas:</span>
             {SIMBOLOS_GREGOS.map((s) => (
               <button
-                key={s.rotulo}
+                key={s.gatilho}
                 type="button"
                 className="h-6 px-1.5 min-w-6 rounded-md bg-muted/80 hover:bg-primary hover:text-primary-foreground text-xs font-mono transition-all flex items-center justify-center border border-border/40 cursor-pointer shadow-2xs"
                 onClick={() => campoRef.current?.inserir(s.latex)}
               >
-                {s.rotulo}
+                {s.amostra}
               </button>
             ))}
             <span className="text-[11px] font-medium text-muted-foreground ml-2 mr-1">Operadores:</span>
             {SIMBOLOS_OPERADORES.map((s) => (
               <button
-                key={s.rotulo}
+                key={s.gatilho}
                 type="button"
                 className="h-6 px-1.5 min-w-6 rounded-md bg-muted/80 hover:bg-primary hover:text-primary-foreground text-xs font-mono transition-all flex items-center justify-center border border-border/40 cursor-pointer shadow-2xs"
                 onClick={() => campoRef.current?.inserir(s.latex)}
               >
-                {s.rotulo}
+                {s.amostra}
               </button>
             ))}
           </div>

@@ -8,7 +8,17 @@
  *
  * O conteúdo da nota é Markdown com quatro construções próprias:
  * `$math$`, cerca ```plot, cerca ```mermaid e `![[desenho:uuid]]`.
+ *
+ * As regexes do dialeto vêm de `components/editor/gramatica.ts` — a mesma
+ * definição que o parser do editor usa. Estavam duplicadas aqui e lá, e foi a
+ * divergência entre as cópias que apagou menções e tópicos ao salvar.
  */
+
+import {
+  RE_DESENHO,
+  RE_TOPICO,
+  RE_WIKILINK as RE_LINK,
+} from '@/components/editor/gramatica'
 
 /** Tópico marcado no texto, como a tabela `topicos` o guarda. */
 export type TopicoCitado = {
@@ -349,21 +359,6 @@ export function renomearLinks(
 // =============================================================================
 // Leitura dos wikilinks
 // =============================================================================
-
-/** `[[alvo]]` ou `[[alvo|texto exibido]]`, exceto o embed `![[...]]`. */
-const RE_LINK = /(!?)\[\[([^[\]|\n]+)(?:\|([^[\]\n]*))?\]\]/g
-
-/**
- * `#topico`, só depois de início de texto ou espaço.
- *
- * O lookbehind é o que impede `http://exemplo/pagina#secao` de virar tópico —
- * âncora de URL não é vocabulário.
- */
-const RE_TOPICO = /(?<=^|\s)#([\p{L}\p{N}_-]+)/gu
-
-/** `![[desenho:uuid]]`. O uuid é validado aqui, não depois. */
-const RE_DESENHO =
-  /!\[\[desenho:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\]\]/gi
 
 function lerLinks(conteudo: string): LinkLocalizado[] {
   const mascarado = mascarar(conteudo)

@@ -2,6 +2,21 @@ import { $markSchema, $nodeSchema, $remark } from '@milkdown/kit/utils'
 import { findAndReplace } from 'mdast-util-find-and-replace'
 import type { Data, PhrasingContent, Root } from 'mdast'
 import type { Processor } from 'unified'
+/*
+ * As regexes vêm de `gramatica.ts`, e não daqui.
+ *
+ * Elas viviam duplicadas entre este arquivo e `features/notas/markdown.ts`,
+ * byte a byte iguais — o que parecia coordenação e era coincidência. Quando o
+ * editor passou a emitir `\[\[slug]]` e `\#topico`, só um dos lados soube.
+ */
+import {
+  escreverTopico,
+  escreverWikilink,
+  RE_ALVO_DESENHO,
+  RE_DESTAQUE,
+  RE_TOPICO,
+  RE_WIKILINK as RE_DIALETO,
+} from './gramatica'
 
 /**
  * O dialeto de Markdown do editor: `[[wikilink]]` e `![[desenho:uuid]]`.
@@ -28,22 +43,6 @@ import type { Processor } from 'unified'
  */
 
 /**
- * `==destaque==`.
- *
- * Markdown não tem cor, e é por isso que existe assim. Guardar cor exigiria
- * `<span style>`, e aí o `.md` exportado deixaria de ser Markdown legível —
- * derrubando o argumento que sustentou Milkdown, a exportação e a busca. Um
- * marca-texto resolve o caso real ("isto cai na prova") e o Obsidian já lê.
- */
-const RE_DESTAQUE = /==([^=\n]+)==/g
-
-/** `[[alvo]]`, `[[alvo|texto]]` e `![[desenho:uuid]]`, num casamento só. */
-const RE_DIALETO = /(!?)\[\[([^[\]|\n]+)(?:\|([^[\]\n]*))?\]\]/g
-
-/** Só uuid bem formado vira desenho; o resto é texto, como na camada pura. */
-const RE_DESENHO = /^desenho:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i
-
-/**
  * Nó mdast do wikilink. Não é `link` do CommonMark de propósito: `link` tem
  * `url`, e um wikilink aponta para um slug que pode ainda não existir.
  */
@@ -66,6 +65,25 @@ interface NoDestaque {
   data?: Data
 }
 
+/**
+ * `#topico` — vocabulário derivado do conteúdo.
+ *
+ * É nó pelo mesmo motivo que o wikilink é: como texto solto, o remark escapa a
+ * cerquilha no início de linha (`\#regra-da-cadeia`, medido) para que ela não
+ * seja relida como heading. `extrairTopicos` então não achava mais o tópico, e
+ * a marcação sumia de `topicos` — silenciosamente, e só quando a hashtag abria
+ * o parágrafo, que é o caso mais comum de todos.
+ *
+ * Tolerar `\#` no extrator resolveria o sintoma e deixaria `\#` no `.md`
+ * exportado, derrubando o argumento (Markdown legível como fonte de verdade)
+ * que escolheu o Milkdown, a exportação e a busca.
+ */
+interface NoTopico {
+  type: 'topico'
+  slug: string
+  data?: Data
+}
+
 /*
  * Declara os dois nós para o mdast.
  *
@@ -79,11 +97,13 @@ declare module 'mdast' {
     wikilink: NoWikilink
     desenho: NoDesenho
     destaque: NoDestaque
+    topico: NoTopico
   }
   interface RootContentMap {
     wikilink: NoWikilink
     desenho: NoDesenho
     destaque: NoDestaque
+    topico: NoTopico
   }
 }
 
@@ -103,9 +123,9 @@ export function remarkDialeto(this: Processor): (arvore: Root) => void {
 
   extensoes.push({
     handlers: {
-      wikilink: (no: NoWikilink) =>
-        no.rotulo === null ? `[[${no.alvo}]]` : `[[${no.alvo}|${no.rotulo}]]`,
+      wikilink: (no: NoWikilink) => escreverWikilink(no.alvo, no.rotulo),
       desenho: (no: NoDesenho) => `![[desenho:${no.id}]]`,
+      topico: (no: NoTopico) => escreverTopico(no.slug),
       destaque: (
         no: NoDestaque,
         _pai: unknown,
@@ -131,7 +151,7 @@ export function remarkDialeto(this: Processor): (arvore: Root) => void {
         RE_DIALETO,
         (_todo: string, bang: string, alvo: string, rotulo?: string) => {
           if (bang === '!') {
-            const achado = RE_DESENHO.exec(alvo.trim())
+            const achado = RE_ALVO_DESENHO.exec(alvo.trim())
             // `![[qualquer-coisa]]` que não seja desenho volta a ser texto.
             if (!achado) return false
             const no: NoDesenho = {
@@ -145,6 +165,19 @@ export function remarkDialeto(this: Processor): (arvore: Root) => void {
             alvo: alvo.trim(),
             rotulo: rotulo ?? null,
           }
+          return no
+        },
+      ],
+      [
+        RE_TOPICO,
+        (_todo: string, marcacao: string) => {
+          /*
+           * Precisa de ao menos uma letra, senão `#2` numa enumeração viraria
+           * vocabulário. Mesma regra de `extrairTopicos`, e agora lendo a mesma
+           * regex — é o ponto da gramática única.
+           */
+          if (!/\p{L}/u.test(marcacao)) return false
+          const no: NoTopico = { type: 'topico', slug: marcacao }
           return no
         },
       ],
@@ -245,6 +278,50 @@ export const desenhoSchema = $nodeSchema('desenho', () => ({
     runner: (state, node) => {
       state.addNode('desenho', undefined, undefined, {
         id: node.attrs.id as string,
+      })
+    },
+  },
+}))
+
+/**
+ * O tópico no editor.
+ *
+ * `atom: true` pela mesma razão do wikilink: o slug é a identidade, e deixar o
+ * cursor entrar no meio dele permitiria quebrar `regra-da-cadeia` ao meio e
+ * criar dois tópicos que ninguém quis. Editar um tópico é trocá-lo inteiro.
+ */
+export const topicoSchema = $nodeSchema('topico', () => ({
+  group: 'inline',
+  inline: true,
+  atom: true,
+  selectable: true,
+  attrs: { slug: { default: '' } },
+  parseDOM: [
+    {
+      tag: 'a[data-topico]',
+      getAttrs: (dom) => ({ slug: (dom as HTMLElement).dataset.topico ?? '' }),
+    },
+  ],
+  toDOM: (node) => [
+    'a',
+    {
+      'data-topico': node.attrs.slug as string,
+      class: 'topico',
+      href: `/notas?topico=${node.attrs.slug as string}`,
+    },
+    escreverTopico(node.attrs.slug as string),
+  ],
+  parseMarkdown: {
+    match: ({ type }) => type === 'topico',
+    runner: (state, node, type) => {
+      state.addNode(type, { slug: (node as unknown as NoTopico).slug })
+    },
+  },
+  toMarkdown: {
+    match: (node) => node.type.name === 'topico',
+    runner: (state, node) => {
+      state.addNode('topico', undefined, undefined, {
+        slug: node.attrs.slug as string,
       })
     },
   },
