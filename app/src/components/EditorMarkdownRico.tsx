@@ -31,6 +31,7 @@ import { MenuSimbolos, type ItemMenu } from './editor/MenuSimbolos'
 import { MenuReferencias } from './editor/MenuReferencias'
 import { navegarBuracos } from './editor/buracos'
 import { escreverTopico, escreverWikilink } from './editor/gramatica'
+import { colarFormula } from './editor/colarFormula'
 import { realceCodigo } from './editor/realce'
 import { tabNaoEscapa } from './editor/tabNaoEscapa'
 import { tipografia } from './editor/tipografia'
@@ -401,6 +402,8 @@ function Interno({
       .use(travado.current ? [] : pluginEditarFormula.current)
       // Antes de navegarBuracos: dentro da fórmula, Enter sai; Tab anda.
       .use(travado.current ? [] : sairDaFormula)
+      // Colar LaTeX é escrita: fora do modo travado, como todo o resto daqui.
+      .use(travado.current ? [] : colarFormula)
       // Depois dos presets: as regras de tipografia não competem com nenhuma
       // input rule do commonmark, mas a ordem deixa isso explícito.
       .use(travado.current ? [] : tipografia)

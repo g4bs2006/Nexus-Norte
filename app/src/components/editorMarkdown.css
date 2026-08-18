@@ -835,6 +835,63 @@
 }
 
 /*
+ * O botão de copiar a fórmula.
+ *
+ * Só no hover, e pequeno: uma nota de estudo tem fórmula em quase todo
+ * parágrafo, e um botão permanente em cada uma seria a mesma mancha que o fundo
+ * colorido daqui já foi.
+ *
+ * `position: absolute` e não item do flex: como item, ele entraria no cálculo
+ * de largura e a fórmula EMPURRARIA a linha ao aparecer — o texto dançaria a
+ * cada passada do mouse. Ancorado no `.formula-viva`, que por isso é
+ * `position: relative`, ele flutua sem custar espaço.
+ */
+.editor-markdown .formula-viva {
+    position: relative;
+}
+
+.editor-markdown .formula-copiar {
+    position: absolute;
+    right: -0.15em;
+    top: -0.9em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.1rem;
+    height: 1.1rem;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--popover);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    opacity: 0;
+    /* Invisível não deve interceptar clique destinado ao texto atrás dele. */
+    pointer-events: none;
+    transition: opacity 120ms ease, color 120ms ease;
+}
+
+.editor-markdown .formula-viva:hover .formula-copiar,
+.editor-markdown .formula-viva.formula-editando .formula-copiar {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.editor-markdown .formula-copiar svg {
+    width: 0.65rem;
+    height: 0.65rem;
+}
+
+.editor-markdown .formula-copiar:hover {
+    color: var(--foreground);
+}
+
+/* Confirmação sem toast, igual à do bloco de código. */
+.editor-markdown .formula-copiar[data-copiado='sim'] {
+    color: var(--cod-string);
+}
+
+/*
  * Fórmula de bloco (`$$...$$`). É o nó `math_block` do `plugin-math`, sem
  * node view próprio neste app — por isso o seletor é o `data-type` que o
  * pacote já escreve no `<div>`, e não uma classe nossa.

@@ -6,6 +6,7 @@ import { Decoration, DecorationSet } from '@milkdown/kit/prose/view'
 import type { NodeView } from '@milkdown/kit/prose/view'
 import type { Node } from '@milkdown/kit/prose/model'
 import type { SerializerState } from '@milkdown/kit/transformer'
+import { ICONE_COPIAR, ICONE_OK } from './icones'
 
 /**
  * Fórmula que se escreve por dentro, vendo o resultado.
@@ -130,9 +131,50 @@ export const viewMatematica = $view(mathInlineSchema.node, () => (node) => {
   const fonte = document.createElement('span')
   fonte.className = 'formula-viva-fonte'
 
-  dom.append(previa, fonte)
+  /*
+   * Copiar a fórmula precisa de um BOTÃO, e não do `Ctrl+C` de sempre.
+   *
+   * O nó é `selectable: false` (ver a extensão acima) — é o que permite escrever
+   * dentro dele com o `//` e o `Tab`, e o que custou duas tentativas descobrir.
+   * O preço é que não existe "clicar na fórmula e copiar": só arrastar uma
+   * seleção de texto por cima, e a prévia do KaTeX é `contentEditable="false"`,
+   * então o navegador nem estende a seleção por ali com naturalidade.
+   *
+   * O botão contorna isso sem desfazer a troca: copia o `$latex$`, que é a
+   * mesma forma que o Markdown salvo tem — e que `colarFormula` sabe reconhecer
+   * de volta, venha do próprio arquivo ou de fora.
+   */
+  const copiar = document.createElement('button')
+  copiar.type = 'button'
+  copiar.className = 'formula-copiar'
+  copiar.title = 'Copiar fórmula'
+  copiar.setAttribute('aria-label', 'Copiar fórmula')
+  copiar.contentEditable = 'false'
+  copiar.innerHTML = ICONE_COPIAR
+  /* Sem isto o clique move o cursor para fora da fórmula que se quer copiar. */
+  copiar.addEventListener('mousedown', (evento) => evento.preventDefault())
+
+  dom.append(previa, fonte, copiar)
+
+  /** O LaTeX de AGORA: `node` é o da montagem e envelhece a cada tecla. */
+  let latexAtual = node.textContent
+  let voltarIcone: ReturnType<typeof setTimeout> | null = null
+
+  copiar.addEventListener('click', () => {
+    void navigator.clipboard.writeText(`$${latexAtual}$`).then(() => {
+      copiar.innerHTML = ICONE_OK
+      copiar.dataset.copiado = 'sim'
+      if (voltarIcone) clearTimeout(voltarIcone)
+      voltarIcone = setTimeout(() => {
+        copiar.innerHTML = ICONE_COPIAR
+        delete copiar.dataset.copiado
+      }, 1400)
+    })
+  })
 
   function desenhar(latex: string) {
+    latexAtual = latex
+
     /*
      * `throwOnError: false` porque LaTeX pela metade é o estado NORMAL de quem
      * está digitando — `\frac{` existe por um instante em toda fração escrita.
@@ -170,6 +212,10 @@ export const viewMatematica = $view(mathInlineSchema.node, () => (node) => {
      * no elemento RAIZ, que não está dentro da prévia e também não é edição.
      */
     ignoreMutation: (mutacao) => !fonte.contains(mutacao.target),
+    /* O timer sobreviveria à fórmula e escreveria num botão já removido. */
+    destroy: () => {
+      if (voltarIcone) clearTimeout(voltarIcone)
+    },
   }
   return view
 })

@@ -1,4 +1,5 @@
 import { LINGUAGENS, filtrarLinguagens, rotularInfo, type Linguagem } from './linguagens'
+import { ICONE_COPIAR, ICONE_OK, ICONE_QUEBRA } from './icones'
 
 /**
  * O cabeçalho da cerca de código: linguagem, copiar, quebra de linha.
@@ -20,14 +21,6 @@ import { LINGUAGENS, filtrarLinguagens, rotularInfo, type Linguagem } from './li
  * body`, e não dentro do bloco. Dentro, o `overflow-x: auto` do `<pre>` a
  * cortaria — o mesmo motivo pelo qual `MenuSimbolos` é `fixed`.
  */
-
-/** Ícones inline: dois `path`, contra a alternativa de montar React por eles. */
-const ICONE_COPIAR =
-  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
-const ICONE_OK =
-  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
-const ICONE_QUEBRA =
-  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M3 12h13a3 3 0 0 1 0 6h-4"/><path d="m14 15-2 3 2 3"/><path d="M3 18h4"/></svg>'
 
 export interface CabecalhoCerca {
   elemento: HTMLElement
