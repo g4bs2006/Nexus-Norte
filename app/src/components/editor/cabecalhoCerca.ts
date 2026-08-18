@@ -43,6 +43,22 @@ interface Opcoes {
   /** Lido na hora do clique: o texto do bloco muda entre montar e copiar. */
   lerCodigo: () => string
   aoAlternarQuebra: (quebrar: boolean) => void
+  /**
+   * Devolve o foco ao editor. **Não é cortesia, é o que mantém o editor vivo.**
+   *
+   * O campo de busca do seletor tira o foco do ProseMirror para poder receber a
+   * digitação. Quando o seletor fecha, o `<input>` sai do DOM e o foco cai no
+   * `body` — e a partir dali o ProseMirror não recebe mais `keydown` nenhum:
+   * Enter para de quebrar linha, as letras param de entrar, tudo morre até se
+   * clicar de volta no texto.
+   *
+   * Escolher uma linguagem já devolvia o foco por outro caminho
+   * (`aoTrocarLinguagem` chama `view.focus()`), e era isso que fazia o defeito
+   * parecer aleatório: quem escolhia saía com cor E com o editor funcionando;
+   * quem desistia com Escape, clicava fora ou apenas ROLAVA a nota com o
+   * seletor aberto saía sem cor e sem editor.
+   */
+  devolverFoco: () => void
 }
 
 export function criarCabecalhoCerca(opcoes: Opcoes): CabecalhoCerca {
@@ -53,6 +69,20 @@ export function criarCabecalhoCerca(opcoes: Opcoes): CabecalhoCerca {
    * ProseMirror passa a ter que decidir o que é uma seleção dentro de um botão.
    */
   elemento.contentEditable = 'false'
+
+  /*
+   * Nenhum clique no cabeçalho mexe na seleção do editor.
+   *
+   * O cabeçalho é `contentEditable="false"` e mora logo acima da primeira linha
+   * do código — mira-se na linha e acerta-se ele. Sem esta guarda o ProseMirror
+   * lê o clique como seleção do NÓ inteiro, e com um nó selecionado o `Enter`
+   * não tem parágrafo de código onde inserir a quebra: o `newlineInCode` recusa,
+   * o `splitBlock` assume e nasce um bloco novo em vez de uma linha nova.
+   *
+   * Os botões já se defendiam um a um; a faixa vazia entre eles, não. Vale para
+   * o `mousedown` porque é ele que move a seleção — o `click` chega tarde.
+   */
+  elemento.addEventListener('mousedown', (evento) => evento.preventDefault())
 
   /* ---- chip da linguagem ------------------------------------------------- */
 
@@ -130,14 +160,37 @@ export function criarCabecalhoCerca(opcoes: Opcoes): CabecalhoCerca {
   let indice = 0
   let filtradas: Linguagem[] = [...LINGUAGENS]
 
-  function fechar() {
-    lista?.remove()
+  /**
+   * Fecha o seletor e devolve o foco ao editor.
+   *
+   * `devolver` só é `false` na destruição da node view: ali o editor pode estar
+   * sendo desmontado junto, e pedir foco para uma view morta não tem destino.
+   *
+   * A devolução é condicionada a o foco estar mesmo AQUI dentro. Sem essa
+   * guarda, fechar por clique fora roubaria o foco de onde o usuário acabou de
+   * clicar — outro bloco, a barra lateral, o campo de título.
+   */
+  function fechar(devolver = true) {
+    if (!lista) return
+
+    const tinhaOFoco = lista.contains(document.activeElement)
+
+    lista.remove()
     lista = null
     chip.setAttribute('aria-expanded', 'false')
     document.removeEventListener('mousedown', aoClicarFora, true)
-    window.removeEventListener('scroll', fechar, true)
-    window.removeEventListener('resize', fechar)
+    window.removeEventListener('scroll', aoRolar, true)
+    window.removeEventListener('resize', aoRolar)
+
+    if (devolver && tinhaOFoco) opcoes.devolverFoco()
   }
+
+  /*
+   * Envelopado porque `fechar` tem parâmetro: passá-lo direto como listener
+   * faria o `Event` chegar como `devolver` — inofensivo hoje (todo Event é
+   * truthy), e uma armadilha no dia em que o padrão do parâmetro mudar.
+   */
+  const aoRolar = () => fechar()
 
   function aoClicarFora(evento: MouseEvent) {
     const alvo = evento.target as globalThis.Node | null
@@ -241,8 +294,8 @@ export function criarCabecalhoCerca(opcoes: Opcoes): CabecalhoCerca {
     /* `capture`, para fechar antes de o clique virar seleção no editor. */
     document.addEventListener('mousedown', aoClicarFora, true)
     /* Rolar move o chip e a lista ficaria órfã no meio da tela. */
-    window.addEventListener('scroll', fechar, true)
-    window.addEventListener('resize', fechar)
+    window.addEventListener('scroll', aoRolar, true)
+    window.addEventListener('resize', aoRolar)
   }
 
   chip.addEventListener('mousedown', (evento) => {
@@ -258,7 +311,8 @@ export function criarCabecalhoCerca(opcoes: Opcoes): CabecalhoCerca {
     },
     destruir: () => {
       if (voltarIcone) clearTimeout(voltarIcone)
-      fechar()
+      /* Sem devolver o foco: a view está indo embora, e não há para onde. */
+      fechar(false)
     },
   }
 }

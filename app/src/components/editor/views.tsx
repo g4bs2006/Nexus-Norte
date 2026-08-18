@@ -102,6 +102,7 @@ export function criarViewCerca(renderizar: RenderizarBloco, editavel: boolean) {
     const cabecalho = criarCabecalhoCerca({
       editavel,
       lerCodigo: () => codigo ?? '',
+      devolverFoco: () => view.focus(),
       aoAlternarQuebra: (quebrar) => {
         dom.dataset.quebra = quebrar ? 'sim' : 'nao'
       },
