@@ -89,7 +89,7 @@ import {
 import { MiniCard } from '@/features/home/componentes/MiniCard'
 import { AvisoTreinoAberto } from '@/features/treino/componentes/AvisoTreinoAberto'
 import { IndicadorSono } from '@/features/home/componentes/IndicadorSono'
-import { SecaoMetasHome } from '@/features/metas/componentes/SecaoMetasHome'
+import { SecaoMetas } from '@/features/metas/componentes/SecaoMetas'
 import { CardNotificacoes } from '@/features/notificacoes/componentes/CardNotificacoes'
 
 const EVENTOS_NA_HOME = 5
@@ -371,14 +371,15 @@ export default function HomePage() {
   /**
    * Metas que pediram lugar nos checks do dia (`no_check_diario`).
    *
-   * Qual booleano representa "feito hoje" depende do tipo: hábito tem check-in
-   * por data (reseta todo dia), marco e livre têm a coluna `concluida` (uma vez
-   * só). Numérica não entra — o banco recusa `no_check_diario` nela, mas o
-   * filtro é explícito para não depender disso na leitura.
+   * São dois booleanos diferentes e não intercambiáveis: `metas_checkins.feito`
+   * é o dia (reseta todo dia) e `metas.concluida` é a meta (uma vez só). Marcar
+   * o check de hoje **não** conclui a meta — ela continua listada amanhã, que é
+   * o ponto de um hábito.
    *
-   * Concluído continua listado, não sai da lista: se marcar fizesse o item
-   * desaparecer, o denominador do placar encolheria no meio do dia e "2 de 4"
-   * viraria "2 de 3" sem nada ter mudado de verdade.
+   * Meta concluída sai da lista, porém: encerrar é definitivo e o próprio
+   * diálogo de encerramento promete isso ("ela sai da lista de checks do topo").
+   * O placar encolhe junto, e está certo — o item deixou de ser cobrado, não foi
+   * cumprido no dia.
    */
   const metasDoDia = useMemo(() => {
     const feitosHoje = new Set(
@@ -703,7 +704,7 @@ export default function HomePage() {
         </Card>
 
         {/* Seção de Metas Reestruturada por Categorias */}
-        <SecaoMetasHome hoje={hoje} />
+        <SecaoMetas hoje={hoje} />
 
         <CardNotificacoes />
 

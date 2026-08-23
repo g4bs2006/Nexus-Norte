@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import type { TablesUpdate } from '@/types/database'
+import type { AtualizacaoOrdem } from './ordenacao'
 import type { CategoriaMeta, Meta, MetaCheckin } from './types'
 
 function lancarSeErro<T>(resultado: {
@@ -19,7 +20,7 @@ export async function listarCategoriasMetas(): Promise<CategoriaMeta[]> {
     .select('*')
     .order('ordem', { ascending: true })
     .order('criada_em', { ascending: true })
-  return (resultado.data ?? []) as CategoriaMeta[]
+  return lancarSeErro(resultado) as CategoriaMeta[]
 }
 
 export async function criarCategoriaMeta(dados: {
@@ -61,25 +62,46 @@ export async function listarMetas(): Promise<Meta[]> {
     .from('metas')
     .select('*')
     .order('ordem', { ascending: true })
-    .order('criada_em', { ascending: false })
-  return (resultado.data ?? []) as Meta[]
+    .order('criada_em', { ascending: true })
+  return lancarSeErro(resultado) as Meta[]
 }
 
+/**
+ * Grava as novas posições calculadas em `ordenacao.ts`.
+ *
+ * `Promise.all` é seguro aqui porque cada item toca uma linha diferente, mas o
+ * cliente do Supabase **não rejeita** em erro de update — devolve `{ error }`. A
+ * versão anterior descartava esses objetos e um reorder recusado pelo banco
+ * passava por bem-sucedido: a lista voltava ao lugar no próximo refetch, sem
+ * nenhum aviso.
+ */
 export async function reordenarMetas(
-  itens: { id: string; ordem: number; categoria_meta_id?: string | null }[],
+  itens: AtualizacaoOrdem[],
 ): Promise<void> {
-  const updates = itens.map((item) => {
-    const payload: { ordem: number; categoria_meta_id?: string | null } = {
-      ordem: item.ordem,
-    }
-    if (item.categoria_meta_id !== undefined) {
-      payload.categoria_meta_id = item.categoria_meta_id
-    }
-    return supabase.from('metas').update(payload).eq('id', item.id)
-  })
-  await Promise.all(updates)
+  if (itens.length === 0) return
+
+  const resultados = await Promise.all(
+    itens.map((item) => {
+      const payload: { ordem: number; categoria_meta_id?: string | null } = {
+        ordem: item.ordem,
+      }
+      if (item.categoria_meta_id !== undefined) {
+        payload.categoria_meta_id = item.categoria_meta_id
+      }
+      return supabase.from('metas').update(payload).eq('id', item.id)
+    }),
+  )
+
+  const falha = resultados.find((resultado) => resultado.error)
+  if (falha?.error) throw new Error(falha.error.message)
 }
 
+/**
+ * `ordem` vem do chamador porque a posição é relativa à categoria escolhida, e
+ * só o cliente já tem a lista em mão para saber onde é o fim dela. Sem isso a
+ * meta nasce com o default do banco (`0`) e aparece empatada com a primeira da
+ * categoria, em posição imprevisível.
+ */
 export async function criarMeta(dados: {
   titulo: string
   descricao?: string | null
@@ -87,6 +109,7 @@ export async function criarMeta(dados: {
   pilar?: string | null
   data_alvo?: string | null
   no_check_diario?: boolean
+  ordem?: number
 }): Promise<void> {
   const { error } = await supabase.from('metas').insert(dados)
   if (error) throw new Error(error.message)

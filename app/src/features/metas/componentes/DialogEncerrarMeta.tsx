@@ -17,6 +17,11 @@ interface DialogEncerrarMetaProps {
   onOpenChange: (aberto: boolean) => void
 }
 
+/**
+ * Confirmação de encerramento definitivo, no mesmo formato de
+ * `DialogConfirmarExclusao`: `DialogContent` sem override, cancelar em
+ * `outline`, e o rótulo do botão dizendo o que vai acontecer.
+ */
 export function DialogEncerrarMeta({
   meta,
   aberto,
@@ -31,41 +36,36 @@ export function DialogEncerrarMeta({
 
   return (
     <Dialog open={aberto} onOpenChange={onOpenChange}>
-      <DialogContent className="border-border/80 max-w-md shadow-2xl backdrop-blur-xl">
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-foreground flex items-center gap-2 text-base">
-            <CheckCircle2 className="size-5 text-emerald-500" />
-            <span>Encerrar Meta Definitivamente</span>
+          <DialogTitle className="flex items-center gap-2">
+            <CheckCircle2 className="text-status-ok size-5 shrink-0" />
+            <span>Encerrar meta</span>
           </DialogTitle>
-          <DialogDescription className="text-muted-foreground pt-1 text-xs">
-            Deseja marcar a meta{' '}
-            <strong className="text-foreground">"{meta.titulo}"</strong> como
-            concluída?
+          <DialogDescription>
+            Marcar <strong className="text-foreground">{meta.titulo}</strong>{' '}
+            como concluída?
             {meta.no_check_diario && (
-              <span className="block pt-1 font-medium text-emerald-600/90 dark:text-emerald-400">
-                Ela deixará de aparecer na lista de checks do topo e permanecerá
-                armazenada como concluída no seu painel de metas.
+              <span className="block pt-2">
+                Ela sai da lista de checks do topo e fica guardada como
+                concluída no painel de metas.
               </span>
             )}
           </DialogDescription>
         </DialogHeader>
-        <DialogFooter className="gap-2 pt-2">
+        <DialogFooter>
           <Button
-            type="button"
-            variant="ghost"
-            size="sm"
+            variant="outline"
             onClick={() => onOpenChange(false)}
+            disabled={encerrar.isPending}
           >
             Cancelar
           </Button>
           <Button
-            type="button"
-            size="sm"
-            className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+            onClick={() => void confirmar()}
             disabled={encerrar.isPending}
-            onClick={confirmar}
           >
-            <span>Concluir Meta</span>
+            {encerrar.isPending ? 'Encerrando…' : 'Encerrar meta'}
           </Button>
         </DialogFooter>
       </DialogContent>

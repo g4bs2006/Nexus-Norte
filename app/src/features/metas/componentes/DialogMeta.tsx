@@ -30,7 +30,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useAtualizarMeta, useCategoriasMetas, useCriarMeta } from '../hooks'
+import {
+  useAtualizarMeta,
+  useCategoriasMetas,
+  useCriarMeta,
+  useMetas,
+} from '../hooks'
+import { metasDaCategoria } from '../ordenacao'
 import { schemaMeta, textoOuNulo, type FormularioMeta } from '../schemas'
 import { ROTULOS_PILAR, type Meta, type PilarMeta } from '../types'
 
@@ -67,6 +73,8 @@ export function DialogMeta({
   const criar = useCriarMeta()
   const atualizar = useAtualizarMeta()
   const { data: categorias } = useCategoriasMetas()
+  // Já em cache pelo painel; usado só para saber o fim da categoria escolhida.
+  const { data: metas } = useMetas()
 
   const form = useForm<FormularioMeta>({
     resolver: zodResolver(schemaMeta),
@@ -105,7 +113,12 @@ export function DialogMeta({
     if (modoEdicao && meta) {
       await atualizar.mutateAsync({ id: meta.id, dados: limpo })
     } else {
-      await criar.mutateAsync(limpo)
+      // Meta nova entra no fim da categoria escolhida. Sem `ordem` explícita
+      // ela nasce com o default `0` do banco e aparece empatada com a primeira.
+      await criar.mutateAsync({
+        ...limpo,
+        ordem: metasDaCategoria(metas ?? [], limpo.categoria_meta_id).length,
+      })
     }
 
     setAberto(false)
@@ -166,7 +179,7 @@ export function DialogMeta({
                   <FormControl>
                     <Textarea
                       placeholder="Adicione observações, links ou detalhes..."
-                      className="text-xs min-h-[60px]"
+                      className="min-h-16 text-xs"
                       {...field}
                     />
                   </FormControl>
@@ -175,7 +188,7 @@ export function DialogMeta({
               )}
             />
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="categoria_meta_id"
