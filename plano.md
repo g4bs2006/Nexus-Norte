@@ -2856,3 +2856,77 @@ para um editor que não pode salvar. `ConteudoNota` foi removido.
 
 **A validar no aparelho:** seleção de texto, scroll e toque no wikilink dentro de
 um `contenteditable` travado. É o risco que sobra, e só o uso resolve.
+
+---
+
+### 10.55 Atividades: entrega com prazo ganha lugar próprio — descoberta em uso
+
+Entre prova (nota que entra na média) e lista de exercícios (registro pós-fato)
+não havia onde morar "entregar o trabalho de Sinais sexta que vem". O parente
+mais próximo, `avaliacoes`, já carrega `data` (10.14), mas é evento de **nota**,
+não de entrega — e misturar os dois bagunçaria a média e o calendário de uma vez.
+
+Nova tabela `atividades`, e a regra que organiza tudo o mais: **a nota nunca mora
+na atividade.** `avaliacao_id` é ponteiro opcional; entregar pode criar ou
+vincular uma avaliação, mas a média continua território exclusivo de
+`avaliacoes`, com o trigger `trg_atualizar_media_materia` intocado. Apagar a
+avaliação faz a entrega perder o vínculo (`on delete set null`); apagar a entrega
+nunca apaga a avaliação.
+
+**Status é derivado na leitura**, não gravado. `concluida_em` nulo = pendente
+(presença, não flag — padrão de `conclusoes_fluxograma`; preencher conclui,
+apagar reabre). "Atrasada" é calculada porque depende da passagem do tempo:
+materializar exigiria uma escrita na virada de cada dia, que é exatamente o que a
+10.9 recusa. Nenhum trigger novo, nenhum campo-resumo — contar atrasadas é
+agregação leve.
+
+**O atraso conta por dia, não por horário.** `hora_entrega` posiciona o item na
+agenda e nada mais; a virada acontece no fim do dia da `data_entrega`. Um prazo
+de 8h da manhã que passou às 9h não deixa a linha vermelha no mesmo dia, e isso é
+deliberado: quem entrega às 10h entregou.
+
+**Concluída vence atrasada** na ordem das guardas de `statusAtividade`. Entregar
+com atraso ainda é entregar, e pintar a linha de vermelho depois do fato não
+ajuda ninguém.
+
+**Período da matéria não filtra entrega.** `data_inicio`/`data_fim` cortam a
+rotina recorrente do fluxograma (10.38); entrega é data colada, como prova —
+aparece no calendário mesmo fora do semestre.
+
+`origem ('manual' | 'email')` e `fonte_url` nascem no schema sem nada que os
+preencha. A frente de trazer emails para dentro do sistema fica para depois, e
+essas duas colunas existem para que ela não custe uma migração de retrabalho.
+
+Integrações, todas lendo Estudos sem que Estudos importe ninguém: prazo sólido no
+calendário (`tipo: 'atividade'`, dentro de `TIPOS_IMPORTANTES` porque é prazo e
+não rotina, `movimento: 'entidade'` para arrastar na grade), card "Entregas" no
+hub com horizonte de duas semanas para as próximas e nenhum corte para as
+atrasadas, aba "Entregas" na matéria agrupada por status, e push um dia antes.
+Entrega concluída **continua** na agenda, marcada como `estado: 'feito'` — apagar
+o que foi entregue faria a semana parecer mais vazia do que foi.
+
+**Duas divergências do design técnico, decididas contra o documento e a favor do
+código que já existe.** O doc especificava as funções puras recebendo campos em
+camelCase (`dataEntrega`, `concluidaEm`) e `hojeISO` em toda parte; a convenção
+do arquivo é receber o tipo de domínio com as colunas em snake_case, e `Date`
+quando a função devolve contagem de dias (`proximaAvaliacao`) contra string ISO
+quando é só comparação (`dentroDoPeriodoMateria`). Foi seguida a convenção — a
+assinatura do doc não compilaria contra o próprio tipo `Atividade` que ele define.
+O doc também mandava usar estado manual no `DialogAtividade`, alegando que os
+schemas de Estudos estariam mortos; não estão — `schemaMateria` e
+`schemaFluxograma` alimentam os diálogos irmãos, e RHF + Zod é o padrão de todo
+`Dialog*` do projeto. O formulário manual é padrão das abas inline, não dos
+diálogos.
+
+**O mini-card de Estudos na Home mostra o mais urgente, não tudo.** `MiniCard`
+tem uma linha de detalhe e é compartilhado pelos cinco pilares; em vez de mudar
+o contrato dele para caber duas sub-linhas, a linha prioriza entregas atrasadas,
+depois a próxima entrega quando ela vem antes da próxima prova, depois a prova.
+Atrasada também escala o status para `atencao`.
+
+**Encontrado de passagem, e não corrigido aqui:** o CHECK de
+`notificacoes_enviadas.tipo` nunca aceitou `'investimento'`, mas
+`candidatasInvestimento` emite esse tipo desde a 10.45 — e o `insert` de dedup em
+`enviarPush` não checa `error`. A violação é engolida em silêncio, então a
+sugestão de aporte envia o push e nunca grava a linha que impediria o reenvio. É
+anterior a esta feature e precisa de migração própria.

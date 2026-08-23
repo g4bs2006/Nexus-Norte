@@ -17,6 +17,7 @@ import {
   riscoReprovacao,
 } from '@/features/estudos/calculos'
 import {
+  useAtividades,
   useAvaliacoes,
   useConfigMedia,
   useDocumentos,
@@ -28,6 +29,7 @@ import {
   useSessoesPlanejadas,
 } from '@/features/estudos/hooks'
 import { useNotasDaMateria } from '@/features/notas/hooks'
+import { AbaAtividades } from '@/features/estudos/componentes/AbaAtividades'
 import { AbaAvaliacoes } from '@/features/estudos/componentes/AbaAvaliacoes'
 import { AbaDocumentos } from '@/features/estudos/componentes/AbaDocumentos'
 import { AbaFaltas } from '@/features/estudos/componentes/AbaFaltas'
@@ -58,6 +60,7 @@ export default function MateriaDetalhePage() {
 
   const materias = useMaterias()
   const avaliacoes = useAvaliacoes()
+  const atividades = useAtividades()
   const faltas = useFaltas()
   const sessoes = useSessoes()
   const sessoesPlanejadas = useSessoesPlanejadas()
@@ -242,6 +245,7 @@ export default function MateriaDetalhePage() {
           <TabsList>
             <TabsTrigger value="notas">Notas</TabsTrigger>
             <TabsTrigger value="avaliacoes">Avaliações</TabsTrigger>
+            <TabsTrigger value="atividades">Entregas</TabsTrigger>
             <TabsTrigger value="faltas">Faltas</TabsTrigger>
             <TabsTrigger value="sessoes">Sessões</TabsTrigger>
             <TabsTrigger value="documentos">Documentos</TabsTrigger>
@@ -262,6 +266,17 @@ export default function MateriaDetalhePage() {
               materiaId={materiaId}
               avaliacoes={daMateria}
               config={configMedia}
+            />
+          </TabsContent>
+
+          <TabsContent value="atividades" className="mt-5">
+            <AbaAtividades
+              materiaId={materiaId}
+              atividades={(atividades.data ?? []).filter(
+                (atividade) => atividade.materia_id === materiaId,
+              )}
+              avaliacoes={daMateria}
+              hoje={hoje}
             />
           </TabsContent>
 

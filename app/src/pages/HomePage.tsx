@@ -47,12 +47,15 @@ import {
   useSalvarCheck,
 } from '@/features/financeiro/hooks'
 import {
+  atividadesAtrasadas,
   faltasRestantes,
   mediaProjetada,
+  proximaAtividade,
   proximaAvaliacao,
   riscoReprovacao,
 } from '@/features/estudos/calculos'
 import {
+  useAtividades,
   useAvaliacoes,
   useConclusoes,
   useDefinirConclusao,
@@ -83,6 +86,7 @@ import {
 import { useFontesCalendario } from '@/features/calendario/hooks'
 import {
   useAlternarCheckin,
+  useCategoriasMetas,
   useCheckinsDoDia,
   useMetas,
 } from '@/features/metas/hooks'
@@ -121,6 +125,7 @@ export default function HomePage() {
   // --- Estudos --------------------------------------------------------------
   const materias = useMaterias()
   const avaliacoes = useAvaliacoes()
+  const atividades = useAtividades()
   const faltas = useFaltas()
   const fluxogramaEstudos = useFluxograma()
   const conclusoes = useConclusoes(hojeISO)
@@ -145,6 +150,7 @@ export default function HomePage() {
 
   // --- Metas no check do dia ------------------------------------------------
   const metas = useMetas()
+  const categoriasMetas = useCategoriasMetas()
   const checkinsDoDia = useCheckinsDoDia(hojeISO)
   const alternarCheckin = useAlternarCheckin()
 
@@ -213,8 +219,28 @@ export default function HomePage() {
           ?.nome
       : undefined
 
-    return { total: lista.length, emRisco, proxima, nomeMateria }
-  }, [materias.data, avaliacoes.data, faltas.data, hoje])
+    /*
+     * Entregas entram no mesmo card, e não num card próprio: a pergunta do
+     * mini-card é "Estudos precisa de mim hoje?", e prazo vencido é a resposta
+     * mais urgente que esse pilar tem — mais até que média em risco, que se
+     * resolve ao longo do semestre.
+     *
+     * `MiniCard` tem uma linha de detalhe só, e é compartilhado pelos cinco
+     * pilares — em vez de mudar o contrato dele, a linha mostra o mais urgente.
+     */
+    const todasAtividades = atividades.data ?? []
+    const atrasadas = atividadesAtrasadas(todasAtividades, hojeISO)
+    const entrega = proximaAtividade(todasAtividades, hoje)
+
+    return {
+      total: lista.length,
+      emRisco,
+      proxima,
+      nomeMateria,
+      atrasadas,
+      entrega,
+    }
+  }, [materias.data, avaliacoes.data, atividades.data, faltas.data, hoje, hojeISO])
 
   const treino = useMemo(() => {
     // Cada linha de `treinos_agendados` já é um dia real — sem exceção para
@@ -380,7 +406,20 @@ export default function HomePage() {
    * diálogo de encerramento promete isso ("ela sai da lista de checks do topo").
    * O placar encolhe junto, e está certo — o item deixou de ser cobrado, não foi
    * cumprido no dia.
+   *
+   * Carrega a cor da categoria (mesma cor do filete em `SecaoMetas`) para o
+   * check aqui do topo: é o mesmo dado nos dois lugares, e sem essa cor não
+   * havia nenhuma pista visual ligando o check de "O dia" ao card da meta lá
+   * embaixo.
    */
+  const corPorCategoriaMeta = useMemo(() => {
+    const mapa = new Map<string, string>()
+    for (const categoria of categoriasMetas.data ?? []) {
+      if (categoria.cor) mapa.set(categoria.id, categoria.cor)
+    }
+    return mapa
+  }, [categoriasMetas.data])
+
   const metasDoDia = useMemo(() => {
     const feitosHoje = new Set(
       (checkinsDoDia.data ?? [])
@@ -393,8 +432,11 @@ export default function HomePage() {
       .map((meta) => ({
         meta,
         feito: feitosHoje.has(meta.id),
+        cor: meta.categoria_meta_id
+          ? corPorCategoriaMeta.get(meta.categoria_meta_id)
+          : undefined,
       }))
-  }, [metas.data, checkinsDoDia.data])
+  }, [metas.data, checkinsDoDia.data, corPorCategoriaMeta])
 
   /**
    * Contagem do dia. Inclui o check semanal só no domingo, senão o denominador
@@ -528,7 +570,7 @@ export default function HomePage() {
               )}
 
               {/* Metas com `no_check_diario` ligado */}
-              {metasDoDia.map(({ meta, feito }) => (
+              {metasDoDia.map(({ meta, feito, cor }) => (
                 <li key={meta.id}>
                   <CheckDia
                     id={`home-check-meta-${meta.id}`}
@@ -540,6 +582,7 @@ export default function HomePage() {
                         feito: marcado,
                       })
                     }}
+                    {...(cor ? { cor } : {})}
                   >
                     {meta.titulo}
                   </CheckDia>
@@ -585,7 +628,13 @@ export default function HomePage() {
             icone={GraduationCap}
             classeCor="text-estudos"
             rota="/estudos"
-            status={estudos.emRisco.length > 0 ? 'risco' : 'ok'}
+            status={
+              estudos.emRisco.length > 0
+                ? 'risco'
+                : estudos.atrasadas > 0
+                  ? 'atencao'
+                  : 'ok'
+            }
             valor={
               estudos.total === 0
                 ? '—'
@@ -596,13 +645,23 @@ export default function HomePage() {
             detalhe={
               estudos.total === 0
                 ? 'sem matérias'
-                : estudos.proxima
-                  ? `${estudos.proxima.avaliacao.nome} em ${
-                      estudos.proxima.dias === 0
-                        ? 'hoje'
-                        : `${estudos.proxima.dias} dias`
-                    }`
-                  : 'sem avaliação marcada'
+                : estudos.atrasadas > 0
+                  ? `${estudos.atrasadas} ${estudos.atrasadas === 1 ? 'entrega atrasada' : 'entregas atrasadas'}`
+                  : estudos.entrega &&
+                      (!estudos.proxima ||
+                        estudos.entrega.dias <= estudos.proxima.dias)
+                    ? `Entrega: ${estudos.entrega.atividade.titulo} ${
+                        estudos.entrega.dias === 0
+                          ? 'hoje'
+                          : `em ${estudos.entrega.dias}d`
+                      }`
+                    : estudos.proxima
+                      ? `${estudos.proxima.avaliacao.nome} em ${
+                          estudos.proxima.dias === 0
+                            ? 'hoje'
+                            : `${estudos.proxima.dias} dias`
+                        }`
+                      : 'sem avaliação marcada'
             }
           />
 

@@ -20,6 +20,7 @@ import {
   agruparPorCategoria,
   moverNaCategoria,
   moverParaCategoria,
+  moverParaExtremo,
 } from '../ordenacao'
 import type { Meta } from '../types'
 import { DialogCategoriaMeta } from './DialogCategoriaMeta'
@@ -79,6 +80,10 @@ export function SecaoMetas({ hoje }: SecaoMetasProps) {
       podeDescer: indice < total - 1,
       onSubir: () => aplicar(moverNaCategoria(listaMetas, meta.id, -1)),
       onDescer: () => aplicar(moverNaCategoria(listaMetas, meta.id, 1)),
+      onMoverParaTopo: () =>
+        aplicar(moverParaExtremo(listaMetas, meta.id, 'topo')),
+      onMoverParaFim: () =>
+        aplicar(moverParaExtremo(listaMetas, meta.id, 'fim')),
       categorias: listaCategorias,
       categoriaAtualId: meta.categoria_meta_id ?? null,
       onMoverParaCategoria: (destinoId) =>

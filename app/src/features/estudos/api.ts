@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import type { TablesInsert, TablesUpdate } from '@/types/database'
 import type {
+  Atividade,
   Avaliacao,
   ConfigCalculoMedia,
   Documento,
@@ -454,4 +455,114 @@ export async function definirConclusao(
     .eq('fluxograma_id', fluxogramaId)
     .eq('data', data)
   if (error) throw new Error(error.message)
+}
+
+// --- Atividades (entregas com prazo) ----------------------------------------
+
+/**
+ * Entregas, da mais próxima para a mais distante.
+ *
+ * Sem filtro de matéria: o hub e a Home leem a lista inteira e agrupam em
+ * memória, e a aba da matéria filtra o que já está em cache — uma consulta a
+ * menos por tela, no padrão de `listarAvaliacoes`.
+ */
+export async function listarAtividades(): Promise<Atividade[]> {
+  return lancarSeErro(
+    await supabase
+      .from('atividades')
+      .select('*')
+      .order('data_entrega', { ascending: true }),
+  ) as Atividade[]
+}
+
+export async function criarAtividade(
+  dados: TablesInsert<'atividades'>,
+): Promise<void> {
+  const { error } = await supabase.from('atividades').insert(dados)
+  if (error) throw new Error(error.message)
+}
+
+export async function atualizarAtividade(
+  id: string,
+  dados: TablesUpdate<'atividades'>,
+): Promise<void> {
+  const { error } = await supabase
+    .from('atividades')
+    .update(dados)
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+export async function excluirAtividade(id: string): Promise<void> {
+  const { error } = await supabase.from('atividades').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
+/**
+ * Conclui ou reabre a entrega. `concluida_em` é presença, não flag: preencher
+ * conclui, apagar reabre (mesmo padrão de `conclusoes_fluxograma`).
+ *
+ * Reabrir **mantém** `avaliacao_id` — a nota é da avaliação, não da entrega, e
+ * desvincular por engano custaria refazer o lançamento.
+ */
+export async function definirConclusaoAtividade(
+  id: string,
+  concluida: boolean,
+): Promise<void> {
+  await atualizarAtividade(id, {
+    concluida_em: concluida ? new Date().toISOString() : null,
+  })
+}
+
+/**
+ * Vincula a entrega a uma avaliação existente, ou cria uma a partir dela.
+ *
+ * São duas escritas sem transação — o cliente do Supabase não abre uma —, então
+ * a criação faz **rollback explícito**: se o vínculo falhar depois de a
+ * avaliação nascer, a avaliação é apagada. Sem isso a matéria ficaria com uma
+ * avaliação órfã de peso 1 e nota vazia, que entra no cálculo da média
+ * projetada e derruba o semáforo da matéria sem que ninguém tenha lançado nada
+ * (a lição da resolução 10.22).
+ *
+ * A avaliação nasce com `nota: null` de propósito: a nota é lançada na aba
+ * Avaliações, que é quem manda na média.
+ */
+export async function vincularAvaliacaoAtividade(
+  atividade: Pick<Atividade, 'id' | 'titulo' | 'data_entrega' | 'materia_id'>,
+  alvo: { avaliacaoId: string } | { criar: { peso: number } },
+): Promise<void> {
+  if ('avaliacaoId' in alvo) {
+    await atualizarAtividade(atividade.id, { avaliacao_id: alvo.avaliacaoId })
+    return
+  }
+
+  // `lancarSeErro` já garante não-nulo em runtime; o cast é só para o tipo do
+  // `.single()`, no mesmo estilo das outras chamadas single do projeto.
+  const criada = lancarSeErro(
+    await supabase
+      .from('avaliacoes')
+      .insert({
+        materia_id: atividade.materia_id,
+        nome: atividade.titulo,
+        data: atividade.data_entrega,
+        peso: alvo.criar.peso,
+        nota: null,
+      })
+      .select('id')
+      .single(),
+  ) as { id: string }
+
+  try {
+    await atualizarAtividade(atividade.id, { avaliacao_id: criada.id })
+  } catch (erro) {
+    await supabase.from('avaliacoes').delete().eq('id', criada.id)
+    throw erro
+  }
+}
+
+/** Desfaz o vínculo. A avaliação continua existindo — a nota é dela. */
+export async function desvincularAvaliacaoAtividade(
+  id: string,
+): Promise<void> {
+  await atualizarAtividade(id, { avaliacao_id: null })
 }

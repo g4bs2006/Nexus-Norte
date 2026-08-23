@@ -28,6 +28,7 @@ import {
   riscoReprovacao,
 } from '@/features/estudos/calculos'
 import {
+  useAtividades,
   useAvaliacoes,
   useConclusoes,
   useDefinirConclusao,
@@ -39,6 +40,7 @@ import {
 import { CardMateria } from '@/features/estudos/componentes/CardMateria'
 import { DialogMateria } from '@/features/estudos/componentes/DialogMateria'
 import { DialogFluxograma } from '@/features/estudos/componentes/DialogFluxograma'
+import { SecaoEntregas } from '@/features/estudos/componentes/SecaoEntregas'
 import { SecaoNotasRecentes } from '@/features/estudos/componentes/SecaoNotasRecentes'
 import { DialogNota } from '@/features/notas/componentes/DialogNota'
 
@@ -48,6 +50,7 @@ export default function EstudosPage() {
 
   const materias = useMaterias()
   const avaliacoes = useAvaliacoes()
+  const atividades = useAtividades()
   const faltas = useFaltas()
   const fluxograma = useFluxograma()
   const conclusoes = useConclusoes(hojeISO)
@@ -60,6 +63,10 @@ export default function EstudosPage() {
   const listaAvaliacoes = useMemo(
     () => avaliacoes.data ?? [],
     [avaliacoes.data],
+  )
+  const listaAtividades = useMemo(
+    () => atividades.data ?? [],
+    [atividades.data],
   )
   const listaFaltas = useMemo(() => faltas.data ?? [], [faltas.data])
   const listaFluxograma = useMemo(
@@ -263,6 +270,12 @@ export default function EstudosPage() {
               />
             </CardContent>
           </Card>
+
+          <SecaoEntregas
+            atividades={listaAtividades}
+            nomePorMateria={nomePorMateria}
+            hoje={hoje}
+          />
 
           <section className="space-y-3">
             <h2 className="text-sm font-medium">Matérias</h2>

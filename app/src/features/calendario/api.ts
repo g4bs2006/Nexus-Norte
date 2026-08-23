@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import type {
+  FonteAtividade,
   FonteAvaliacao,
   FonteConta,
   FonteExecucaoTreino,
@@ -19,6 +20,24 @@ import type { FonteSonoRealizado } from './carga'
  * `categorias` e `projetos` acontecem aqui para que o construtor de eventos
  * receba tudo pronto e continue puro.
  */
+
+/**
+ * Entregas do intervalo. Diferente de `avaliacoesComData`, filtra por data em
+ * vez de trazer tudo: `data_entrega` é `not null`, então a lista inteira
+ * cresceria sem teto ao longo dos semestres.
+ */
+export async function atividadesNoIntervalo(
+  de: string,
+  ate: string,
+): Promise<FonteAtividade[]> {
+  const { data, error } = await supabase
+    .from('atividades')
+    .select('id, titulo, data_entrega, hora_entrega, concluida_em, materia_id')
+    .gte('data_entrega', de)
+    .lte('data_entrega', ate)
+  if (error) throw new Error(error.message)
+  return data ?? []
+}
 
 export async function avaliacoesComData(): Promise<FonteAvaliacao[]> {
   const { data, error } = await supabase

@@ -4,6 +4,7 @@ import {
   metasDaCategoria,
   moverNaCategoria,
   moverParaCategoria,
+  moverParaExtremo,
   posicaoNaCategoria,
 } from './ordenacao'
 import type { CategoriaMeta, Meta } from './types'
@@ -159,6 +160,58 @@ describe('moverNaCategoria', () => {
 
   it('devolve vazio para meta inexistente', () => {
     expect(moverNaCategoria([], 'fantasma', 1)).toEqual([])
+  })
+})
+
+describe('moverParaExtremo', () => {
+  it('leva a meta do fim direto para o topo', () => {
+    const metas = [
+      meta('a', 0, 'cat'),
+      meta('b', 1, 'cat'),
+      meta('c', 2, 'cat'),
+    ]
+    expect(moverParaExtremo(metas, 'c', 'topo')).toEqual([
+      { id: 'c', ordem: 0 },
+      { id: 'a', ordem: 1 },
+      { id: 'b', ordem: 2 },
+    ])
+  })
+
+  it('leva a meta do topo direto para o fim', () => {
+    const metas = [
+      meta('a', 0, 'cat'),
+      meta('b', 1, 'cat'),
+      meta('c', 2, 'cat'),
+    ]
+    expect(moverParaExtremo(metas, 'a', 'fim')).toEqual([
+      { id: 'b', ordem: 0 },
+      { id: 'c', ordem: 1 },
+      { id: 'a', ordem: 2 },
+    ])
+  })
+
+  it('não faz nada quando a meta já está na ponta pedida', () => {
+    const metas = [meta('a', 0, 'cat'), meta('b', 1, 'cat')]
+    expect(moverParaExtremo(metas, 'a', 'topo')).toEqual([])
+    expect(moverParaExtremo(metas, 'b', 'fim')).toEqual([])
+  })
+
+  it('ignora metas de outra categoria ao calcular a ponta', () => {
+    const metas = [
+      meta('a', 0, 'cat'),
+      meta('intrusa', 1, 'outra'),
+      meta('b', 5, 'cat'),
+      meta('c', 6, 'cat'),
+    ]
+    expect(moverParaExtremo(metas, 'c', 'topo')).toEqual([
+      { id: 'c', ordem: 0 },
+      { id: 'a', ordem: 1 },
+      { id: 'b', ordem: 2 },
+    ])
+  })
+
+  it('devolve vazio para meta inexistente', () => {
+    expect(moverParaExtremo([], 'fantasma', 'topo')).toEqual([])
   })
 })
 

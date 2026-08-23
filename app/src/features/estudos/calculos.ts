@@ -7,10 +7,12 @@ import {
 import { deISO } from '@/lib/datas'
 import type { Status } from '@/lib/dominio'
 import type {
+  Atividade,
   Avaliacao,
   ConfigCalculoMedia,
   Materia,
   SessaoEstudo,
+  StatusAtividade,
 } from './types'
 
 /**
@@ -214,6 +216,70 @@ export function proximaAvaliacao(
   }
 
   return melhor
+}
+
+/** O mínimo que qualquer cálculo de status de entrega precisa ler. */
+type EntregaVerificavel = Pick<Atividade, 'data_entrega' | 'concluida_em'>
+
+/**
+ * Situação da entrega na data de referência.
+ *
+ * Concluída vence atrasada — a ordem das guardas é a regra: entregar com atraso
+ * ainda é entregar, e marcar a linha de vermelho depois do fato não ajuda
+ * ninguém.
+ *
+ * O atraso conta **por dia**, não por horário: `hora_entrega` posiciona o item
+ * na agenda, mas a virada acontece no fim do dia da `data_entrega`. Comparação
+ * por string ISO, como `dentroDoPeriodoMateria` — `YYYY-MM-DD` ordena
+ * lexicograficamente, e converter para `Date` só para comparar custaria dois
+ * objetos por item numa lista que a Home percorre inteira.
+ */
+export function statusAtividade(
+  atividade: EntregaVerificavel,
+  hojeISO: string,
+): StatusAtividade {
+  if (atividade.concluida_em !== null) return 'concluida'
+  return atividade.data_entrega < hojeISO ? 'atrasada' : 'pendente'
+}
+
+export interface ProximaAtividade {
+  atividade: Atividade
+  dias: number
+}
+
+/**
+ * Próxima entrega pendente e em quantos dias cai — espelho de
+ * `proximaAvaliacao`.
+ *
+ * Recebe `Date` e não ISO porque devolve `dias`, e contagem de dias é
+ * aritmética de calendário, não comparação de texto. Hoje conta como candidata
+ * (`dias === 0`): entrega de hoje é a mais urgente que existe, não uma que já
+ * passou.
+ */
+export function proximaAtividade(
+  atividades: readonly Atividade[],
+  hoje: Date,
+): ProximaAtividade | null {
+  let melhor: ProximaAtividade | null = null
+
+  for (const atividade of atividades) {
+    if (atividade.concluida_em !== null) continue
+    const dias = differenceInCalendarDays(deISO(atividade.data_entrega), hoje)
+    if (dias < 0) continue
+    if (melhor === null || dias < melhor.dias) melhor = { atividade, dias }
+  }
+
+  return melhor
+}
+
+/** Quantas entregas estão atrasadas — alimenta o mini-card da Home. */
+export function atividadesAtrasadas(
+  atividades: readonly EntregaVerificavel[],
+  hojeISO: string,
+): number {
+  return atividades.filter(
+    (atividade) => statusAtividade(atividade, hojeISO) === 'atrasada',
+  ).length
 }
 
 /**

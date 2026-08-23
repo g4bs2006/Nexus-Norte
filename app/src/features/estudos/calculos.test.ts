@@ -1,16 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import {
   aderenciaSessoesSemana,
+  atividadesAtrasadas,
   dentroDoPeriodoMateria,
   faltasRestantes,
   frequenciaEstudoSemana,
   mediaMateria,
   mediaProjetada,
   percentualAcerto,
+  proximaAtividade,
   proximaAvaliacao,
   riscoReprovacao,
+  statusAtividade,
 } from './calculos'
-import type { Avaliacao } from './types'
+import type { Atividade, Avaliacao } from './types'
 
 function avaliacao(parcial: Partial<Avaliacao>): Avaliacao {
   return {
@@ -25,7 +28,26 @@ function avaliacao(parcial: Partial<Avaliacao>): Avaliacao {
   }
 }
 
+function atividade(parcial: Partial<Atividade>): Atividade {
+  return {
+    id: 'id',
+    materia_id: 'materia',
+    titulo: 'Trabalho de Sinais',
+    descricao: null,
+    data_entrega: '2026-08-04',
+    hora_entrega: null,
+    concluida_em: null,
+    avaliacao_id: null,
+    origem: 'manual',
+    fonte_url: null,
+    created_at: '2026-08-01T00:00:00Z',
+    updated_at: '2026-08-01T00:00:00Z',
+    ...parcial,
+  }
+}
+
 const HOJE = new Date(2026, 7, 4) // 2026-08-04
+const HOJE_ISO = '2026-08-04'
 
 describe('mediaMateria', () => {
   it('faz a média ponderada apenas das avaliações corrigidas', () => {
@@ -335,5 +357,110 @@ describe('percentualAcerto', () => {
 
   it('devolve null sem total de questões', () => {
     expect(percentualAcerto(0, [])).toBeNull()
+  })
+})
+
+describe('statusAtividade', () => {
+  it('entrega de hoje ainda esta pendente', () => {
+    expect(statusAtividade(atividade({}), HOJE_ISO)).toBe('pendente')
+  })
+
+  it('entrega futura esta pendente', () => {
+    const futura = atividade({ data_entrega: '2026-08-10' })
+    expect(statusAtividade(futura, HOJE_ISO)).toBe('pendente')
+  })
+
+  it('entrega de ontem sem conclusao esta atrasada', () => {
+    const ontem = atividade({ data_entrega: '2026-08-03' })
+    expect(statusAtividade(ontem, HOJE_ISO)).toBe('atrasada')
+  })
+
+  it('concluida vence atrasada — entregar com atraso ainda e entregar', () => {
+    const atrasadaEntregue = atividade({
+      data_entrega: '2026-07-20',
+      concluida_em: '2026-07-25T10:00:00Z',
+    })
+    expect(statusAtividade(atrasadaEntregue, HOJE_ISO)).toBe('concluida')
+  })
+
+  it('concluida antes do prazo tambem e concluida', () => {
+    const adiantada = atividade({
+      data_entrega: '2026-08-10',
+      concluida_em: '2026-08-02T10:00:00Z',
+    })
+    expect(statusAtividade(adiantada, HOJE_ISO)).toBe('concluida')
+  })
+
+  it('a virada e no fim do dia: hora_entrega nao antecipa o atraso', () => {
+    // Prazo era 8h de hoje e ja passou no relogio, mas o atraso conta por dia.
+    const cedoHoje = atividade({ hora_entrega: '08:00:00' })
+    expect(statusAtividade(cedoHoje, HOJE_ISO)).toBe('pendente')
+  })
+})
+
+describe('proximaAtividade', () => {
+  it('devolve a entrega mais proxima entre varias', () => {
+    const resultado = proximaAtividade(
+      [
+        atividade({ id: 'longe', data_entrega: '2026-08-20' }),
+        atividade({ id: 'perto', data_entrega: '2026-08-06' }),
+        atividade({ id: 'meio', data_entrega: '2026-08-12' }),
+      ],
+      HOJE,
+    )
+    expect(resultado?.atividade.id).toBe('perto')
+    expect(resultado?.dias).toBe(2)
+  })
+
+  it('inclui a entrega de hoje com dias 0', () => {
+    const resultado = proximaAtividade([atividade({})], HOJE)
+    expect(resultado?.dias).toBe(0)
+  })
+
+  it('ignora entrega concluida', () => {
+    const resultado = proximaAtividade(
+      [
+        atividade({
+          id: 'feita',
+          data_entrega: '2026-08-05',
+          concluida_em: '2026-08-02T10:00:00Z',
+        }),
+        atividade({ id: 'aberta', data_entrega: '2026-08-09' }),
+      ],
+      HOJE,
+    )
+    expect(resultado?.atividade.id).toBe('aberta')
+  })
+
+  it('ignora entrega atrasada — nao ha contagem regressiva pro passado', () => {
+    const resultado = proximaAtividade(
+      [atividade({ data_entrega: '2026-08-01' })],
+      HOJE,
+    )
+    expect(resultado).toBeNull()
+  })
+
+  it('devolve null sem candidatas', () => {
+    expect(proximaAtividade([], HOJE)).toBeNull()
+  })
+})
+
+describe('atividadesAtrasadas', () => {
+  it('conta so as pendentes com prazo vencido', () => {
+    const lista = [
+      atividade({ data_entrega: '2026-08-01' }),
+      atividade({ data_entrega: '2026-08-02' }),
+      atividade({ data_entrega: '2026-08-04' }),
+      atividade({ data_entrega: '2026-08-10' }),
+      atividade({
+        data_entrega: '2026-07-01',
+        concluida_em: '2026-07-02T10:00:00Z',
+      }),
+    ]
+    expect(atividadesAtrasadas(lista, HOJE_ISO)).toBe(2)
+  })
+
+  it('devolve zero com lista vazia', () => {
+    expect(atividadesAtrasadas([], HOJE_ISO)).toBe(0)
   })
 })

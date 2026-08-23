@@ -40,7 +40,13 @@ function paraHora(data: Date): string {
 }
 
 interface Candidata {
-  tipo: 'aula_treino' | 'conta' | 'prova' | 'meta' | 'investimento'
+  tipo:
+    | 'aula_treino'
+    | 'conta'
+    | 'prova'
+    | 'meta'
+    | 'atividade'
+    | 'investimento'
   origemId: string
   dataReferencia: string
   titulo: string
@@ -232,6 +238,30 @@ async function candidatasProva(amanhaISO: string): Promise<Candidata[]> {
   }))
 }
 
+/**
+ * Entregas que vencem amanha e ainda nao foram concluidas.
+ *
+ * Mesma janela e mesmo formato de `candidatasProva` — o gatilho e "um dia
+ * antes", nao "esta atrasada": aviso de atraso chegaria depois de o prazo ter
+ * passado, quando nao ha mais nada a fazer com a informacao.
+ */
+async function candidatasEntrega(amanhaISO: string): Promise<Candidata[]> {
+  const { data: atividades } = await supabase
+    .from('atividades')
+    .select('id, titulo, data_entrega, concluida_em, materia_id, materias(nome)')
+    .eq('data_entrega', amanhaISO)
+    .is('concluida_em', null)
+
+  return (atividades ?? []).map((atividade) => ({
+    tipo: 'atividade' as const,
+    origemId: atividade.id,
+    dataReferencia: amanhaISO,
+    titulo: 'Entrega amanhã',
+    corpo: `${atividade.titulo} — ${(atividade.materias as unknown as { nome: string } | null)?.nome ?? 'Matéria'}`,
+    rota: `/estudos/${atividade.materia_id}`,
+  }))
+}
+
 async function candidatasMeta(amanhaISO: string): Promise<Candidata[]> {
   const { data: metas } = await supabase
     .from('metas')
@@ -416,6 +446,7 @@ Deno.serve(async (req) => {
     candidatas.push(
       ...(await candidatasContaAVencer(agora)),
       ...(await candidatasProva(amanhaISO)),
+      ...(await candidatasEntrega(amanhaISO)),
       ...(await candidatasMeta(amanhaISO)),
       ...(await candidatasInvestimento(agora)),
     )

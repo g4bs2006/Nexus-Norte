@@ -8,6 +8,19 @@ export type TipoDocumento =
 export type TipoCalculoMedia = 'ponderada' | 'manual'
 export type StatusExcecao = 'cancelado' | 'remarcado'
 
+/**
+ * De onde a atividade veio. `'email'` existe desde já para a captura futura
+ * de emails não exigir migração — hoje nada grava esse valor.
+ */
+export type OrigemAtividade = 'manual' | 'email'
+
+/**
+ * Situação da entrega. **Derivada na leitura, nunca gravada** — "atrasada"
+ * depende da passagem do tempo, e materializar exigiria uma escrita na virada
+ * de cada dia (mesma regra do momentum de Projetos, resolução 10.9).
+ */
+export type StatusAtividade = 'pendente' | 'atrasada' | 'concluida'
+
 export type Materia = Tables<'materias'>
 
 /** Semestre letivo normalizado (14/08). Substitui o texto livre `materias.semestre`. */
@@ -20,6 +33,17 @@ export type Documento = Omit<Tables<'documentos'>, 'tipo'> & {
 export type Falta = Tables<'faltas'>
 export type Avaliacao = Tables<'avaliacoes'>
 export type RegistroLista = Tables<'registro_listas'>
+
+/**
+ * Entrega com prazo (23/08). Vizinha de `Avaliacao`, e deliberadamente não a
+ * mesma coisa: avaliação é evento de **nota**, atividade é evento de
+ * **entrega**. `avaliacao_id` é ponteiro opcional — entregar pode criar ou
+ * vincular uma avaliação, mas a nota nunca mora aqui, senão a média deixaria
+ * de ser território exclusivo de `avaliacoes`.
+ */
+export type Atividade = Omit<Tables<'atividades'>, 'origem'> & {
+  origem: OrigemAtividade
+}
 export type SessaoEstudo = Tables<'sessoes_estudo'>
 
 /**

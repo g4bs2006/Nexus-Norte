@@ -19,6 +19,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      atividades: {
+        Row: {
+          avaliacao_id: string | null
+          concluida_em: string | null
+          created_at: string
+          data_entrega: string
+          descricao: string | null
+          fonte_url: string | null
+          hora_entrega: string | null
+          id: string
+          materia_id: string
+          origem: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          avaliacao_id?: string | null
+          concluida_em?: string | null
+          created_at?: string
+          data_entrega: string
+          descricao?: string | null
+          fonte_url?: string | null
+          hora_entrega?: string | null
+          id?: string
+          materia_id: string
+          origem?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          avaliacao_id?: string | null
+          concluida_em?: string | null
+          created_at?: string
+          data_entrega?: string
+          descricao?: string | null
+          fonte_url?: string | null
+          hora_entrega?: string | null
+          id?: string
+          materia_id?: string
+          origem?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "atividades_avaliacao_id_fkey"
+            columns: ["avaliacao_id"]
+            isOneToOne: false
+            referencedRelation: "avaliacoes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "atividades_materia_id_fkey"
+            columns: ["materia_id"]
+            isOneToOne: false
+            referencedRelation: "materias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       avaliacoes: {
         Row: {
           created_at: string
@@ -124,6 +184,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      categorias_metas: {
+        Row: {
+          cor: string
+          criada_em: string
+          id: string
+          nome: string
+          ordem: number
+        }
+        Insert: {
+          cor?: string
+          criada_em?: string
+          id?: string
+          nome: string
+          ordem?: number
+        }
+        Update: {
+          cor?: string
+          criada_em?: string
+          id?: string
+          nome?: string
+          ordem?: number
+        }
+        Relationships: []
       }
       checks_diarios: {
         Row: {
@@ -894,30 +978,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      categorias_metas: {
-        Row: {
-          cor: string
-          criada_em: string
-          id: string
-          nome: string
-          ordem: number
-        }
-        Insert: {
-          cor?: string
-          criada_em?: string
-          id?: string
-          nome: string
-          ordem?: number
-        }
-        Update: {
-          cor?: string
-          criada_em?: string
-          id?: string
-          nome?: string
-          ordem?: number
-        }
-        Relationships: []
       }
       metas: {
         Row: {
@@ -1692,7 +1752,6 @@ export type Database = {
           nome: string
         }[]
       }
-      progresso_meta: { Args: { p_meta_id: string }; Returns: number }
       recalcular_total_gasto_mes: {
         Args: { p_categoria_id: string }
         Returns: undefined

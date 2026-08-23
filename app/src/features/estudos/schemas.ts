@@ -90,6 +90,23 @@ export const schemaAvaliacao = z.object({
 
 export type FormularioAvaliacao = z.infer<typeof schemaAvaliacao>
 
+/**
+ * Entrega com prazo. Vizinha de `schemaAvaliacao`, com a diferença que importa:
+ * aqui a data é **obrigatoria** — entrega sem prazo nao e entrega, e a coluna
+ * `data_entrega` e `not null`. Avaliacao aceita data vazia (resolucao 10.14)
+ * porque prova sem data marcada e caso real.
+ */
+export const schemaAtividade = z.object({
+  materia_id: z.string().min(1, 'Escolha a matéria'),
+  titulo: z.string().trim().min(1, 'Informe o título'),
+  descricao: z.string(),
+  data_entrega: z.string().min(1, 'Informe a data de entrega'),
+  /** Vazio = dia inteiro (mesma convenção de `sessoes_estudo.hora_inicio`). */
+  hora_entrega: z.string(),
+})
+
+export type FormularioAtividade = z.infer<typeof schemaAtividade>
+
 export const schemaFalta = z.object({
   data: z.string().min(1, 'Informe a data'),
   motivo: z.string(),

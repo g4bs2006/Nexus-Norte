@@ -4,6 +4,8 @@ import {
   ArrowDown,
   ArrowUp,
   Check,
+  ChevronsDown,
+  ChevronsUp,
   Clock,
   FolderInput,
   MoreHorizontal,
@@ -33,6 +35,8 @@ export interface AcoesMover {
   podeDescer: boolean
   onSubir: () => void
   onDescer: () => void
+  onMoverParaTopo: () => void
+  onMoverParaFim: () => void
   categorias: CategoriaMeta[]
   categoriaAtualId: string | null
   onMoverParaCategoria: (destinoId: string | null) => void
@@ -60,7 +64,11 @@ interface ItemMetaProps {
  * conclusão da meta, e o selo "Diário" é o botão do check de hoje.
  *
  * **Alvos de toque.** O gatilho do menu tem 44px no celular e volta a 28px de
- * `sm:` para cima, mesma régua de `DialogConfirmarExclusao`.
+ * `sm:` para cima, mesma régua de `DialogConfirmarExclusao`. O checkbox de
+ * conclusão é a ação mais usada do item e continua com a caixa visual de 16px,
+ * mas o alvo de toque real é o bloco de título inteiro — mesma ideia do
+ * `<label>` de `CheckDia`, cujo comentário lembra que 16px isolados é fricção
+ * de sobra pra abandonar o hábito de marcar.
  */
 export function ItemMeta({
   meta,
@@ -87,6 +95,7 @@ export function ItemMeta({
       >
         <div className="flex min-w-0 flex-1 items-start gap-2">
           <Checkbox
+            id={`meta-concluir-${meta.id}`}
             checked={meta.concluida}
             onCheckedChange={(marcado) =>
               onAlternarConclusao?.(Boolean(marcado))
@@ -99,7 +108,16 @@ export function ItemMeta({
             className="border-border mt-0.5 size-4 shrink-0 rounded-xs"
           />
 
-          <div className="min-w-0 flex-1 space-y-0.5">
+          {/*
+            `label` associado ao checkbox pelo id: o botão "Diário" aqui dentro
+            continua isolado (botão é elemento labelable, o clique nele não
+            propaga para o checkbox), mas título, badge de prazo e descrição
+            passam a valer como alvo de toque de "concluir meta".
+          */}
+          <label
+            htmlFor={`meta-concluir-${meta.id}`}
+            className="min-w-0 flex-1 space-y-0.5"
+          >
             <div className="flex flex-wrap items-center gap-1.5">
               <span
                 className={cn(
@@ -155,7 +173,7 @@ export function ItemMeta({
                 {meta.descricao}
               </p>
             )}
-          </div>
+          </label>
         </div>
 
         {/*
@@ -200,6 +218,20 @@ export function ItemMeta({
                   >
                     <ArrowDown className="mr-1.5 size-3.5" />
                     <span>Mover para baixo</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={!mover.podeSubir}
+                    onClick={mover.onMoverParaTopo}
+                  >
+                    <ChevronsUp className="mr-1.5 size-3.5" />
+                    <span>Mover para o topo</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={!mover.podeDescer}
+                    onClick={mover.onMoverParaFim}
+                  >
+                    <ChevronsDown className="mr-1.5 size-3.5" />
+                    <span>Mover para o fim</span>
                   </DropdownMenuItem>
 
                   <DropdownMenuLabel className="text-muted-foreground flex items-center gap-1.5 pt-2 text-[11px] font-normal">

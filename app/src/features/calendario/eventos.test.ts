@@ -3,6 +3,7 @@ import {
   COR_CAMADA,
   construirEventos,
   corDoEvento,
+  eventosAtividades,
   eventosAvaliacoes,
   eventosCancelados,
   eventosContas,
@@ -38,6 +39,91 @@ const CORES = new Map([
   ['m1', '#4a87c4'],
   ['m2', null],
 ])
+
+describe('eventosAtividades', () => {
+  const base = {
+    id: 'at1',
+    titulo: 'Trabalho de Sinais',
+    hora_entrega: null,
+    concluida_em: null,
+    materia_id: 'm1',
+  }
+
+  it('cria prazo de dia inteiro com nome da materia', () => {
+    const eventos = eventosAtividades(
+      [{ ...base, data_entrega: '2026-08-05' }],
+      SEMANA,
+      MATERIAS,
+    )
+
+    expect(eventos).toHaveLength(1)
+    expect(eventos[0]?.id).toBe('atividade:at1')
+    expect(eventos[0]?.titulo).toBe('Trabalho de Sinais — Cálculo II')
+    expect(eventos[0]?.diaInteiro).toBe(true)
+    expect(eventos[0]?.camada).toBe('estudos')
+    expect(eventos[0]?.tipo).toBe('atividade')
+    expect(eventos[0]?.rota).toBe('/estudos/m1')
+    expect(eventos[0]?.movimento).toBe('entidade')
+  })
+
+  it('posiciona no horario quando ha hora_entrega, e sem fim', () => {
+    const eventos = eventosAtividades(
+      [{ ...base, data_entrega: '2026-08-05', hora_entrega: '23:59:00' }],
+      SEMANA,
+      MATERIAS,
+    )
+
+    expect(eventos[0]?.inicio).toBe('2026-08-05T23:59:00')
+    expect(eventos[0]?.diaInteiro).toBe(false)
+    // Entrega e ponto no tempo, nao intervalo.
+    expect(eventos[0]?.fim).toBeUndefined()
+  })
+
+  it('entrega concluida continua na agenda, marcada como feito', () => {
+    const eventos = eventosAtividades(
+      [
+        {
+          ...base,
+          data_entrega: '2026-08-05',
+          concluida_em: '2026-08-04T10:00:00Z',
+        },
+      ],
+      SEMANA,
+      MATERIAS,
+    )
+
+    expect(eventos).toHaveLength(1)
+    expect(eventos[0]?.estado).toBe('feito')
+  })
+
+  it('entrega pendente nao carrega estado', () => {
+    const eventos = eventosAtividades(
+      [{ ...base, data_entrega: '2026-08-05' }],
+      SEMANA,
+      MATERIAS,
+    )
+    expect(eventos[0]?.estado).toBeUndefined()
+  })
+
+  it('ignora entrega fora do intervalo', () => {
+    expect(
+      eventosAtividades(
+        [{ ...base, data_entrega: '2026-09-01' }],
+        SEMANA,
+        MATERIAS,
+      ),
+    ).toEqual([])
+  })
+
+  it('usa so o titulo quando a materia nao e conhecida', () => {
+    const eventos = eventosAtividades(
+      [{ ...base, materia_id: 'desconhecida', data_entrega: '2026-08-05' }],
+      SEMANA,
+      MATERIAS,
+    )
+    expect(eventos[0]?.titulo).toBe('Trabalho de Sinais')
+  })
+})
 
 describe('eventosAvaliacoes', () => {
   const base = { id: 'a1', nome: 'P1', nota: null, materia_id: 'm1' }
@@ -527,6 +613,7 @@ describe('eventosLivres', () => {
 describe('construirEventos', () => {
   it('agrega todas as camadas e gera ids únicos', () => {
     const fontes: FontesCalendario = {
+      atividades: [],
       avaliacoes: [
         {
           id: 'a1',
@@ -596,6 +683,7 @@ describe('construirEventos', () => {
 
   it('devolve vazio quando não há nada nas fontes', () => {
     const vazio: FontesCalendario = {
+      atividades: [],
       avaliacoes: [],
       fluxograma: [],
       excecoes: [],
@@ -1131,6 +1219,7 @@ describe('eventosRemarcadosNaOrigem', () => {
   it('origem e destino convivem no mesmo intervalo, com ids distintos', () => {
     const eventos = construirEventos(
       {
+        atividades: [],
         avaliacoes: [],
         fluxograma: [regra],
         excecoes: [remarcacao],
@@ -1170,6 +1259,7 @@ describe('reconciliação entre previsto e realizado', () => {
   }
 
   const vazias = {
+    atividades: [],
     avaliacoes: [],
     fluxograma: [],
     excecoes: [],
@@ -1281,6 +1371,7 @@ describe('reconciliação entre sessão planejada e executada (chat 2026-08-14)'
   }
 
   const vazias = {
+    atividades: [],
     avaliacoes: [],
     fluxograma: [],
     excecoes: [],

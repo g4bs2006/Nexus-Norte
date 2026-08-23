@@ -11,6 +11,7 @@ export const chaves = {
   raiz: ['estudos'] as const,
   materias: () => ['estudos', 'materias'] as const,
   avaliacoes: () => ['estudos', 'avaliacoes'] as const,
+  atividades: () => ['estudos', 'atividades'] as const,
   faltas: () => ['estudos', 'faltas'] as const,
   sessoes: (de?: string, ate?: string) =>
     ['estudos', 'sessoes', de ?? 'todas', ate ?? 'todas'] as const,
@@ -401,4 +402,73 @@ export function useAtualizarFluxograma() {
 
 export function useExcluirFluxograma() {
   return useMutationEstudos(api.excluirFluxograma, 'Horário removido')
+}
+
+// --- Atividades (entregas com prazo) ----------------------------------------
+
+export function useAtividades() {
+  return useQuery({
+    queryKey: chaves.atividades(),
+    queryFn: api.listarAtividades,
+  })
+}
+
+export function useCriarAtividade() {
+  return useMutationEstudos(api.criarAtividade, 'Atividade criada')
+}
+
+export function useAtualizarAtividade() {
+  return useMutationEstudos(
+    ({
+      id,
+      dados,
+    }: {
+      id: string
+      dados: Parameters<typeof api.atualizarAtividade>[1]
+    }) => api.atualizarAtividade(id, dados),
+    'Atividade atualizada',
+  )
+}
+
+export function useExcluirAtividade() {
+  return useMutationEstudos(api.excluirAtividade, 'Atividade excluída')
+}
+
+/**
+ * Concluir e reabrir usam a mesma mutation porque são a mesma escrita — a
+ * mensagem é que muda, e um toast por caminho evita dois hooks quase iguais.
+ */
+export function useDefinirConclusaoAtividade() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, concluida }: { id: string; concluida: boolean }) =>
+      api.definirConclusaoAtividade(id, concluida),
+    onSuccess: (_dados, { concluida }) => {
+      void queryClient.invalidateQueries({ queryKey: chaves.raiz })
+      void queryClient.invalidateQueries({ queryKey: ['calendario'] })
+      toast.success(concluida ? 'Entrega concluída' : 'Entrega reaberta')
+    },
+    onError: (erro: Error) => toast.error(erro.message),
+  })
+}
+
+export function useVincularAvaliacaoAtividade() {
+  return useMutationEstudos(
+    ({
+      atividade,
+      alvo,
+    }: {
+      atividade: Parameters<typeof api.vincularAvaliacaoAtividade>[0]
+      alvo: Parameters<typeof api.vincularAvaliacaoAtividade>[1]
+    }) => api.vincularAvaliacaoAtividade(atividade, alvo),
+    'Avaliação vinculada',
+  )
+}
+
+export function useDesvincularAvaliacaoAtividade() {
+  return useMutationEstudos(
+    api.desvincularAvaliacaoAtividade,
+    'Vínculo removido',
+  )
 }

@@ -10,6 +10,8 @@ import * as api from './api'
 export const chaves = {
   raiz: ['calendario'] as const,
   avaliacoes: () => ['calendario', 'avaliacoes'] as const,
+  atividades: (de: string, ate: string) =>
+    ['calendario', 'atividades', de, ate] as const,
   fluxograma: () => ['calendario', 'fluxograma'] as const,
   excecoes: (de: string, ate: string) =>
     ['calendario', 'excecoes', de, ate] as const,
@@ -49,6 +51,10 @@ export function useFontesCalendario(
   const avaliacoes = useQuery({
     queryKey: chaves.avaliacoes(),
     queryFn: api.avaliacoesComData,
+  })
+  const atividades = useQuery({
+    queryKey: chaves.atividades(de, ate),
+    queryFn: () => api.atividadesNoIntervalo(de, ate),
   })
   const fluxograma = useQuery({
     queryKey: chaves.fluxograma(),
@@ -149,6 +155,7 @@ export function useFontesCalendario(
 
   const consultas = [
     avaliacoes,
+    atividades,
     fluxograma,
     excecoes,
     contas,
@@ -167,6 +174,7 @@ export function useFontesCalendario(
   return {
     fontes: {
       avaliacoes: avaliacoes.data ?? [],
+      atividades: atividades.data ?? [],
       fluxograma: fluxograma.data ?? [],
       excecoes: excecoes.data ?? [],
       contas: contas.data ?? [],

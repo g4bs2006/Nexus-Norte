@@ -23,6 +23,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { deISO } from '@/lib/datas'
 import {
+  useCriarAtividade,
   useCriarAvaliacao,
   useCriarSessaoPlanejada,
   useMaterias,
@@ -32,7 +33,14 @@ import { useCriarFluxogramaLivre } from '@/features/fluxograma/hooks'
 import { useCriarEventoLivre } from '@/features/eventos/hooks'
 import { useCriarTreinoAgendado, useTreinos } from '@/features/treino/hooks'
 
-type Tipo = 'estudo' | 'treino' | 'trabalho' | 'marco' | 'avaliacao' | 'evento'
+type Tipo =
+  | 'estudo'
+  | 'treino'
+  | 'trabalho'
+  | 'marco'
+  | 'avaliacao'
+  | 'atividade'
+  | 'evento'
 
 /**
  * Opções de matéria com o swatch da cor — o mesmo sinal que a agenda usa.
@@ -64,6 +72,7 @@ const OPCOES: { valor: Tipo; rotulo: string }[] = [
   { valor: 'trabalho', rotulo: 'Bloco de trabalho' },
   { valor: 'marco', rotulo: 'Marco de projeto' },
   { valor: 'avaliacao', rotulo: 'Avaliação' },
+  { valor: 'atividade', rotulo: 'Entrega' },
   { valor: 'evento', rotulo: 'Evento avulso' },
 ]
 
@@ -156,6 +165,7 @@ export function DialogCriarNoDia({
   const [treinoId, setTreinoId] = useState('')
   const [projetoId, setProjetoId] = useState('')
   const [nomeMarco, setNomeMarco] = useState('')
+  const [tituloAtividade, setTituloAtividade] = useState('')
   const [nomeAvaliacao, setNomeAvaliacao] = useState('')
   const [pesoAvaliacao, setPesoAvaliacao] = useState(1)
   const [tituloEvento, setTituloEvento] = useState('')
@@ -170,6 +180,7 @@ export function DialogCriarNoDia({
   const criarFluxogramaLivre = useCriarFluxogramaLivre()
   const criarMarco = useCriarMarco()
   const criarAvaliacao = useCriarAvaliacao()
+  const criarAtividade = useCriarAtividade()
   const criarEvento = useCriarEventoLivre()
   const criarTreinoAgendado = useCriarTreinoAgendado()
 
@@ -205,6 +216,7 @@ export function DialogCriarNoDia({
     criarFluxogramaLivre.isPending ||
     criarMarco.isPending ||
     criarAvaliacao.isPending ||
+    criarAtividade.isPending ||
     criarEvento.isPending ||
     criarTreinoAgendado.isPending
 
@@ -241,6 +253,16 @@ export function DialogCriarNoDia({
         data: dataEditavel,
         horario_inicio: horarioInicio,
         horario_fim: horarioFim,
+      })
+    } else if (tipo === 'atividade') {
+      if (!materiaId || !tituloAtividade.trim()) return
+      await criarAtividade.mutateAsync({
+        materia_id: materiaId,
+        titulo: tituloAtividade.trim(),
+        data_entrega: dataEditavel,
+        // Criada do calendario nasce de dia inteiro: quem arrasta um dia esta
+        // marcando o prazo, nao a hora dele.
+        hora_entrega: null,
       })
     } else if (tipo === 'marco') {
       if (!projetoId || !nomeMarco.trim()) return
@@ -449,6 +471,28 @@ export function DialogCriarNoDia({
               <div className="space-y-1.5">
                 <Label>Nome do marco</Label>
                 <Input value={nomeMarco} onChange={(e) => setNomeMarco(e.target.value)} />
+              </div>
+            </>
+          )}
+
+          {tipo === 'atividade' && (
+            <>
+              <div className="space-y-1.5">
+                <Label>Matéria</Label>
+                <Select value={materiaId} onValueChange={setMateriaId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>{opcoesMateria(materias.data ?? [])}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>O que entregar</Label>
+                <Input
+                  value={tituloAtividade}
+                  onChange={(e) => setTituloAtividade(e.target.value)}
+                  placeholder="Ex: Trabalho de Sinais"
+                />
               </div>
             </>
           )}

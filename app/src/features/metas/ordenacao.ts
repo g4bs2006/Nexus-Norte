@@ -144,6 +144,38 @@ export function moverNaCategoria(
 }
 
 /**
+ * Move a meta direto para o topo ou o fim da própria categoria.
+ *
+ * `moverNaCategoria` já resolve subir/descer um passo, mas levar uma meta do
+ * fim ao topo de uma categoria longa exigiria repetir esse passo N vezes — um
+ * clique por posição. Isso pula direto para a ponta.
+ *
+ * Devolve `[]` quando a meta já está na ponta pedida, mesma convenção de
+ * `moverNaCategoria`.
+ */
+export function moverParaExtremo(
+  metas: Meta[],
+  metaId: string,
+  extremo: 'topo' | 'fim',
+): AtualizacaoOrdem[] {
+  const meta = metas.find((m) => m.id === metaId)
+  if (!meta) return []
+
+  const irmas = metasDaCategoria(metas, meta.categoria_meta_id ?? null)
+  const de = irmas.findIndex((m) => m.id === metaId)
+  if (de === -1) return []
+
+  const para = extremo === 'topo' ? 0 : irmas.length - 1
+  if (de === para) return []
+
+  const reordenadas = [...irmas]
+  reordenadas.splice(de, 1)
+  reordenadas.splice(para, 0, meta)
+
+  return renumerar(reordenadas)
+}
+
+/**
  * Move a meta para outra categoria (`null` = sem categoria), no fim da lista de
  * destino.
  *

@@ -34,6 +34,8 @@ export type TipoEvento =
   | 'sono'
   /** Sessão de estudo registrada — fato, não rotina prevista. */
   | 'estudo'
+  /** Entrega com prazo de uma matéria (23/08). Prazo, não rotina. */
+  | 'atividade'
   /** Bloco de trabalho ou outro rótulo livre (resolução 10.48.0). */
   | 'trabalho'
   /**
@@ -54,6 +56,7 @@ const TIPOS_IMPORTANTES: readonly TipoEvento[] = [
   'conta',
   'marco',
   'evento',
+  'atividade',
 ]
 
 export interface EventoCalendario {
@@ -229,6 +232,16 @@ export interface FonteAvaliacao {
   materia_id: string
 }
 
+/** Entrega com prazo. Só o que o calendário precisa ler de `atividades`. */
+export interface FonteAtividade {
+  id: string
+  titulo: string
+  data_entrega: string
+  hora_entrega: string | null
+  concluida_em: string | null
+  materia_id: string
+}
+
 export interface FonteFluxograma {
   id: string
   dia_semana: number
@@ -343,6 +356,7 @@ export interface FonteSessaoPlanejada {
 
 export interface FontesCalendario {
   avaliacoes: readonly FonteAvaliacao[]
+  atividades: readonly FonteAtividade[]
   fluxograma: readonly FonteFluxograma[]
   excecoes: readonly ExcecaoRecorrencia[]
   contas: readonly FonteConta[]
@@ -399,6 +413,54 @@ export function eventosAvaliacoes(
         tipo: 'prova' as const,
         rota: `/estudos/${avaliacao.materia_id}`,
         movimento: 'entidade' as const,
+        ...(cor ? { cor } : {}),
+      },
+    ]
+  })
+}
+
+/**
+ * Entregas: prazo único por linha de `atividades`.
+ *
+ * Sem `fim` — entrega é ponto no tempo, não intervalo, e `hora_entrega` só
+ * posiciona na agenda. Sem reconciliação também: diferente de aula e treino,
+ * atividade não tem irmã "realizada" para competir com a prevista; a conclusão
+ * é o próprio `estado: 'feito'` nesta mesma linha.
+ *
+ * Entrega concluída continua aparecendo, riscada pelo estado — apagar da agenda
+ * o que foi entregue faria a semana parecer mais vazia do que foi.
+ */
+export function eventosAtividades(
+  atividades: readonly FonteAtividade[],
+  intervalo: Intervalo,
+  nomePorMateria: ReadonlyMap<string, string>,
+  corPorMateria: ReadonlyMap<string, string | null> = new Map(),
+): EventoCalendario[] {
+  return atividades.flatMap((atividade) => {
+    if (
+      atividade.data_entrega < intervalo.de ||
+      atividade.data_entrega > intervalo.ate
+    ) {
+      return []
+    }
+
+    const materia = nomePorMateria.get(atividade.materia_id)
+    const cor = corPorMateria.get(atividade.materia_id)
+    return [
+      {
+        id: `atividade:${atividade.id}`,
+        titulo: materia
+          ? `${atividade.titulo} — ${materia}`
+          : atividade.titulo,
+        inicio: atividade.hora_entrega
+          ? `${atividade.data_entrega}T${atividade.hora_entrega}`
+          : atividade.data_entrega,
+        diaInteiro: atividade.hora_entrega === null,
+        camada: 'estudos' as const,
+        tipo: 'atividade' as const,
+        rota: `/estudos/${atividade.materia_id}`,
+        movimento: 'entidade' as const,
+        ...(atividade.concluida_em ? { estado: 'feito' as const } : {}),
         ...(cor ? { cor } : {}),
       },
     ]
@@ -1064,6 +1126,12 @@ export function construirEventos(
       fontes.nomePorMateria,
       fontes.corPorMateria,
     ),
+    ...eventosAtividades(
+      fontes.atividades,
+      intervalo,
+      fontes.nomePorMateria,
+      fontes.corPorMateria,
+    ),
     ...eventosFluxograma(
       fontes.fluxograma,
       fontes.excecoes,
@@ -1184,4 +1252,5 @@ export const ROTULO_TIPO: Record<TipoEvento, string> = {
   estudo: 'Estudo',
   trabalho: 'Trabalho',
   evento: 'Evento',
+  atividade: 'Entrega',
 }
