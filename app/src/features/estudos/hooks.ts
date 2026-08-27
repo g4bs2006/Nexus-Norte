@@ -362,6 +362,12 @@ export function useConclusoes(data: string) {
 /**
  * Toggle de conclusão. Não emite toast: é um check de rotina, marcado várias
  * vezes ao dia — notificar cada clique seria ruído.
+ *
+ * Invalida `['calendario']` além da raiz de Estudos: o check virou `estado:
+ * 'feito'` no evento (10.20 em diante) e alimenta o anel de "rotina sem check"
+ * da faixa de carga, e as duas leituras vivem em `['calendario', 'conclusoes',
+ * de, ate]`. Sem isso marcar na Home só aparecia no calendário no refetch
+ * seguinte — e marcar *pelo* calendário não aparecia em lugar nenhum.
  */
 export function useDefinirConclusao() {
   const queryClient = useQueryClient()
@@ -378,6 +384,7 @@ export function useDefinirConclusao() {
     }) => api.definirConclusao(fluxogramaId, data, concluido),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: chaves.raiz })
+      void queryClient.invalidateQueries({ queryKey: ['calendario'] })
     },
     onError: (erro: Error) => toast.error(erro.message),
   })

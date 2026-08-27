@@ -19,6 +19,7 @@ import {
   eventosComPrazo,
   ehBlocoCheio,
   ehImportante,
+  ehOcorrenciaComCheck,
   idRealEntidade,
   precisaConfirmarMovimento,
   chaveTreinoData,
@@ -1592,6 +1593,106 @@ describe('ehBlocoCheio', () => {
     // O que impede a sessao de ontem de aparecer como prazo a vencer no card
     // de pressao, e de ser excluida da barra de carga como se fosse deadline.
     expect(ehImportante(sessao)).toBe(false)
+  })
+})
+
+describe('ehOcorrenciaComCheck', () => {
+  const aula = {
+    id: 'f1',
+    dia_semana: 1,
+    horario_inicio: '08:00:00',
+    horario_fim: '10:00:00',
+    materia_id: 'm1',
+    rotulo: null,
+  }
+  const trabalho = {
+    id: 'f3',
+    dia_semana: 1,
+    horario_inicio: '09:00:00',
+    horario_fim: '18:00:00',
+    materia_id: null,
+    rotulo: 'Escritório',
+  }
+
+  it('vale para a aula prevista no dia', () => {
+    const [evento] = eventosFluxograma([aula], [], SEMANA, MATERIAS)
+    expect(evento && ehOcorrenciaComCheck(evento)).toBe(true)
+  })
+
+  it('exclui bloco de trabalho — não entra em conclusoes (10.48.0)', () => {
+    const [bloco] = eventosFluxograma([trabalho], [], SEMANA, MATERIAS)
+
+    // Mesma exclusão que `cargaPorDia` faz no anel de "rotina sem check": quem
+    // cobra o check e quem o oferece têm de concordar.
+    expect(bloco?.camada).toBe('trabalho')
+    expect(bloco?.movimento).toBe('ocorrencia')
+    expect(bloco && ehOcorrenciaComCheck(bloco)).toBe(false)
+  })
+
+  it('segue valendo com o check já marcado — é o que permite desmarcar', () => {
+    const [evento] = eventosFluxograma(
+      [aula],
+      [],
+      SEMANA,
+      MATERIAS,
+      new Map(),
+      new Map(),
+      new Set(['f1@2026-08-03']),
+    )
+
+    expect(evento?.estado).toBe('feito')
+    expect(evento && ehOcorrenciaComCheck(evento)).toBe(true)
+  })
+
+  it('exclui o cancelado e o rastro do remarcado — não aconteceu ali', () => {
+    const [cancelado] = eventosCancelados(
+      [aula],
+      [{ fluxograma_id: 'f1', data: '2026-08-03', status: 'cancelado' }],
+      SEMANA,
+      MATERIAS,
+    )
+    const [rastro] = eventosRemarcadosNaOrigem(
+      [aula],
+      [
+        {
+          fluxograma_id: 'f1',
+          data: '2026-08-03',
+          status: 'remarcado',
+          nova_data: '2026-08-06',
+        },
+      ],
+      SEMANA,
+      MATERIAS,
+    )
+
+    expect(cancelado?.rotina).toBe(true)
+    expect(cancelado && ehOcorrenciaComCheck(cancelado)).toBe(false)
+    expect(rastro?.rotina).toBe(true)
+    expect(rastro && ehOcorrenciaComCheck(rastro)).toBe(false)
+  })
+
+  it('exclui fato registrado e prazo — nenhum dos dois tem check do dia', () => {
+    const [sessao] = eventosSessoesEstudo(
+      [{ id: 's1', materia_id: 'm1', data: '2026-08-04', duracao_minutos: 90 }],
+      SEMANA,
+      MATERIAS,
+    )
+    const [prova] = eventosAvaliacoes(
+      [
+        {
+          id: 'a1',
+          nome: 'P1',
+          data: '2026-08-05',
+          nota: null,
+          materia_id: 'm1',
+        },
+      ],
+      SEMANA,
+      MATERIAS,
+    )
+
+    expect(sessao && ehOcorrenciaComCheck(sessao)).toBe(false)
+    expect(prova && ehOcorrenciaComCheck(prova)).toBe(false)
   })
 })
 

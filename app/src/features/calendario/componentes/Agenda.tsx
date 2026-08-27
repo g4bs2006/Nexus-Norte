@@ -15,6 +15,7 @@ import {
   corDoEvento,
   ROTULO_TIPO,
   ehImportante,
+  ehOcorrenciaComCheck,
   idRealEntidade,
   type EventoCalendario,
   type FonteSessaoEstudo,
@@ -22,6 +23,7 @@ import {
   type FonteTreinoAgendado,
 } from '../eventos'
 import { DialogCriarNoDia } from './DialogCriarNoDia'
+import { DialogPresencaAula } from './DialogPresencaAula'
 
 interface AgendaProps {
   dias: readonly DiaCarga[]
@@ -402,6 +404,32 @@ function LinhaEvento({
       <DialogSessaoRealizada
         sessao={sessaoRealizada}
         nomeMateria={nomeMateria}
+        trigger={
+          <button
+            type="button"
+            className={cn(
+              classes,
+              'hover:bg-accent/60 -mx-1.5 w-[calc(100%+0.75rem)] px-1.5 text-left',
+            )}
+          >
+            {conteudo}
+          </button>
+        }
+      />
+    )
+  }
+
+  /*
+   * Aula da rotina abre o check de presença daquele dia (ago/2026) — mesma
+   * decisão do clique na grade de Horas, e o mesmo motivo dos vizinhos acima:
+   * ir para a matéria só para dizer "fui a esta aula" não era o caminho, e no
+   * dia seguinte não havia caminho nenhum. A navegação para a matéria continua,
+   * no rodapé do diálogo.
+   */
+  if (ehOcorrenciaComCheck(evento)) {
+    return (
+      <DialogPresencaAula
+        evento={evento}
         trigger={
           <button
             type="button"

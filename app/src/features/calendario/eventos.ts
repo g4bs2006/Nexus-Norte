@@ -189,6 +189,32 @@ export function ehBlocoCheio(evento: EventoCalendario): boolean {
 }
 
 /**
+ * Se o evento é uma ocorrência da rotina que **tem check do dia** — por ora, a
+ * aula que o fluxograma prevê para aquela data.
+ *
+ * Espelha o guarda que `cargaPorDia` já usa para o anel de "rotina sem check", e
+ * pela mesma razão: quem cobra o check e quem o oferece precisam concordar, ou o
+ * calendário deixaria marcar algo que nenhuma tela lê.
+ *
+ * - `movimento === 'ocorrencia'` exclui o cancelado e o rastro do remarcado: os
+ *   dois têm `rotina: true` e nascem sem movimento (10.49), e marcar como feito
+ *   o que não aconteceu ali seria inventar presença.
+ * - `camada !== 'trabalho'` porque bloco de trabalho não tem entidade nem
+ *   conclusão (10.48.0) — "marquei que trabalhei?" seria ruído puro.
+ * - Sessão de estudo e treino executado ficam fora por já serem fato
+ *   registrado, e prazo nunca teve check.
+ */
+export function ehOcorrenciaComCheck(
+  evento: Pick<EventoCalendario, 'rotina' | 'movimento' | 'camada'>,
+): boolean {
+  return (
+    evento.rotina === true &&
+    evento.movimento === 'ocorrencia' &&
+    evento.camada !== 'trabalho'
+  )
+}
+
+/**
  * Extrai o id real da entidade dona a partir do id composto do evento
  * (`prefixo:uuid`), para as mutations de mover — spec, seção 1.
  *

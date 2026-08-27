@@ -35,6 +35,7 @@ import {
   COR_CAMADA,
   ROTULO_CAMADA,
   construirEventos,
+  ehOcorrenciaComCheck,
   idRealEntidade,
   type CamadaCalendario,
   type EventoCalendario,
@@ -61,6 +62,7 @@ import {
 } from '@/features/calendario/planejador'
 import { Agenda } from '@/features/calendario/componentes/Agenda'
 import { DialogCriarNoDia } from '@/features/calendario/componentes/DialogCriarNoDia'
+import { DialogPresencaAula } from '@/features/calendario/componentes/DialogPresencaAula'
 import { FaixaCarga } from '@/features/calendario/componentes/FaixaCarga'
 import { CardPressaoPrazos } from '@/features/calendario/componentes/CardPressaoPrazos'
 import {
@@ -136,6 +138,16 @@ export default function CalendarioPage() {
   /** Idem, para sessão de estudo realizada (ago/2026). */
   const [sessaoRealizadaEditando, setSessaoRealizadaEditando] =
     useState<FonteSessaoEstudo | null>(null)
+  /**
+   * Aula clicada nas grades de Mês/Horas, para marcar a presença no dia dela
+   * (ago/2026).
+   *
+   * Guarda o **id** do evento, e não o evento — diferente dos vizinhos daqui.
+   * O que o diálogo mostra é o próprio `estado: 'feito'`, que muda quando a
+   * conclusão é gravada; um objeto congelado em estado deixaria o check preso
+   * no valor de quando o diálogo abriu.
+   */
+  const [ocorrenciaAberta, setOcorrenciaAberta] = useState<string | null>(null)
   const materias = useMaterias()
 
   /**
@@ -284,6 +296,15 @@ export default function CalendarioPage() {
   const sessoesRealizadasPorId = useMemo(
     () => new Map(fontes.sessoesEstudo.map((s) => [s.id, s])),
     [fontes.sessoesEstudo],
+  )
+
+  /** Resolvido da lista viva, não do clique — ver `ocorrenciaAberta`. */
+  const ocorrenciaSelecionada = useMemo(
+    () =>
+      ocorrenciaAberta
+        ? (eventos.find((e) => e.id === ocorrenciaAberta) ?? null)
+        : null,
+    [eventos, ocorrenciaAberta],
   )
 
   const refsDia = useRef(new Map<string, HTMLLIElement>())
@@ -632,6 +653,20 @@ export default function CalendarioPage() {
                   }
                 }
 
+                /*
+                 * Aula da rotina: abre o check de presença daquele dia em vez
+                 * de navegar (ago/2026). Vem ANTES do `rotaPorId` pelo mesmo
+                 * motivo do treino agendado — a aula tem `rota:
+                 * '/estudos/:id'`, e a rota venceria. Marcar presença era o
+                 * único desfecho que o calendário mostrava e não deixava
+                 * registrar; ir para a matéria continua possível pelo rodapé do
+                 * diálogo.
+                 */
+                if (evento && ehOcorrenciaComCheck(evento)) {
+                  setOcorrenciaAberta(evento.id)
+                  return
+                }
+
                 const rota = rotaPorId.get(id)
                 if (rota) {
                   navegar(rota)
@@ -785,6 +820,15 @@ export default function CalendarioPage() {
         open={selecaoIntervalo !== null}
         onOpenChange={(aberto) => {
           if (!aberto) setSelecaoIntervalo(null)
+        }}
+      />
+
+      <DialogPresencaAula
+        evento={ocorrenciaSelecionada}
+        trigger={null}
+        open={ocorrenciaAberta !== null}
+        onOpenChange={(aberto) => {
+          if (!aberto) setOcorrenciaAberta(null)
         }}
       />
 

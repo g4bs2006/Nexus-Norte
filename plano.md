@@ -2930,3 +2930,62 @@ Atrasada também escala o status para `atencao`.
 `enviarPush` não checa `error`. A violação é engolida em silêncio, então a
 sugestão de aporte envia o push e nunca grava a linha que impediria o reenvio. É
 anterior a esta feature e precisa de migração própria.
+
+### 10.56 O check da rotina só existia no dia (corrige 10.15 / 10.20) — descoberta em uso
+
+O check de aula sempre foi um check **de hoje**. A Home e o hub de Estudos listam
+"hoje" e gravam `conclusoes_fluxograma (fluxograma_id, hojeISO)`; o calendário
+lia essa linha para virar `estado: 'feito'` no evento (10.20 em diante) e nunca
+teve como escrevê-la. Esquecer de marcar na terça era definitivo: a aula ficava
+prevista para sempre, entrava no anel de "rotina sem check" da faixa de carga e
+em "Ficou pra trás" — indistinguível de falta. E era no calendário, olhando a
+semana, que se percebia o buraco.
+
+Pior, o clique **já não fazia nada de útil ali**: na vista de Horas e na de Mês a
+aula tem `rota: '/estudos/:id'`, então tocar nela levava para a matéria, que é a
+página onde o check daquele dia também não existe.
+
+**`DialogPresencaAula`** — o check de uma aula, com a data **da aula**. Grava a
+mesma chave que a Home grava, só que com a data do evento em vez de `hojeISO`;
+nenhuma tabela nova, nenhuma coluna nova. Numa ocorrência remarcada a data é a de
+**destino**, onde a aula de fato está — que é o que a Home já fazia quando uma
+remarcada caía hoje.
+
+**`ehOcorrenciaComCheck(evento)`** decide quem tem check, espelhando o guarda que
+`cargaPorDia` já usava para o anel de "rotina sem check" — quem cobra o check e
+quem o oferece precisam concordar, ou o calendário deixaria marcar algo que
+nenhuma tela lê:
+
+- `movimento === 'ocorrencia'` exclui o cancelado e o rastro do remarcado: os
+  dois têm `rotina: true` e nascem sem movimento (10.49), e marcar como feito o
+  que não aconteceu ali seria inventar presença.
+- `camada !== 'trabalho'` mantém a 10.48.0 de pé: bloco de trabalho não tem
+  entidade nem conclusão, e clicar nele segue sem abrir nada.
+- Sessão de estudo e treino executado ficam fora por já serem fato registrado, e
+  prazo nunca teve check.
+
+**O clique passa a abrir o diálogo nas três vistas**, não só na de Horas: a
+agenda tinha o mesmo furo, e o detalhe do dia da vista de Mês reaproveita
+`Agenda`. Segue o precedente do treino agendado e da sessão planejada, que já
+abrem diálogo em vez de navegar. A navegação para a matéria não se perde — vira
+"Ver matéria" no rodapé, que é o único lugar onde ela ainda é útil.
+
+**A página guarda o id do evento, não o evento.** Os vizinhos em
+`CalendarioPage` (`treinoEditando`, `sessaoEditando`) guardam o registro, e aqui
+isso não serve: o que o diálogo mostra é o `estado: 'feito'` que a própria
+gravação muda, e um objeto congelado deixaria o check preso no valor de quando
+abriu. O evento é resolvido da lista viva a cada render. O diálogo ainda mantém
+um espelho local do check para o toque responder antes do servidor, e
+ressincroniza quando a consulta volta — erro na mutation não deixa a tela
+mentindo.
+
+**Corrigido de passagem: `useDefinirConclusao` invalidava só `['estudos']`.** O
+check virou dado do calendário na 10.20 e a invalidação nunca acompanhou — as
+consultas de conclusão do calendário vivem em `['calendario', 'conclusoes', de,
+ate]`. Marcar na Home só chegava à faixa de carga no refetch seguinte, e marcar
+pelo calendário não chegaria a lugar nenhum.
+
+**Não entrou:** cancelar e remarcar dentro deste diálogo. `MenuOcorrencia` exige
+a data **original** da exceção, e `EventoCalendario` não a carrega — a ocorrência
+remarcada sabe que é remarcada, não de onde saiu. Continua onde já está: nos
+checks do dia, no Ritual de domingo e na página de Treino.
