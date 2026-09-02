@@ -41,9 +41,17 @@ export function AbaDocumentos({ materiaId, documentos }: AbaDocumentosProps) {
       ? documentos
       : documentos.filter((documento) => documento.tipo === filtro)
 
-  async function selecionar(arquivo: File | undefined) {
-    if (!arquivo) return
-    await enviar.mutateAsync({ materiaId, tipo, arquivo })
+  async function selecionar(arquivos: FileList | null) {
+    if (!arquivos || arquivos.length === 0) return
+    // Sequencial: em paralelo os uploads disputariam o mesmo toast de
+    // progresso e um erro no meio confundiria qual arquivo falhou.
+    for (const arquivo of Array.from(arquivos)) {
+      try {
+        await enviar.mutateAsync({ materiaId, tipo, arquivo })
+      } catch {
+        // Já notificado pelo onError da mutação; segue para o próximo.
+      }
+    }
     // Permite reenviar o mesmo arquivo depois de excluí-lo
     if (inputArquivo.current) inputArquivo.current.value = ''
   }
@@ -84,8 +92,9 @@ export function AbaDocumentos({ materiaId, documentos }: AbaDocumentosProps) {
           <input
             ref={inputArquivo}
             type="file"
+            multiple
             className="hidden"
-            onChange={(evento) => void selecionar(evento.target.files?.[0])}
+            onChange={(evento) => void selecionar(evento.target.files)}
           />
           <Button
             size="sm"
