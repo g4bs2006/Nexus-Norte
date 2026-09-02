@@ -1,4 +1,7 @@
-import { useRemarcarOcorrencia } from '@/features/fluxograma/hooks'
+import {
+  useAtualizarFluxogramaLivre,
+  useRemarcarOcorrencia,
+} from '@/features/fluxograma/hooks'
 import {
   useAtualizarAvaliacao,
   useAtualizarSessao,
@@ -23,6 +26,7 @@ import { idRealEntidade, type EventoCalendario } from '../eventos'
  */
 export function useMoverEvento() {
   const remarcarOcorrencia = useRemarcarOcorrencia()
+  const atualizarBlocoAvulso = useAtualizarFluxogramaLivre()
   const atualizarSessao = useAtualizarSessao()
   const atualizarSessaoPlanejada = useAtualizarSessaoPlanejada()
   const atualizarAvaliacao = useAtualizarAvaliacao()
@@ -32,6 +36,7 @@ export function useMoverEvento() {
 
   const pendente =
     remarcarOcorrencia.isPending ||
+    atualizarBlocoAvulso.isPending ||
     atualizarSessao.isPending ||
     atualizarSessaoPlanejada.isPending ||
     atualizarAvaliacao.isPending ||
@@ -46,8 +51,35 @@ export function useMoverEvento() {
     novoFim: string | null,
   ): Promise<void> {
     switch (evento.tipo) {
-      case 'aula':
       case 'trabalho':
+        if (evento.movimento === 'entidade') {
+          // Bloco avulso (chat 2026-09-02): data própria em
+          // `fluxograma_semanal.data`, sem regra recorrente por baixo — mover
+          // grava direto na linha, mesmo caminho do treino agendado.
+          // Horário ausente = mantém o atual (a coluna não aceita nulo).
+          const dados: {
+            data: string
+            horario_inicio?: string
+            horario_fim?: string
+          } = { data: novaData }
+          if (novoInicio !== null) dados.horario_inicio = novoInicio
+          if (novoFim !== null) dados.horario_fim = novoFim
+          await atualizarBlocoAvulso.mutateAsync({
+            id: idRealEntidade(evento),
+            dados,
+          })
+          return
+        }
+        // Bloco fixo: mesmo caminho da aula, ver abaixo.
+        await remarcarOcorrencia.mutateAsync({
+          fluxogramaId: evento.origemId as string,
+          data: evento.inicio.slice(0, 10),
+          novaData,
+          novoHorarioInicio: novoInicio,
+          novoHorarioFim: novoFim,
+        })
+        return
+      case 'aula':
         // `origemId` é o id da regra do fluxograma; a data de origem é a do
         // próprio evento antes do arrasto, não `novaData`.
         await remarcarOcorrencia.mutateAsync({

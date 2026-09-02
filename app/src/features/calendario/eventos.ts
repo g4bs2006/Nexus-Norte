@@ -354,6 +354,20 @@ export interface FonteTreinoAgendado {
 }
 
 /**
+ * Bloco de trabalho/rótulo livre com data própria (chat 2026-09-02) — irmão
+ * avulso de `FonteFluxograma`, mesma ideia de `FonteTreinoAgendado`: sem
+ * `dia_semana`, a data já é a própria ocorrência, sem recorrência para
+ * expandir.
+ */
+export interface FonteBlocoAvulso {
+  id: string
+  data: string
+  horario_inicio: string
+  horario_fim: string
+  rotulo: string
+}
+
+/**
  * Sessão de estudo registrada.
  *
  * `hora_inicio` é **informada pelo usuário** e opcional (13/08) — mesma regra de
@@ -390,6 +404,8 @@ export interface FontesCalendario {
   marcos: readonly FonteMarco[]
   execucoesTreino: readonly FonteExecucaoTreino[]
   treinosAgendados: readonly FonteTreinoAgendado[]
+  /** Bloco de trabalho/rótulo livre com data própria (chat 2026-09-02). */
+  blocosAvulsos: readonly FonteBlocoAvulso[]
   sessoesEstudo: readonly FonteSessaoEstudo[]
   sessoesEstudoPlanejadas: readonly FonteSessaoPlanejada[]
   eventosLivres: readonly FonteEventoLivre[]
@@ -710,6 +726,38 @@ export function eventosTreinoAgendado(
         camada: 'treino' as const,
         tipo: 'treino' as const,
         rota: '/treino',
+        rotina: true,
+        movimento: 'entidade' as const,
+      },
+    ]
+  })
+}
+
+/**
+ * Blocos de trabalho/rótulo livre com data própria (chat 2026-09-02) —
+ * correção do defeito em que todo bloco criado pelo calendário (inclusive no
+ * arrasto da grade de Horas, que parece "só hoje") virava padrão recorrente
+ * por `dia_semana`. Mesmo padrão de `eventosTreinoAgendado`: não passa por
+ * `expandirRecorrencia`, `movimento` é `'entidade'` — mover na grade grava
+ * direto na linha, sem exceção.
+ */
+export function eventosBlocoAvulso(
+  avulsos: readonly FonteBlocoAvulso[],
+  intervalo: Intervalo,
+): EventoCalendario[] {
+  return avulsos.flatMap((avulso) => {
+    if (avulso.data < intervalo.de || avulso.data > intervalo.ate) return []
+
+    return [
+      {
+        id: `bloco-avulso:${avulso.id}`,
+        origemId: avulso.id,
+        titulo: avulso.rotulo,
+        inicio: comHorario(avulso.data, avulso.horario_inicio),
+        fim: comHorario(avulso.data, avulso.horario_fim),
+        diaInteiro: false,
+        camada: 'trabalho' as const,
+        tipo: 'trabalho' as const,
         rotina: true,
         movimento: 'entidade' as const,
       },
@@ -1173,6 +1221,7 @@ export function construirEventos(
       fontes.nomePorTreino,
       treinosFeitos,
     ),
+    ...eventosBlocoAvulso(fontes.blocosAvulsos, intervalo),
     ...feitos,
     ...sessoesRegistradas,
     ...eventosSessaoPlanejada(

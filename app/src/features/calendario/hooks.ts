@@ -26,6 +26,8 @@ export const chaves = {
     ['calendario', 'execucoes-treino', de, ate] as const,
   treinosAgendados: (de: string, ate: string) =>
     ['calendario', 'treinos-agendados', de, ate] as const,
+  blocosAvulsos: (de: string, ate: string) =>
+    ['calendario', 'blocos-avulsos', de, ate] as const,
   sessoesEstudo: (de: string, ate: string) =>
     ['calendario', 'sessoes-estudo', de, ate] as const,
   sessoesEstudoPlanejadas: (de: string, ate: string) =>
@@ -105,6 +107,11 @@ export function useFontesCalendario(
     queryKey: chaves.treinosAgendados(de, ate),
     queryFn: () => api.treinosAgendadosNoIntervalo(de, ate),
   })
+  /** Bloco de trabalho/rótulo livre com data própria (chat 2026-09-02). */
+  const blocosAvulsos = useQuery({
+    queryKey: chaves.blocosAvulsos(de, ate),
+    queryFn: () => api.fluxogramaAvulsoNoIntervalo(de, ate),
+  })
   const sessoesEstudo = useQuery({
     queryKey: chaves.sessoesEstudo(de, ate),
     queryFn: () => api.sessoesEstudoNoIntervalo(de, ate),
@@ -163,6 +170,7 @@ export function useFontesCalendario(
     marcos,
     execucoesTreino,
     treinosAgendados,
+    blocosAvulsos,
     sessoesEstudo,
     sessoesEstudoPlanejadas,
     eventosLivres,
@@ -182,6 +190,7 @@ export function useFontesCalendario(
       marcos: marcos.data ?? [],
       execucoesTreino: execucoesTreino.data ?? [],
       treinosAgendados: treinosAgendados.data ?? [],
+      blocosAvulsos: blocosAvulsos.data ?? [],
       sessoesEstudo: sessoesEstudo.data ?? [],
       sessoesEstudoPlanejadas: sessoesEstudoPlanejadas.data ?? [],
       eventosLivres: eventosLivres.data ?? [],

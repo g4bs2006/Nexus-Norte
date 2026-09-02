@@ -10,6 +10,7 @@ import type { Treino } from '@/features/treino/types'
 import { DialogAgendarSessao } from '@/features/estudos/componentes/DialogAgendarSessao'
 import { DialogSessaoRealizada } from '@/features/estudos/componentes/DialogSessaoRealizada'
 import type { Materia } from '@/features/estudos/types'
+import { DialogBlocoAvulso } from '@/features/fluxograma/componentes/DialogBlocoAvulso'
 import { ordenarDoDia, type DiaCarga } from '../carga'
 import {
   corDoEvento,
@@ -18,6 +19,7 @@ import {
   ehOcorrenciaComCheck,
   idRealEntidade,
   type EventoCalendario,
+  type FonteBlocoAvulso,
   type FonteSessaoEstudo,
   type FonteSessaoPlanejada,
   type FonteTreinoAgendado,
@@ -48,6 +50,12 @@ interface AgendaProps {
   treinosAgendadosPorId?: ReadonlyMap<string, FonteTreinoAgendado>
   /** Lista de treinos, para o Select do diálogo de editar treino agendado. */
   treinos?: readonly Treino[]
+  /**
+   * Registro completo por id, para bloco de trabalho avulso (`tipo ===
+   * 'trabalho'`, `movimento === 'entidade'`) — mesmo motivo de
+   * `treinosAgendadosPorId` (chat 2026-09-02).
+   */
+  blocosAvulsosPorId?: ReadonlyMap<string, FonteBlocoAvulso>
   /**
    * Registro completo por id, para sessão de estudo planejada (`tipo ===
    * 'estudo'`, `movimento === 'entidade'`, ainda sem `estado: 'feito'`) —
@@ -83,6 +91,7 @@ export function Agenda({
   eventosLivresPorId,
   treinosAgendadosPorId,
   treinos,
+  blocosAvulsosPorId,
   sessoesPlanejadasPorId,
   materias,
   sessoesRealizadasPorId,
@@ -167,6 +176,11 @@ export function Agenda({
                           : undefined
                       }
                       treinos={treinos}
+                      blocoAvulso={
+                        evento.origemId
+                          ? blocosAvulsosPorId?.get(evento.origemId)
+                          : undefined
+                      }
                       sessaoPlanejada={
                         evento.origemId
                           ? sessoesPlanejadasPorId?.get(evento.origemId)
@@ -197,6 +211,7 @@ function LinhaEvento({
   eventoLivre,
   treinoAgendado,
   treinos,
+  blocoAvulso,
   sessaoPlanejada,
   sessaoRealizada,
   materias,
@@ -208,6 +223,8 @@ function LinhaEvento({
   /** Só presente quando `evento.tipo === 'treino'` (agendado, não realizado). */
   treinoAgendado?: FonteTreinoAgendado
   treinos?: readonly Treino[]
+  /** Só presente quando `evento.tipo === 'trabalho'` e `movimento === 'entidade'` (avulso). */
+  blocoAvulso?: FonteBlocoAvulso
   /** Só presente quando `evento.tipo === 'estudo'` (planejada, não realizada). */
   sessaoPlanejada?: FonteSessaoPlanejada
   /** Só presente quando `evento.tipo === 'estudo'` e `evento.estado === 'feito'`. */
@@ -342,6 +359,32 @@ function LinhaEvento({
       <DialogAgendarTreino
         agendado={treinoAgendado}
         treinos={treinos ?? []}
+        trigger={
+          <button
+            type="button"
+            className={cn(
+              classes,
+              'hover:bg-accent/60 -mx-1.5 w-[calc(100%+0.75rem)] px-1.5 text-left',
+            )}
+          >
+            {conteudo}
+          </button>
+        }
+      />
+    )
+  }
+
+  /*
+   * Bloco de trabalho avulso (data própria) também não navega — mesmo
+   * tratamento do treino agendado (chat 2026-09-02). Bloco fixo
+   * (`movimento === 'ocorrencia'`) segue sem clique aqui, gerido em
+   * "Blocos fixos" — só o avulso, criado por engano de recorrência antes
+   * desta correção, precisa de edição inline.
+   */
+  if (evento.tipo === 'trabalho' && evento.movimento === 'entidade' && blocoAvulso) {
+    return (
+      <DialogBlocoAvulso
+        bloco={blocoAvulso}
         trigger={
           <button
             type="button"

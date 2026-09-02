@@ -5,6 +5,7 @@ import {
   corDoEvento,
   eventosAtividades,
   eventosAvaliacoes,
+  eventosBlocoAvulso,
   eventosCancelados,
   eventosContas,
   eventosExecucoesTreino,
@@ -408,6 +409,36 @@ describe('eventosTreinoAgendado', () => {
   })
 })
 
+describe('eventosBlocoAvulso (chat 2026-09-02)', () => {
+  const avulso = {
+    id: 'ba1',
+    data: '2026-08-05',
+    horario_inicio: '09:00:00',
+    horario_fim: '18:00:00',
+    rotulo: 'Plantão',
+  }
+
+  it('monta o evento a partir da data própria, sem regra semanal', () => {
+    const [evento] = eventosBlocoAvulso([avulso], SEMANA)
+
+    expect(evento?.titulo).toBe('Plantão')
+    expect(evento?.camada).toBe('trabalho')
+    expect(evento?.tipo).toBe('trabalho')
+    expect(evento?.inicio).toBe('2026-08-05T09:00:00')
+    expect(evento?.fim).toBe('2026-08-05T18:00:00')
+    expect(evento?.rotina).toBe(true)
+    // 'entidade', não 'ocorrencia': mover grava direto na linha, sem
+    // exceção — diferente do bloco fixo (`eventosFluxograma`).
+    expect(evento?.movimento).toBe('entidade')
+  })
+
+  it('ignora avulso fora do intervalo', () => {
+    expect(
+      eventosBlocoAvulso([{ ...avulso, data: '2026-09-01' }], SEMANA),
+    ).toEqual([])
+  })
+})
+
 describe('eventosContas', () => {
   const base = {
     id: 'l1',
@@ -666,6 +697,7 @@ describe('construirEventos', () => {
       ],
       execucoesTreino: [],
       treinosAgendados: [],
+      blocosAvulsos: [],
       sessoesEstudo: [],
       sessoesEstudoPlanejadas: [],
       eventosLivres: [],
@@ -693,6 +725,7 @@ describe('construirEventos', () => {
       marcos: [],
       execucoesTreino: [],
       treinosAgendados: [],
+      blocosAvulsos: [],
       sessoesEstudo: [],
       sessoesEstudoPlanejadas: [],
       eventosLivres: [],
@@ -1229,6 +1262,7 @@ describe('eventosRemarcadosNaOrigem', () => {
         marcos: [],
         execucoesTreino: [],
         treinosAgendados: [],
+        blocosAvulsos: [],
         sessoesEstudo: [],
         sessoesEstudoPlanejadas: [],
         eventosLivres: [],
@@ -1267,6 +1301,7 @@ describe('reconciliação entre previsto e realizado', () => {
     contas: [],
     planejamentoSono: [],
     marcos: [],
+    blocosAvulsos: [],
     sessoesEstudo: [],
     sessoesEstudoPlanejadas: [],
     eventosLivres: [],
@@ -1381,6 +1416,7 @@ describe('reconciliação entre sessão planejada e executada (chat 2026-08-14)'
     marcos: [],
     execucoesTreino: [],
     treinosAgendados: [],
+    blocosAvulsos: [],
     eventosLivres: [],
     nomePorMateria: MATERIAS,
     nomePorTreino: TREINOS,

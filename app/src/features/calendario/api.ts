@@ -49,19 +49,29 @@ export async function avaliacoesComData(): Promise<FonteAvaliacao[]> {
 }
 
 /**
- * Aulas e blocos de trabalho/rótulo livre — a tabela é compartilhada
- * (resolução 10.6, 10.48.0).
+ * Aulas e blocos de trabalho/rótulo livre **recorrentes** — a tabela é
+ * compartilhada (resolução 10.6, 10.48.0).
  *
  * Treino não lê mais daqui (chat 2026-08-14): ver `treinosAgendadosNoIntervalo`.
+ * Bloco avulso (data própria) também não: `.is('data', null)` deixa aqui só o
+ * padrão semanal — ver `fluxogramaAvulsoNoIntervalo` (chat 2026-09-02).
  */
 export async function fluxogramaCompleto(): Promise<FonteFluxograma[]> {
   const { data, error } = await supabase
     .from('fluxograma_semanal')
     .select('id, dia_semana, horario_inicio, horario_fim, materia_id, rotulo')
+    .is('data', null)
     .order('dia_semana')
   if (error) throw new Error(error.message)
   return data ?? []
 }
+
+/**
+ * Reexporta a leitura do bloco avulso (chat 2026-09-02) — mesmo motivo de
+ * `excecoesNoIntervalo`: a tabela é do fluxograma, duplicar a query aqui só
+ * criaria uma segunda fonte de verdade.
+ */
+export { listarBlocoAvulso as fluxogramaAvulsoNoIntervalo } from '@/features/fluxograma/api'
 
 /**
  * Reexporta a leitura compartilhada (resolução 10.19).

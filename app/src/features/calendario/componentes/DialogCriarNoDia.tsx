@@ -160,6 +160,14 @@ export function DialogCriarNoDia({
    */
   const [horaEstudo, setHoraEstudo] = useState('')
   const [rotulo, setRotulo] = useState('')
+  /**
+   * Se desmarcado, o bloco de trabalho vale só para `dataEditavel` — nasce
+   * `false` sempre, inclusive fora do arrasto (chat 2026-09-02): antes desta
+   * correção, todo bloco criado por aqui virava padrão recorrente por
+   * `dia_semana`, mesmo quando a intenção era só aquele dia. Quem quer de
+   * verdade um compromisso fixo (expediente, curso) liga o toggle.
+   */
+  const [repetirTrabalho, setRepetirTrabalho] = useState(false)
   const [horarioInicio, setHorarioInicio] = useState('09:00')
   const [horarioFim, setHorarioFim] = useState('10:00')
   const [treinoId, setTreinoId] = useState('')
@@ -245,6 +253,9 @@ export function DialogCriarNoDia({
         dia_semana: deISO(dataEditavel).getDay(),
         horario_inicio: horarioInicio,
         horario_fim: horarioFim,
+        // Sem o toggle, a linha vale só para `dataEditavel` — ver o
+        // comentário de `repetirTrabalho` (chat 2026-09-02).
+        ...(repetirTrabalho ? {} : { data: dataEditavel }),
       })
     } else if (tipo === 'treino') {
       if (!treinoId || horarioFim <= horarioInicio) return
@@ -329,11 +340,9 @@ export function DialogCriarNoDia({
             />
             {tipo === 'trabalho' && (
               <p className="text-muted-foreground text-[11px]">
-                Bloco recorrente: vale toda{' '}
-                {deISO(dataEditavel).toLocaleDateString('pt-BR', {
-                  weekday: 'long',
-                })}
-                , não só esta data.
+                {repetirTrabalho
+                  ? `Bloco recorrente: vale toda ${deISO(dataEditavel).toLocaleDateString('pt-BR', { weekday: 'long' })}, não só esta data.`
+                  : 'Vale só esta data — marque "repetir" para virar um bloco fixo da semana.'}
               </p>
             )}
           </div>
@@ -404,6 +413,15 @@ export function DialogCriarNoDia({
                     onChange={(e) => setHorarioFim(e.target.value)}
                   />
                 </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  checked={repetirTrabalho}
+                  onCheckedChange={(checado) =>
+                    setRepetirTrabalho(checado === true)
+                  }
+                />
+                <Label className="!mt-0">Repetir toda semana</Label>
               </div>
             </>
           )}

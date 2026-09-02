@@ -26,15 +26,57 @@ export interface FluxogramaLivre {
   rotulo: string
 }
 
+/**
+ * Só o padrão recorrente — `data` nula (chat 2026-09-02). "Blocos fixos" é a
+ * página de compromissos que valem toda semana; o bloco avulso (`data`
+ * preenchida) tem data própria e mora no calendário, não aqui. Sem este
+ * filtro um bloco criado "só hoje" no arrasto reapareceria toda semana
+ * também nesta lista — o oposto do que ele é.
+ */
 export async function listarFluxogramaLivre(): Promise<FluxogramaLivre[]> {
   const { data, error } = await supabase
     .from('fluxograma_semanal')
     .select('id, dia_semana, horario_inicio, horario_fim, rotulo')
     .not('rotulo', 'is', null)
+    .is('data', null)
     .order('dia_semana')
     .order('horario_inicio')
   if (error) throw new Error(error.message)
   return (data ?? []).map((linha) => ({ ...linha, rotulo: linha.rotulo as string }))
+}
+
+export interface BlocoAvulso {
+  id: string
+  data: string
+  horario_inicio: string
+  horario_fim: string
+  rotulo: string
+}
+
+/**
+ * Bloco de trabalho/rótulo livre com data própria — irmão avulso do padrão
+ * semanal acima (chat 2026-09-02). Filtra por intervalo, como
+ * `treinos_agendados` e `eventos_calendario`: sem data recorrente para
+ * expandir, não há razão para trazer tudo.
+ */
+export async function listarBlocoAvulso(
+  de: string,
+  ate: string,
+): Promise<BlocoAvulso[]> {
+  const { data, error } = await supabase
+    .from('fluxograma_semanal')
+    .select('id, data, horario_inicio, horario_fim, rotulo')
+    .not('data', 'is', null)
+    .gte('data', de)
+    .lte('data', ate)
+    .order('data')
+    .order('horario_inicio')
+  if (error) throw new Error(error.message)
+  return (data ?? []).map((linha) => ({
+    ...linha,
+    data: linha.data as string,
+    rotulo: linha.rotulo as string,
+  }))
 }
 
 export async function criarFluxogramaLivre(

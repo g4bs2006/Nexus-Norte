@@ -39,6 +39,7 @@ import {
   idRealEntidade,
   type CamadaCalendario,
   type EventoCalendario,
+  type FonteBlocoAvulso,
   type FonteSessaoEstudo,
   type FonteSessaoPlanejada,
   type FonteTreinoAgendado,
@@ -46,6 +47,7 @@ import {
 import { cargaPorDia, type DiaCarga } from '@/features/calendario/carga'
 import type { EventoLivre } from '@/features/eventos/api'
 import { useFontesCalendario } from '@/features/calendario/hooks'
+import { DialogBlocoAvulso } from '@/features/fluxograma/componentes/DialogBlocoAvulso'
 import { DialogAgendarTreino } from '@/features/treino/componentes/DialogAgendarTreino'
 import { useTreinos } from '@/features/treino/hooks'
 import type { Treino } from '@/features/treino/types'
@@ -102,7 +104,10 @@ export default function CalendarioPage() {
   const hoje = useMemo(() => new Date(), [])
   const navegar = useNavigate()
 
-  const [vista, setVista] = useState<Vista>('agenda')
+  // 'grade' (Horas) por padrão — pedido explícito (chat 2026-09-02): a
+  // semana em blocos de horário é a vista mais usada, "Semana" (agenda em
+  // lista) exigia um clique extra toda vez que a página abria.
+  const [vista, setVista] = useState<Vista>('grade')
   const [visiveis, setVisiveis] = useState<Set<CamadaCalendario>>(
     () => new Set(CAMADAS),
   )
@@ -133,6 +138,10 @@ export default function CalendarioPage() {
 
   /** Idem, para sessão de estudo planejada (chat 2026-08-14). */
   const [sessaoEditando, setSessaoEditando] = useState<FonteSessaoPlanejada | null>(
+    null,
+  )
+  /** Idem, para bloco de trabalho avulso, data própria (chat 2026-09-02). */
+  const [blocoEditando, setBlocoEditando] = useState<FonteBlocoAvulso | null>(
     null,
   )
   /** Idem, para sessão de estudo realizada (ago/2026). */
@@ -290,6 +299,12 @@ export default function CalendarioPage() {
   const sessoesPlanejadasPorId = useMemo(
     () => new Map(fontes.sessoesEstudoPlanejadas.map((s) => [s.id, s])),
     [fontes.sessoesEstudoPlanejadas],
+  )
+
+  /** Idem, para bloco de trabalho avulso (chat 2026-09-02). */
+  const blocosAvulsosPorId = useMemo(
+    () => new Map(fontes.blocosAvulsos.map((b) => [b.id, b])),
+    [fontes.blocosAvulsos],
   )
 
   /** Idem, para sessão de estudo realizada. */
@@ -578,6 +593,7 @@ export default function CalendarioPage() {
                 eventosLivresPorId={eventosLivresPorId}
                 treinosAgendadosPorId={treinosAgendadosPorId}
                 treinos={treinos.data}
+                blocosAvulsosPorId={blocosAvulsosPorId}
                 sessoesPlanejadasPorId={sessoesPlanejadasPorId}
                 sessoesRealizadasPorId={sessoesRealizadasPorId}
                 materias={materias.data}
@@ -633,6 +649,22 @@ export default function CalendarioPage() {
                   const planejada = sessoesPlanejadasPorId.get(evento.origemId)
                   if (planejada) {
                     setSessaoEditando(planejada)
+                    return
+                  }
+                }
+                /*
+                 * Bloco de trabalho avulso — mesmo motivo do treino agendado
+                 * (chat 2026-09-02). O fixo (`movimento === 'ocorrencia'`)
+                 * segue sem clique aqui, gerido em "Blocos fixos".
+                 */
+                if (
+                  evento?.tipo === 'trabalho' &&
+                  evento.movimento === 'entidade' &&
+                  evento.origemId
+                ) {
+                  const bloco = blocosAvulsosPorId.get(evento.origemId)
+                  if (bloco) {
+                    setBlocoEditando(bloco)
                     return
                   }
                 }
@@ -784,6 +816,7 @@ export default function CalendarioPage() {
         eventosLivresPorId={eventosLivresPorId}
         treinosAgendadosPorId={treinosAgendadosPorId}
         treinos={treinos.data}
+        blocosAvulsosPorId={blocosAvulsosPorId}
         sessoesPlanejadasPorId={sessoesPlanejadasPorId}
         sessoesRealizadasPorId={sessoesRealizadasPorId}
         materias={materias.data}
@@ -809,6 +842,15 @@ export default function CalendarioPage() {
         open={sessaoEditando !== null}
         onOpenChange={(aberto) => {
           if (!aberto) setSessaoEditando(null)
+        }}
+      />
+
+      <DialogBlocoAvulso
+        bloco={blocoEditando ?? undefined}
+        trigger={null}
+        open={blocoEditando !== null}
+        onOpenChange={(aberto) => {
+          if (!aberto) setBlocoEditando(null)
         }}
       />
 
@@ -857,6 +899,7 @@ interface DialogDiaProps {
   eventosLivresPorId: ReadonlyMap<string, EventoLivre>
   treinosAgendadosPorId: ReadonlyMap<string, FonteTreinoAgendado>
   treinos?: readonly Treino[]
+  blocosAvulsosPorId: ReadonlyMap<string, FonteBlocoAvulso>
   sessoesPlanejadasPorId: ReadonlyMap<string, FonteSessaoPlanejada>
   sessoesRealizadasPorId: ReadonlyMap<string, FonteSessaoEstudo>
   materias?: readonly Materia[]
@@ -881,6 +924,7 @@ function DialogDia({
   eventosLivresPorId,
   treinosAgendadosPorId,
   treinos,
+  blocosAvulsosPorId,
   sessoesPlanejadasPorId,
   sessoesRealizadasPorId,
   materias,
@@ -903,6 +947,7 @@ function DialogDia({
             eventosLivresPorId={eventosLivresPorId}
             treinosAgendadosPorId={treinosAgendadosPorId}
             treinos={treinos}
+            blocosAvulsosPorId={blocosAvulsosPorId}
             sessoesPlanejadasPorId={sessoesPlanejadasPorId}
             sessoesRealizadasPorId={sessoesRealizadasPorId}
             materias={materias}
