@@ -1,0 +1,235 @@
+diff --git a/plano.md b/plano.md
+index d59e04f..51c86f0 100644
+--- a/plano.md
++++ b/plano.md
+@@ -2930,3 +2930,230 @@ Atrasada também escala o status para `atencao`.
+ `enviarPush` não checa `error`. A violação é engolida em silêncio, então a
+ sugestão de aporte envia o push e nunca grava a linha que impediria o reenvio. É
+ anterior a esta feature e precisa de migração própria.
++
++---
++
++### 10.56 Horizonte de Saldos — o "disponível hoje" vira saldo real projetado dia a dia (substitui 2.3 / 10.43) — spec própria
++
++**Diagnóstico.** O Financeiro tem hoje dois modelos de "quanto posso gastar" que
++não se falam. `gastoDisponivelGeral` (2.3) reseta a meta todo mês e divide o que
++resta pelos dias restantes — um **ritmo médio**, não um saldo; ele não sabe que
++ontem sobrou dinheiro, e não avisa quando uma parcela de terça vai deixar a
++conta negativa na quinta. `projetarFluxoCaixa` (10.43) já sabe carregar saldo
++acumulado de mês em mês sem resetar — o princípio certo — mas na granularidade
++errada: um compromisso que cai dia 5 e um que cai dia 25 chegam misturados no
++mesmo balde mensal, quando a pergunta que importa é justamente a ordem entre
++eles dentro do mês.
++
++O vídeo do Breno Nogueira ("Horizonte de Saldos") resolve isso projetando o
++saldo **dia a dia**, ancorado no saldo real da conta, com um semáforo de 4 cores
++que substitui a pergunta "quanto gastei" pela pergunta certa: "em que dia,
++especificamente, vou ficar sem dinheiro — se é que vou". Esta resolução adapta
++essa metodologia à arquitetura já existente, reaproveitando a expansão de
++recorrência e o corte real/projetado que a 10.43 já validou, na granularidade
++de dia.
++
++**Decisão que substitui a 2.3.** `CardDisponivelHoje` e
++`GradePlanejamentoSemanal` saem do Financeiro. O "disponível hoje ÷ dias
++restantes" e o ritual de planejamento semanal manual eram a melhor resposta
++possível *sem* saber a data exata dos compromissos futuros — o Horizonte sabe,
++então a pergunta "quanto posso gastar hoje" passa a ser derivada do saldo
++projetado do próprio dia, não recalculada à parte. `planejamento_semanal_financeiro`
++fica **arquivada** (padrão de `app/arquivado`, mesmo tratamento dado a telas
++substituídas antes), não apagada — sem migração de dado teria que ser refeita
++do zero se o Horizonte não se sustentar em uso.
++
++#### Schema novo
++
++O que falta para ancorar a projeção num saldo *real*, não relativo, é um ponto
++de referência — o Financeiro nunca guardou "quanto tem na conta", só fluxo.
++
++```sql
++create table public.saldo_referencia_conta (
++  id            uuid primary key default gen_random_uuid(),
++  data          date not null,
++  valor         numeric not null,
++  observacao    text,
++  created_at    timestamptz not null default now()
++);
++
++create index saldo_referencia_data_idx
++  on public.saldo_referencia_conta (data desc);
++```
++
++**Uma linha por reconciliação, não uma linha só.** Tarifa bancária, juro de
++poupança, um Pix que não virou lançamento — a conta real diverge da soma dos
++lançamentos com o tempo, e não tem outro jeito de corrigir isso a não ser o
++usuário abrir o extrato de vez em quando e dizer "hoje está R$ X". A projeção
++usa **a reconciliação mais recente com `data <= hoje`** como âncora; tudo antes
++dela é irrelevante para o saldo atual. Sem reconciliação nenhuma cadastrada,
++a âncora é `0` na data do lançamento mais antigo — o Horizonte ainda funciona,
++só que como saldo *relativo* (mesmo comportamento que `projetarFluxoCaixa` tem
++hoje) até a primeira reconciliação ser feita.
++
++#### Motor de projeção — `features/financeiro/horizonte.ts`
++
++Arquivo novo, não extensão de `projecao.ts` — o corte real/futuro, a expansão
++de compromissos e o `fonte: 'real' | 'projetado'` são os mesmos princípios,
++mas a unidade de tempo (dia, não mês) e o formato do resultado (uma linha por
++dia, não por mês) divergem o bastante para não caber nas mesmas assinaturas.
++`projecao.ts` continua existindo e servindo o simulador de compra parcelada
++(10.44/10.47), que responde numa pergunta mensal ("essa compra cabe nos
++próximos 6 meses?") — o Horizonte responde numa pergunta diária ("em que dia
++especificamente"). Funções puras, mesmo espírito dos outros dois arquivos:
++
++```ts
++export interface DiaHorizonte {
++  data: string                 // ISO
++  saldoInicial: number         // saldo ao acordar naquele dia
++  entradas: number             // compromissos de receita + lançamentos reais do dia
++  saidas: number                // compromissos de despesa + parcelas + "diário" do variável
++  saldoFinal: number            // saldoInicial + entradas − saidas
++  fonte: 'real' | 'projetado'  // dia >= hoje sem lançamento ainda = projetado
++  status: StatusHorizonte
++}
++
++export type StatusHorizonte = 'critico' | 'atencao' | 'ok' | 'otimo'
++
++export interface ParametrosHorizonte {
++  hoje: string
++  dias: number                                    // tamanho da janela
++  saldoReferencia: { data: string; valor: number } // reconciliação mais recente
++  lancamentosReais: readonly LancamentoParaProjecao[] // do dia da referência até hoje
++  compromissos: readonly CompromissoDetalhado[]
++  parcelas: readonly ParceladaDetalhada[]
++  orcamentoDiarioVariavel: number                  // ver "o Diário", abaixo
++  retiradaHipotetica?: { data: string; valor: number } // simulação (ver adiante)
++}
++
++export function projetarHorizonteDiario(
++  params: ParametrosHorizonte,
++): DiaHorizonte[]
++```
++
++**O "Diário" — a peça que não existe em lugar nenhum do Nexus hoje.** O
++orçamento das categorias variáveis (mercado, lazer, transporte — sem boleto,
++sem data certa) deixa de ser uma estimativa aplicada em bloco no fim do mês
++(como em `variavelEstimado` da 10.43) e passa a ser **debitado todo dia**, em
++fatias iguais: `orcamentoDiarioVariavel = metaTotalDespesas(variáveis) /
++diasNoMes`. É a diferença central do vídeo — sem isso, o meio do mês parece
++sempre mais folgado do que é, porque o gasto sem boleto ainda não "aconteceu"
++na projeção. Dias reais (`fonte: 'real'`) usam o lançamento de fato, não a
++fatia — o Diário é só para dias ainda não vividos.
++
++**Corte real/projetado, agora por dia, não por mês.** Mesma regra da 10.43,
++granularidade menor: dias com `data <= hoje` leem `lancamentosReais`; dias
++futuros combinam `compromissos` (expandidos por `expandirRecorrenciaMensal`,
++que **já devolve a data exata dentro do mês** — só precisa ser consultada dia
++a dia em vez de somada por mês) + `parcelas` (idem, `calcularParcelas` já
++data cada parcela) + a fatia do Diário. Nenhuma duplicação: o dia em que o
++salário efetivamente cai passa a ler o lançamento real assim que ele é
++registrado, e some da lista de "compromissos futuros" — mesmo mecanismo que
++já existe na 10.43, só que a granularidade diária expõe a data exata em vez
++de escondê-la dentro do mês.
++
++**Semáforo de 4 níveis.** Os 3 status que já existem no design system
++(`--status-ok`, `--status-atencao`, `--status-risco`) não bastam — falta o
++"vai sobrar, dá para investir" que o vídeo chama de verde-escuro. Precisa de
++um 4º token, `--status-otimo`, no mesmo lugar que os outros três em
++`index.css` (e replicado em `design-system/gerar.py`, que copia os tokens à
++mão — ver nota do README). Limiares como constantes em `lib/constants.ts`,
++mesma convenção de `LIMITE_COMPROMETIMENTO_PADRAO` — este é um app de um
++usuário só, então "configurável por usuário" seria uma tabela de configuração
++inteira para resolver o que uma constante já resolve:
++
++```ts
++export function statusHorizonte(
++  saldoFinal: number,
++  colchaoMinimo: number,     // COLCHAO_MINIMO_HORIZONTE
++  colchaoConfortavel: number, // COLCHAO_CONFORTAVEL_HORIZONTE
++): StatusHorizonte {
++  if (saldoFinal < 0) return 'critico'
++  if (saldoFinal < colchaoMinimo) return 'atencao'
++  if (saldoFinal < colchaoConfortavel) return 'ok'
++  return 'otimo'
++}
++```
++
++**Menor saldo antes do próximo salário — o motor da decisão de poupar.**
++
++```ts
++export interface MenorSaldoAtePorximaReceita {
++  data: string
++  saldoFinal: number
++}
++
++export function menorSaldoAteProximaReceita(
++  dias: readonly DiaHorizonte[],
++  proximaDataReceita: string, // primeira ocorrência de compromisso de receita após hoje
++): MenorSaldoAtePorximaReceita | null
++```
++
++Percorre os dias entre hoje e a próxima ocorrência de receita (exclusive) e
++devolve o mínimo — é a resposta direta a "quanto dá pra guardar sem se
++sabotar": qualquer retirada no dia do salário que deixe esse mínimo abaixo de
++zero estourou a realidade da conta.
++
++**Simulação de retirada pontual.** Reaproveita o padrão hipotético que o
++simulador de compra parcelada já usa (`compraHipotetica`/`compromissoHipotetico`
++da 10.44/10.47) — nenhum dado real é mutado, o valor entra por parâmetro e sai
++do resultado assim que a simulação termina. `retiradaHipotetica` em
++`ParametrosHorizonte` desconta o valor do `saldoFinal` a partir da data
++informada (inclusive) até o fim da janela. A UI mostra o resultado da mesma
++forma que o vídeo ensina a usar a planilha: aplica a retirada no dia do
++pagamento e olha se os dias seguintes ficam em `atencao` (ideal) ou em
++`critico` (guardou mais do que devia).
++
++#### UI — Financeiro reestruturado
++
++- **Página principal do Financeiro** troca `CardDisponivelHoje` +
++  `GradePlanejamentoSemanal` por uma **timeline de dias**: uma faixa horizontal
++  (mobile: lista vertical, mesmo padrão de responsividade da 10.30) com um
++  segmento colorido por dia — as 4 cores do semáforo — navegável para frente e
++  para trás dentro da janela de `dias`.
++- **Tocar num dia** expande o detalhe: saldo inicial, entradas e saídas
++  daquele dia (com a origem de cada uma — compromisso, parcela, ou fatia do
++  Diário), saldo final. Mesmo padrão de "clicar abre um card de detalhe" da
++  10.40 (calendário).
++- **Cartão de destaque**: "menor saldo antes do próximo salário" sempre
++  visível no topo, com a data — é o número que orienta a decisão de guardar,
++  não pode ficar escondido dentro da timeline.
++- **Retirada simulada**: botão que abre uma folha (padrão `Sheet` da 10.29,
++  igual ao `SheetSimulador`) para informar valor e data; a timeline se
++  redesenha com a simulação aplicada, sem persistir nada até confirmação
++  explícita.
++- **Reconciliação de saldo**: formulário simples (data + valor + observação
++  opcional) para registrar `saldo_referencia_conta` — mesmo padrão de diálogo
++  dos outros cadastros do Financeiro.
++
++#### Efeitos colaterais e o que fica pendente de decisão
++
++- O card compacto do Financeiro na Home (10.35) hoje mostra Receita vs.
++  Despesa — passa a poder mostrar também o status do dia atual do Horizonte,
++  mas isso é decisão de UI para quando a timeline estiver validada, não parte
++  desta especificação.
++- `planejamento_semanal_financeiro` arquivada, não apagada (ver decisão acima).
++  Se em uso o Horizonte não substituir de fato a necessidade que o
++  planejamento semanal manual atendia, a tabela volta sem migração.
++- **Em aberto, não resolvido aqui:** o tamanho da janela (`dias`) padrão do
++  Horizonte. Fixo (ex.: 60 dias) é simples mas arbitrário; "até a próxima
++  receita + N dias de folga" é mais fiel ao vídeo mas exige achar a próxima
++  ocorrência de receita antes de saber o tamanho da janela. Fica para a
++  primeira rodada de implementação decidir com dado real na mão.
++- **Em aberto:** os valores de `COLCHAO_MINIMO_HORIZONTE` e
++  `COLCHAO_CONFORTAVEL_HORIZONTE` são pessoais e não têm como ser inferidos do
++  schema — precisam ser definidos em conversa, não adivinhados nesta spec.
++
++#### Testes a acrescentar em `horizonte.test.ts`
++
++- corte real/projetado no dia exato de hoje (dia de hoje sem lançamento ainda
++  cai em projetado; com lançamento, em real — igual ao teste equivalente de
++  `projecao.test.ts` para o mês corrente).
++- compromisso que cai em `dia_mes` inexistente no mês corrente da janela
++  (mesma regra de borda da 10.43, agora verificada na granularidade de dia).
++- `orcamentoDiarioVariavel` não é debitado em dias com `fonte: 'real'`.
++- `menorSaldoAteProximaReceita` com janela sem nenhuma ocorrência de receita
++  (retorna `null`, não lança).
++- `statusHorizonte` nos 4 limites exatos (saldo == 0, == colchão mínimo, ==
++  colchão confortável).
++- retirada hipotética não altera dias anteriores à data informada.

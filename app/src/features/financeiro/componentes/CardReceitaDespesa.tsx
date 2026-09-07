@@ -6,8 +6,6 @@ import type { TotaisMes } from '../calculos'
 
 interface CardReceitaDespesaProps {
   totais: TotaisMes
-  /** Projeção de saldo mantido o ritmo atual de gasto (plano 2.2). */
-  saldoProjetado: number
   /**
    * Soma dos compromissos recorrentes do mês corrente, por natureza
    * (resolução 10.43, efeito colateral previsto na spec). `undefined`
@@ -20,7 +18,6 @@ interface CardReceitaDespesaProps {
 /** Card do topo da page: entrada x saída do mês e saldo líquido (plano 2.3). */
 export function CardReceitaDespesa({
   totais,
-  saldoProjetado,
   previsto,
 }: CardReceitaDespesaProps) {
   const saldoPositivo = totais.saldo >= 0
@@ -51,7 +48,7 @@ export function CardReceitaDespesa({
           <p className="metric-md">{formatarMoeda(totais.despesa)}</p>
           {previsto !== undefined && (
             <p className="text-muted-foreground text-xs">
-              Previsto (fixo): {formatarMoeda(previsto.despesa)}
+              Eventos previstos: {formatarMoeda(previsto.despesa)}
             </p>
           )}
         </div>
@@ -68,7 +65,7 @@ export function CardReceitaDespesa({
             {formatarMoeda(totais.saldo)}
           </p>
           <p className="text-muted-foreground text-xs">
-            Projeção no fim do mês: {formatarMoeda(saldoProjetado)}
+            Por competência. Consulte o caixa no Horizonte.
           </p>
         </div>
       </CardContent>

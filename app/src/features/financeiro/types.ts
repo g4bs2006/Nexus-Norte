@@ -53,8 +53,15 @@ export interface CandidatoCorte {
 
 // --- Planejamento de longo prazo (resoluções 10.43-10.45) -------------------
 
-export type CompromissoRecorrente = Tables<'compromissos_recorrentes'>
-export type CompraParcelada = Tables<'compras_parceladas'>
+/** Formatos históricos apenas para testes das fórmulas da versão anterior. */
+export interface CompromissoRecorrente {
+  id: string; descricao: string; categoria_id: string; valor: number; dia_mes: number
+  data_inicio: string; data_fim: string | null; created_at: string
+}
+export interface CompraParcelada {
+  id: string; descricao: string; categoria_id: string; valor_total: number
+  numero_parcelas: number; data_primeira_parcela: string; juros_mensal: number; created_at: string
+}
 
 export type GatilhoInvestimento = 'sobra_meta' | 'percentual_receita'
 

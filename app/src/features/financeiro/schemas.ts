@@ -62,6 +62,9 @@ export const schemaCategoria = z
 export type FormularioCategoria = z.infer<typeof schemaCategoria>
 
 export const schemaLancamento = z.object({
+  cartao_id: z.string(),
+  evento_id: z.string(),
+  competencia_evento: z.string(),
   valor: z
     .number({ message: 'Informe um valor' })
     .positive('O valor deve ser maior que zero'),
@@ -80,7 +83,8 @@ export const schemaLancamento = z.object({
   ]),
   /** Resolução 10.2 — só relevante para categorias fixas. */
   data_vencimento: z.string(),
-})
+}).refine(v => v.forma_pagamento !== 'credito' || v.cartao_id !== '', { message: 'Selecione o cartão', path: ['cartao_id'] })
+  .refine(v => (v.evento_id === '') === (v.competencia_evento === ''), { message: 'Selecione a ocorrência prevista', path: ['competencia_evento'] })
 
 export type FormularioLancamento = z.infer<typeof schemaLancamento>
 

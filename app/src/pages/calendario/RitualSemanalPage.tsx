@@ -32,13 +32,10 @@ import {
   useSalvarPlanejamentoSono,
 } from '@/features/sono/hooks'
 import {
-  useCategorias,
   useCheckDia,
-  usePlanejamentoSemana,
   useSalvarCheck,
-  useSalvarPlanejamento,
 } from '@/features/financeiro/hooks'
-import { GradePlanejamentoSemanal } from '@/features/financeiro/componentes/GradePlanejamentoSemanal'
+import { Link } from 'react-router-dom'
 
 const PASSOS = ['Sono', 'Rotina', 'Estudo e treino', 'Financeiro'] as const
 
@@ -582,27 +579,9 @@ function PassoEstudoTreino({
 
 // --- Passo 4: Financeiro -------------------------------------------------------
 
-function PassoFinanceiro({
-  semanaInicio,
-  hojeISO,
-}: {
-  semanaInicio: string
-  hojeISO: string
-}) {
-  const categorias = useCategorias()
-  const planejamento = usePlanejamentoSemana(semanaInicio)
-  const salvar = useSalvarPlanejamento()
-
-  return (
-    <GradePlanejamentoSemanal
-      semanaInicio={semanaInicio}
-      categorias={categorias.data ?? []}
-      planejamento={planejamento.data ?? []}
-      salvando={salvar.isPending}
-      onSalvar={(entradas) =>
-        salvar.mutate({ semanaInicio, entradas })
-      }
-      hojeISO={hojeISO}
-    />
-  )
+function PassoFinanceiro(_props: { semanaInicio: string; hojeISO: string }) {
+  return <Card><CardHeader><CardTitle>Revise o caixa da semana</CardTitle></CardHeader><CardContent className="space-y-3">
+    <p className="text-muted-foreground text-sm">Confira os compromissos e o menor saldo previsto antes de concluir seu planejamento.</p>
+    <Button asChild><Link to="/financeiro">Abrir Horizonte de Saldos</Link></Button>
+  </CardContent></Card>
 }

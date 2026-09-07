@@ -124,20 +124,6 @@ export function useCheckDia(data: string) {
   })
 }
 
-export function useCompromissos() {
-  return useQuery({
-    queryKey: chaves.compromissos(),
-    queryFn: api.listarCompromissos,
-  })
-}
-
-export function useParceladas() {
-  return useQuery({
-    queryKey: chaves.parceladas(),
-    queryFn: api.listarParceladas,
-  })
-}
-
 export function useRegraInvestimento() {
   return useQuery({
     queryKey: chaves.regraInvestimento(),
@@ -252,35 +238,6 @@ export function useSalvarPlanejamento() {
     }) => api.salvarPlanejamentoSemana(semanaInicio, entradas),
     'Planejamento da semana salvo',
   )
-}
-
-export function useCriarCompromisso() {
-  return useMutationFinanceiro(api.criarCompromisso, 'Compromisso registrado')
-}
-
-export function useAtualizarCompromisso() {
-  return useMutationFinanceiro(
-    ({
-      id,
-      dados,
-    }: {
-      id: string
-      dados: Parameters<typeof api.atualizarCompromisso>[1]
-    }) => api.atualizarCompromisso(id, dados),
-    'Compromisso atualizado',
-  )
-}
-
-export function useExcluirCompromisso() {
-  return useMutationFinanceiro(api.excluirCompromisso, 'Compromisso excluído')
-}
-
-export function useCriarParcelada() {
-  return useMutationFinanceiro(api.criarParcelada, 'Compra parcelada registrada')
-}
-
-export function useExcluirParcelada() {
-  return useMutationFinanceiro(api.excluirParcelada, 'Compra parcelada excluída')
 }
 
 export function useSalvarRegraInvestimento() {

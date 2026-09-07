@@ -1,5 +1,4 @@
 import { useMemo } from 'react'
-import { getDate, getDaysInMonth } from 'date-fns'
 import { Link } from 'react-router-dom'
 import { CalendarClock, Receipt, Wallet } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
@@ -8,42 +7,29 @@ import { SkeletonPagina } from '@/components/Skeletons'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import {
-  diasRestantesNoMes,
-  inicioSemana,
   limitesDoMes,
   mesDeISO,
   paraISO,
   ultimosMeses,
 } from '@/lib/datas'
-import {
-  gastoDisponivelGeral,
-  gastoDisponivelPlanejado,
-  metaTotalDespesas,
-  progressoCategoria,
-  saldoProjetadoFimMes,
-  statusDiario,
-  totaisDoMes,
-} from '@/features/financeiro/calculos'
+import { totaisDoMes } from '@/features/financeiro/calculos'
 import {
   useCandidatosCorte,
   useCategorias,
   useCheckDia,
-  useCompromissos,
   useInvestimentos,
   useLancamentos,
-  usePlanejamentoSemana,
   useReceitaDoMes,
   useResumoMensal,
   useSalvarCheck,
-  useSalvarPlanejamento,
 } from '@/features/financeiro/hooks'
-import { expandirRecorrenciaMensal } from '@/lib/recorrencia'
+import { HorizonteFinanceiro } from '@/features/financeiro/componentes/HorizonteFinanceiro'
+import { useEventosFinanceiros } from '@/features/financeiro/caixa-hooks'
+import { expandirEventos } from '@/features/financeiro/horizonte'
 import { CardReceitaDespesa } from '@/features/financeiro/componentes/CardReceitaDespesa'
 import { CardSugestaoInvestimento } from '@/features/financeiro/componentes/CardSugestaoInvestimento'
-import { CardDisponivelHoje } from '@/features/financeiro/componentes/CardDisponivelHoje'
 import { CardCategoria } from '@/features/financeiro/componentes/CardCategoria'
 import { ChecksDiarios } from '@/features/financeiro/componentes/ChecksDiarios'
-import { GradePlanejamentoSemanal } from '@/features/financeiro/componentes/GradePlanejamentoSemanal'
 import { GraficoTendencia } from '@/features/financeiro/componentes/GraficoTendencia'
 import { SecaoComposicaoGastos } from '@/features/financeiro/componentes/SecaoComposicaoGastos'
 import { SecaoAtencao } from '@/features/financeiro/componentes/SecaoAtencao'
@@ -62,21 +48,18 @@ export default function FinanceiroPage() {
   const hoje = useMemo(() => new Date(), [])
   const hojeISO = paraISO(hoje)
   const mesAtual = mesDeISO(hoje)
-  const semana = paraISO(inicioSemana(hoje))
   const { inicio: inicioMes, fim: fimMes } = limitesDoMes(hoje)
   const meses = useMemo(() => ultimosMeses(hoje, MESES_TENDENCIA), [hoje])
 
   const categorias = useCategorias()
   const receita = useReceitaDoMes(mesAtual)
   const lancamentosMes = useLancamentos(inicioMes, fimMes)
-  const planejamento = usePlanejamentoSemana(semana)
   const candidatos = useCandidatosCorte()
   const investimentos = useInvestimentos(inicioMes, fimMes)
   const resumo = useResumoMensal(meses[0] ?? mesAtual, mesAtual)
   const check = useCheckDia(hojeISO)
-  const compromissos = useCompromissos()
+  const compromissos = useEventosFinanceiros()
 
-  const salvarPlanejamento = useSalvarPlanejamento()
   const salvarCheck = useSalvarCheck()
 
   // Memoizado para não recriar o array a cada render — sem isso o `useMemo`
@@ -87,70 +70,26 @@ export default function FinanceiroPage() {
   )
   const receitaDoMes = receita.data ?? 0
 
-  const calculos = useMemo(() => {
-    const totais = totaisDoMes(listaCategorias)
-    const metaTotal = metaTotalDespesas(listaCategorias, receitaDoMes)
-
-    // Gasto de hoje considera apenas despesas — uma receita lançada hoje não
-    // deve pintar o dia de vermelho.
-    const idsDespesa = new Set(
-      listaCategorias.filter((c) => c.natureza === 'despesa').map((c) => c.id),
-    )
-    const gastoDeHoje = (lancamentosMes.data ?? [])
-      .filter((l) => l.data === hojeISO && idsDespesa.has(l.categoria_id))
-      .reduce((total, l) => total + l.valor, 0)
-
-    const disponivelPlanejado = gastoDisponivelPlanejado(
-      planejamento.data ?? [],
-      hoje.getDay(),
-    )
-
-    return {
-      totais,
-      metaTotal,
-      gastoDeHoje,
-      disponivelPlanejado,
-      disponivelGeral: gastoDisponivelGeral(
-        metaTotal,
-        totais.despesa,
-        diasRestantesNoMes(hoje),
-      ),
-      status: statusDiario(gastoDeHoje, disponivelPlanejado),
-      progressoMes: progressoCategoria(totais.despesa, metaTotal) ?? 0,
-      saldoProjetado: saldoProjetadoFimMes({
-        receitaDoMes,
-        gastoAteAgora: totais.despesa,
-        diaAtual: getDate(hoje),
-        diasNoMes: getDaysInMonth(hoje),
-      }),
-    }
-  }, [
-    listaCategorias,
-    receitaDoMes,
-    lancamentosMes.data,
-    planejamento.data,
-    hoje,
-    hojeISO,
-  ])
+  const totais = useMemo(() => totaisDoMes(listaCategorias), [listaCategorias])
 
   // Camada de previsto x realizado no card do topo (resolução 10.43, efeito
   // colateral já previsto na spec): compromissos recorrentes do mês corrente,
   // por natureza. Só um resumo — a projeção completa mora em /planejamento.
   const previsto = useMemo(() => {
     if (!compromissos.data) return undefined
-    const ocorrencias = expandirRecorrenciaMensal(compromissos.data, [mesAtual])
+    const ocorrencias = expandirEventos(compromissos.data, inicioMes, fimMes)
     return ocorrencias.reduce(
       (total, o) => {
-        if (o.regra.categoria_natureza === 'receita') {
-          total.receita += o.regra.valor
+        if (o.categoria_natureza === 'receita') {
+          total.receita += o.valor
         } else {
-          total.despesa += o.regra.valor
+          total.despesa += o.valor
         }
         return total
       },
       { receita: 0, despesa: 0 },
     )
-  }, [compromissos.data, mesAtual])
+  }, [compromissos.data, inicioMes, fimMes])
 
   if (categorias.isPending) {
     return (
@@ -211,29 +150,22 @@ export default function FinanceiroPage() {
           classeCor="text-financeiro"
           classeFundo="bg-financeiro-soft"
           titulo="Comece pelas categorias"
-          descricao="Crie uma categoria de receita, como Salário, e algumas de despesa. As metas, o planejamento da semana e os gráficos dependem delas."
+          descricao="Crie uma categoria de receita, como Salário, e algumas de despesa. As metas e os gráficos dependem delas."
           acao={<DialogCategoria />}
         />
       ) : (
         <div className="space-y-6">
+          <HorizonteFinanceiro />
+
           {/* Primeiro elemento da página: é a ação mais frequente (Bloco D) */}
           <LancamentoRapido categorias={listaCategorias} hoje={hoje} />
 
           <CardReceitaDespesa
-            totais={calculos.totais}
-            saldoProjetado={calculos.saldoProjetado}
+            totais={totais}
             previsto={previsto}
           />
 
-          <CardDisponivelHoje
-            disponivelGeral={calculos.disponivelGeral}
-            disponivelPlanejado={calculos.disponivelPlanejado}
-            gastoDeHoje={calculos.gastoDeHoje}
-            status={calculos.status}
-            progressoMes={calculos.progressoMes}
-            metaTotal={calculos.metaTotal}
-            despesaTotal={calculos.totais.despesa}
-          />
+
 
           <ChecksDiarios
             check={check.data ?? null}
@@ -245,16 +177,7 @@ export default function FinanceiroPage() {
 
           <SecaoAtencao candidatos={candidatos.data ?? []} />
 
-          <GradePlanejamentoSemanal
-            semanaInicio={semana}
-            categorias={listaCategorias}
-            planejamento={planejamento.data ?? []}
-            salvando={salvarPlanejamento.isPending}
-            onSalvar={(entradas) =>
-              salvarPlanejamento.mutate({ semanaInicio: semana, entradas })
-            }
-            hojeISO={hojeISO}
-          />
+
 
           <section className="space-y-3">
             <h2 className="text-sm font-medium">Categorias de despesa</h2>
