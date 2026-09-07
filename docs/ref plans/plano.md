@@ -1,0 +1,3159 @@
+# Nexus — Plano de Execução do Sistema de Gestão Pessoal
+
+> Documento de referência para implementação via Claude Code (Opus).
+> Stack: React + Vite + TypeScript, Tailwind + shadcn/ui, React Query + Zustand, Recharts, FullCalendar, React Hook Form + Zod, Supabase (DB + Storage + Triggers), Vercel (deploy).
+
+---
+
+## 0. Visão geral e ordem de execução
+
+O sistema tem 4 pilares + 1 hub central + 1 camada transversal:
+
+1. **Home** (hub — depende dos outros pilares, implementar por último)
+2. **Financeiro**
+3. **Estudos**
+4. **Treino**
+5. **Projetos**
+6. **Calendário unificado** (camada transversal — provas, treinos, vencimentos, sono)
+
+**Ordem recomendada de execução (fases):**
+
+- **Fase 0 — Fundacional**: setup do projeto, design system (tema Notion-like), schema base do Supabase, autenticação simples, layout de shell (sidebar + roteamento)
+- **Fase 1 — Financeiro** (pilar mais estruturado, bom para validar padrões de planejado vs. realizado)
+- **Fase 2 — Estudos**
+- **Fase 3 — Treino**
+- **Fase 4 — Projetos**
+- **Fase 5 — Calendário unificado** (consome dados de todos os pilares)
+- **Fase 6 — Home** (consolida tudo)
+- **Fase 7 — Polimento**: cache, triggers de performance, dark mode, responsividade
+
+Cada pilar deve ser implementado de forma que funcione **isoladamente** antes de integrar com a Home — evita dependência circular e permite testar cada page sozinha.
+
+---
+
+## 1. Fundação (Fase 0)
+
+### 1.1 Setup técnico
+- Projeto Vite + React + TypeScript
+- Tailwind configurado com paleta customizada (ver 1.2)
+- shadcn/ui instalado (componentes base: button, card, checkbox, dialog, tabs, progress, badge, input, select, form)
+- React Router com estrutura de rotas:
+  - `/` → Home
+  - `/financeiro`, `/financeiro/categorias/:id`
+  - `/estudos`, `/estudos/:materiaId`
+  - `/treino`, `/treino/:exercicioId`
+  - `/projetos`, `/projetos/:projetoId`
+  - `/calendario`
+- React Query configurado (QueryClientProvider no root)
+- Zustand store mínimo (tema claro/escuro por enquanto)
+- Supabase client configurado (`.env` com URL e anon key)
+
+### 1.2 Design system (paleta estilo Notion)
+- **Modo claro**: fundo `#FFFFFF`/`#FBFBFA`, texto `#37352F`, bordas `#E9E9E7`
+- **Modo escuro**: fundo `#191919`/`#2F3437`, texto `#D4D4D4`, bordas `#3F3F3F`
+- **Cores de destaque por pilar** (pastel, dessaturado):
+  - Financeiro: verde suave
+  - Estudos: azul suave
+  - Treino: laranja/vermelho suave
+  - Projetos: roxo suave
+  - Sono/Calendário: amarelo suave
+- Tipografia: Inter, line-height generoso, títulos peso médio (não bold pesado)
+- Componente de sidebar: árvore colapsável, ícone + nome de cada pilar, item ativo destacado com fundo sutil
+
+### 1.3 Schema base (tabelas transversais)
+```sql
+-- Checks diários (ação, não resultado)
+checks_diarios (
+  id, data, financeiro_registrado boolean,
+  planejamento_semana_feito boolean, -- só relevante aos domingos
+  created_at
+)
+
+-- Fluxograma semanal (usado por Estudos e Treino)
+fluxograma_semanal (
+  id, dia_semana int, pilar text, referencia_id uuid, -- aponta pra materia ou treino
+  horario_inicio time, horario_fim time
+)
+
+-- Sono
+planejamento_sono (
+  id, dia_semana int, hora_dormir_alvo time, hora_acordar_alvo time
+)
+registro_sono (
+  id, data, hora_dormir_real time, hora_acordar_real time, horas_calculadas numeric
+)
+```
+
+---
+
+## 2. Page Financeiro (Fase 1)
+
+### 2.1 Schema
+```sql
+categorias (
+  id, nome, tipo text check (tipo in ('fixo','variavel')),
+  meta_mensal numeric, meta_tipo text check (meta_tipo in ('valor','percentual_renda')),
+  cor text, subcategoria_pai_id uuid null
+)
+
+lancamentos (
+  id, valor numeric, categoria_id uuid references categorias,
+  data date, descricao text, forma_pagamento text
+)
+
+investimentos (
+  id, valor_aportado numeric, data_aporte date,
+  rendimento_periodo numeric, data_referencia date
+)
+
+planejamento_semanal_financeiro (
+  id, semana_inicio date, dia_semana int,
+  categoria_id uuid references categorias, valor_planejado numeric
+)
+```
+
+### 2.2 Cálculos (via Postgres function/trigger, atualizados na escrita)
+- `total_gasto_categoria_mes(categoria_id, mes)` → soma de lançamentos
+- `gasto_disponivel_geral(data)` = (meta mensal total − gasto realizado) ÷ dias restantes do mês
+- `gasto_disponivel_planejado(data)` = valor planejado da categoria/dia (do planejamento semanal)
+- `status_diario(data)` → 🟢/🔴 comparando lançamento do dia vs. planejado
+- `progresso_categoria(categoria_id)` → % da meta mensal consumida
+- `ranking_gastos(mes)` → top 5 categorias por valor
+- `candidatos_corte()` → categorias variáveis que estouraram meta 2 meses seguidos
+- `saldo_projetado_fim_mes()` → projeção baseada no ritmo atual
+- Trigger: ao inserir/editar lançamento, atualizar campo resumo `total_gasto_mes` em `categorias` (evita recálculo pesado na leitura)
+
+### 2.3 Componentes de UI
+- Card topo: **Receita vs. Despesa** (entrada total do mês x saída total, saldo líquido)
+- Bloco de planejamento semanal: grade dia × categoria com valores planejados, editável (ritual de domingo), incluindo "disponível hoje" (geral + planejado lado a lado)
+- Barra de progresso geral do mês
+- Grid de cards por categoria (anel de progresso, gasto/meta, cor da categoria)
+- Gráfico de linha (Recharts): tendência de gasto x meta, 6 meses, com seletor de categoria
+- Seção "atenção" (candidatos a corte)
+- Seção investimentos (aporte total + rendimento do mês)
+
+### 2.4 Checkboxes
+- Diário: "Lancei os gastos de hoje?" (`checks_diarios.financeiro_registrado`)
+- Semanal (domingo): "Planejei a semana?" (`checks_diarios.planejamento_semana_feito`)
+
+### 2.5 Formulários (React Hook Form + Zod)
+- Cadastro/edição de categoria
+- Novo lançamento
+- Planejamento semanal (formulário em grade, 7 dias × N categorias)
+- Novo aporte/rendimento de investimento
+
+---
+
+## 3. Page Estudos (Fase 2)
+
+### 3.1 Schema
+```sql
+materias (
+  id, nome, professor, carga_horaria_total int,
+  limite_faltas int, semestre text
+)
+
+documentos (
+  id, materia_id references materias, tipo text check (tipo in ('lista','livro','anotacao','ementa','prova_anterior')),
+  nome, storage_path text -- Supabase Storage
+)
+
+faltas (
+  id, materia_id references materias, data date, motivo text
+)
+
+avaliacoes (
+  id, materia_id references materias, nome text, peso numeric, nota numeric null
+)
+
+config_calculo_media (
+  id, materia_id references materias unique,
+  tipo text check (tipo in ('ponderada','manual')),
+  nota_manual numeric null, observacao text null
+)
+
+registro_listas (
+  id, materia_id references materias, nome_lista text, data date,
+  total_questoes int, questoes_erradas text, -- ex: "4,7" ou array
+  topico text
+)
+
+sessoes_estudo (
+  id, materia_id references materias, data date,
+  duracao_minutos int, meta_diaria_minutos int -- referência do dia
+)
+```
+
+### 3.2 Cálculos
+- `media_materia(materia_id)`: se `config_calculo_media.tipo = 'ponderada'` → `Σ(nota × peso) / Σ(peso)`; se `'manual'` → usa `nota_manual`
+- `faltas_restantes(materia_id)` = `limite_faltas - count(faltas)`
+- `risco_reprovacao(materia_id)` → cruza média projetada + faltas restantes vs. limite → 🟢/🟡/🔴
+- `frequencia_estudo_semana(materia_id)` → soma de `sessoes_estudo.duracao_minutos` vs. meta
+- `dias_para_proxima_avaliacao(materia_id)` → menor data futura em `avaliacoes` sem nota
+- Trigger: ao inserir nota em `avaliacoes`, recalcular e salvar `media_atual` em `materias` (campo resumo)
+
+### 3.3 Componentes de UI
+- Grid de cards de matéria: nome, média atual, faltas restantes (cor conforme proximidade do limite), próxima avaliação com contagem regressiva
+- Sub-página da matéria (abas): Documentos / Avaliações / Faltas / Sessões de estudo
+  - Documentos: lista com upload (Supabase Storage), filtro por tipo
+  - Avaliações: tabela nota/peso, editor de fórmula (padrão ponderada ou manual)
+  - Faltas: lista com motivo, contador visual de restantes
+  - Sessões: timer simples ou input manual, histórico em lista/gráfico
+- Fluxograma semanal (grade dias × horários) — componente compartilhado com Treino
+- Registro de listas de exercícios (Opção C, começando pela Opção A): formulário simples pós-lista (total questões, quais errou, tópico)
+
+### 3.4 Checkboxes
+- Diário, **derivado do fluxograma** (calculado na leitura, não pré-gerado): "Hoje tem [Matéria X]" com toggle de concluído — resolver via `fluxograma_semanal WHERE dia_semana = hoje AND pilar = 'estudos'`
+
+---
+
+## 4. Page Treino (Fase 3)
+
+### 4.1 Schema
+```sql
+treinos (
+  id, nome, tipo text, dias_semana int[] -- ex: {1,4} = segunda e quinta
+)
+
+exercicios_treino (
+  id, treino_id references treinos, nome, series int,
+  reps_alvo int, carga_alvo numeric, descanso_segundos int
+)
+
+execucoes_treino (
+  id, treino_id references treinos, data date
+)
+
+execucoes_exercicio (
+  id, execucao_treino_id references execucoes_treino,
+  exercicio_id references exercicios_treino,
+  carga_real numeric, reps_reais int, rpe int null
+)
+
+personal_records (
+  id, exercicio_id references exercicios_treino,
+  data date, carga numeric, reps int, um_rm_estimado numeric -- Epley: carga*(1+reps/30)
+)
+
+registro_corporal (
+  id, data date, peso numeric, medidas jsonb null, foto_storage_path text null
+)
+
+registro_lesoes (
+  id, data date, regiao text, intensidade int
+)
+```
+
+### 4.2 Cálculos
+- `um_rm_estimado(carga, reps)` = `carga * (1 + reps/30)` — calculado a cada execução, compara com `personal_records` e insere novo PR se superado
+- `frequencia_semana(treino_id)` = execuções reais vs. `dias_semana` planejado
+- `progressao_carga(exercicio_id)` → compara última execução vs. anterior (subindo/estagnado/caindo)
+- `sinal_estagnacao(exercicio_id)` → se 3-4 semanas sem progressão → sugestão de ajuste
+- `volume_grupo_muscular(semana)` → soma de (séries × reps × carga) por grupo (requer campo `grupo_muscular` em exercícios)
+
+### 4.3 Componentes de UI
+- Card "treino de hoje" no topo, derivado do fluxograma — exercícios previstos + botão "iniciar execução"
+- Grid de exercícios cadastrados, cada um abrindo histórico de progressão (gráfico de carga ao longo do tempo)
+- Seção de PRs recentes com destaque visual (badge/troféu)
+- Gráfico de peso corporal/medidas (discreto, não protagonista)
+- Indicador de frequência semanal (ex: "3/4 treinos essa semana")
+- Upload opcional de foto de progresso (reaproveita componente de upload dos Documentos de Estudos)
+- Registro de lesões (formulário simples, lista histórica)
+
+### 4.4 Checkboxes
+- Diário, derivado do fluxograma (mesmo padrão de Estudos): "Treino de hoje: [Nome]" com toggle de concluído
+
+---
+
+## 5. Page Projetos (Fase 4)
+
+### 5.1 Schema
+```sql
+projetos (
+  id, nome, descricao, status text check (status in ('planejamento','em_andamento','pausado','concluido')),
+  data_inicio date, prazo_alvo date null
+)
+
+marcos_projeto (
+  id, projeto_id references projetos, nome, status text check (status in ('a_fazer','fazendo','feito')),
+  data_prevista date null
+)
+
+log_progresso (
+  id, projeto_id references projetos, data date, conteudo text -- texto livre
+)
+```
+
+### 5.2 Cálculos
+- `percentual_concluido(projeto_id)` = marcos feitos / total de marcos
+- `dias_desde_ultima_atualizacao(projeto_id)` = hoje − max(log_progresso.data) → determina "momentum" (card esfria visualmente após X dias sem log)
+
+### 5.3 Componentes de UI
+- Grid de cards de projetos ativos: status, % concluído, "última atualização há X dias" (opacidade/cor reduzida se momentum baixo)
+- Abas separadas: Ativos / Pausados / Concluídos
+- Página do projeto: timeline do log de progresso (mais recente no topo) + lista de marcos (estilo kanban simples ou checklist)
+
+### 5.4 Checkboxes
+- Sem check diário fixo — a ação do dia é o próprio ato de adicionar um log de progresso
+
+---
+
+## 6. Calendário unificado (Fase 5)
+
+### 6.1 Fonte de dados
+Agrega, sem duplicar tabelas:
+- `avaliacoes` (Estudos) → provas
+- `fluxograma_semanal` → aulas e treinos recorrentes
+- `lancamentos` com categoria tipo "fixo" e data de vencimento → contas (Financeiro)
+- `registro_sono` / `planejamento_sono` → blocos de sono
+- `marcos_projeto` com `data_prevista` → marcos de projeto
+
+### 6.2 Implementação
+- **FullCalendar** (adapter React), eventos coloridos por pilar (reaproveita paleta definida em 1.2)
+- Visões: mensal (padrão) e semanal (para o ritual de planejamento de domingo)
+- Filtro por pilar (toggle de camadas visíveis)
+- Sono como bloco na grade semanal, junto com aulas/treinos planejados
+
+---
+
+## 7. Home (Fase 6)
+
+### 7.1 Composição
+Não duplica dado — apenas agrega e lê campos resumo já calculados:
+- Mini-card Financeiro: Receita vs. Despesa (compacto) + status 🟢/🟡/🔴 do mês
+- Mini-card Estudos: matérias em risco (🔴) + próxima avaliação mais próxima entre todas
+- Mini-card Treino: frequência da semana + PR mais recente
+- Mini-card Projetos: projetos com momentum baixo (atenção) + projeto mais ativo
+- Mini-indicador de sono: horas dormidas ontem vs. meta
+- Bloco de checks do dia: todos os checks diários (financeiro, estudos derivado do fluxograma, treino derivado do fluxograma) em uma lista única
+- Atalho para o calendário (próximos 3-5 eventos)
+
+### 7.2 Regra de performance
+- Dado do dia atual / check diário → calculado na leitura (barato)
+- Dado agregado/histórico (médias, totais mensais) → lido de campo resumo pré-calculado via trigger, nunca recalculado na Home
+- React Query com cache configurado para evitar refetch desnecessário ao navegar entre pilares e voltar pra Home
+
+---
+
+## 8. Fase 7 — Polimento
+
+- Revisar todos os triggers de campo-resumo (performance)
+- Dark mode completo (toggle na sidebar, paleta já definida em 1.2)
+- Responsividade (o sistema é uso pessoal, mas vale funcionar bem em mobile pro registro rápido do dia a dia)
+- Row Level Security no Supabase (boa prática mesmo com usuário único)
+- Revisão geral de UX: reduzir fricção nos formulários mais usados no dia a dia (lançamento financeiro, execução de treino, check diário)
+
+---
+
+## 9. Notas para o Claude Code
+
+- Seguir a ordem de fases acima; não pular para Home antes dos pilares estarem funcionais isoladamente
+- Cada fase deve terminar com a page navegável e funcional antes de seguir para a próxima
+- Reaproveitar componentes entre pilares sempre que possível (grade de fluxograma semanal, upload de arquivo, card de progresso circular, formulário de planejamento em grade dia×categoria)
+- Priorizar TypeScript estrito (evitar `any`) dado o volume de cálculos numéricos sensíveis (médias, projeções financeiras)
+- Cálculos de fórmula (média ponderada, 1RM estimado, gasto disponível) devem virar funções puras testáveis, não lógica espalhada em componentes
+
+---
+
+## 10. Resoluções de lacunas do plano
+
+> Decisões tomadas após revisão do plano original. Estas resoluções **sobrescrevem** os schemas e regras das seções anteriores onde houver conflito.
+
+### 10.0 Decisão base: sem autenticação
+O sistema é single-user e **não terá autenticação** nesta etapa. Acesso ao Supabase via anon key, com policies abertas. Isso afeta as seções 10.8 e 10.10.
+
+### 10.1 Campo `grupo_muscular` (corrige 4.1 / 4.2)
+`volume_grupo_muscular(semana)` depende de um campo que não existia. Adicionar em `exercicios_treino`:
+```sql
+exercicios_treino (
+  ..., grupo_muscular text -- ex: 'peito', 'costas', 'perna'
+)
+```
+
+### 10.2 Vencimento de contas (corrige 2.1 / 6.1)
+O Calendário precisa de data de vencimento para contas fixas, que não existia em `lancamentos`:
+```sql
+lancamentos (
+  ..., data_vencimento date null -- só relevante para categorias tipo 'fixo'
+)
+```
+Regra de leitura: se `data_vencimento` for `null`, o Calendário usa `data` como fallback.
+
+### 10.3 Definição de `media_projetada` (completa 3.2)
+`risco_reprovacao` citava "média projetada" sem defini-la. Definição como função pura:
+```
+media_projetada(materia_id) =
+  [ Σ(nota × peso das avaliações já lançadas)
+  + Σ(peso das avaliações pendentes × NOTA_MINIMA_APROVACAO) ]
+  ÷ Σ(peso total)
+```
+Assume a nota mínima de aprovação para avaliações futuras (pior caso realista). `NOTA_MINIMA_APROVACAO` = `6.0`, declarada como **constante configurável única**, nunca hardcoded em múltiplos pontos.
+
+### 10.4 Schema de `investimentos` (substitui 2.1)
+O schema original misturava aporte e rendimento na mesma linha, tornando os cálculos ambíguos. Substituir por uma linha por evento:
+```sql
+investimentos (
+  id, tipo text check (tipo in ('aporte','rendimento')),
+  valor numeric, data date
+)
+```
+- Aporte total do mês → soma de `valor` onde `tipo = 'aporte'`
+- Rendimento do mês → soma de `valor` onde `tipo = 'rendimento'`
+
+### 10.5 Expansão de recorrência no Calendário (completa 6.2)
+`fluxograma_semanal` e `planejamento_sono` são recorrentes por `dia_semana`; o Calendário precisa de instâncias datadas. Decisão:
+
+- **Não** expandir recorrência no banco (evita duplicação de dados e problemas de exceção).
+- As tabelas recorrentes seguem sendo a **fonte de verdade** do padrão semanal.
+- A expansão acontece **no cliente**, via função pura `expandirRecorrencia(regra, intervaloDatas)`, gerando ocorrências virtuais apenas para o mês/semana visível.
+- Exceções pontuais (cancelar uma aula específica sem afetar as outras semanas) via tabela leve:
+```sql
+excecoes_fluxograma (
+  id, fluxograma_id references fluxograma_semanal,
+  data date, status text check (status in ('cancelado','remarcado'))
+)
+```
+
+### 10.6 Integridade referencial do fluxograma (substitui 1.3)
+`referencia_id + pilar` era uma referência polimórfica sem FK real, permitindo linhas órfãs. Substituir por duas colunas nullable com FK real:
+```sql
+fluxograma_semanal (
+  id, dia_semana int,
+  materia_id uuid null references materias on delete cascade,
+  treino_id uuid null references treinos on delete cascade,
+  horario_inicio time, horario_fim time
+  -- exatamente uma das duas FKs deve estar preenchida (check constraint)
+)
+```
+Ganha integridade referencial e `ON DELETE CASCADE` nativos, ao custo de colunas nulas — trade-off aceitável para o escopo. O campo `pilar` deixa de ser necessário (derivável de qual FK está preenchida).
+
+### 10.7 Tipo de `questoes_erradas` (substitui 3.1)
+Era `text` guardando `"4,7"`, exigindo parsing manual em toda leitura. Trocar para tipo nativo:
+```sql
+registro_listas (
+  ..., questoes_erradas int[]
+)
+```
+
+### 10.8 RLS removido da Fase 7 (altera 8)
+RLS depende de `auth.uid()`; sem autenticação, as policies não teriam o que verificar. **Remover RLS da Fase 7.**
+
+> **Dívida técnica consciente:** RLS fica condicionado à futura adição de autenticação. Enquanto isso, o acesso é via anon key com policies abertas — aceitável para uso pessoal single-user, mas deve ser revisto antes de qualquer exposição multi-usuário.
+
+### 10.9 Campos-resumo e regra de performance (revisa 7.2)
+A regra original ("dado agregado nunca é recalculado na Home") era inconsistente: apenas dois campos-resumo estavam definidos no plano inteiro. Regra revisada:
+
+**Agregação pesada (somas sobre muitas linhas) → campo-resumo via trigger:**
+- `categorias.total_gasto_mes` — trigger em `lancamentos` *(já previsto em 2.2)*
+- `materias.media_atual` — trigger em `avaliacoes` *(já previsto em 3.2)*
+- `categorias.candidato_corte boolean` — trigger em `lancamentos`; checa se estourou meta 2 meses seguidos
+
+**Agregação leve (poucas linhas) → calculado na leitura:**
+- `ranking_gastos(mes)` — opera sobre as N categorias do mês, barato
+- `saldo_projetado_fim_mes()` — projeção aritmética simples
+
+**Caso especial — depende da passagem do tempo, não de escrita:**
+- `dias_desde_ultima_atualizacao(projeto_id)` e o momentum de projetos **não podem** vir só de trigger: o valor muda com o tempo mesmo sem novo `log_progresso`. Calcular na leitura, a partir de `max(log_progresso.data)`.
+
+### 10.10 Supabase Storage (completa 3.3 / 4.3)
+Dois buckets, não públicos, acessados via anon key (coerente com 10.0):
+```
+documentos-estudos/   -- materiais por matéria (seção 3.3)
+progresso-treino/     -- fotos de progresso corporal (seção 4.3)
+```
+Sem RLS granular por ora — mesma dívida técnica registrada em 10.8.
+
+### 10.11 Versionamento de schema (completa 1.1)
+Usar **Supabase CLI migrations** desde a Fase 0. Cada bloco de schema (seções 1.3, 2.1, 3.1, 4.1, 5.1, mais as correções desta seção 10) vira uma migration numerada via `supabase migration new`, aplicada com `supabase db push`. Preserva histórico de schema e permite reset do banco local durante o desenvolvimento.
+
+### 10.12 Modelagem de receita (corrige 2.1) — descoberta na Fase 1
+A seção 2.3 pede um card **"Receita vs. Despesa"** e a 2.1 prevê
+`meta_tipo = 'percentual_renda'`. Ambos exigem saber a renda do mês, mas o
+schema não modelava receita: `categorias.tipo` só distingue `fixo`/`variavel`,
+que são dois tipos de **despesa**.
+
+Adicionada a coluna `natureza` em `categorias`:
+```sql
+categorias (
+  ..., natureza text not null check (natureza in ('receita','despesa'))
+)
+```
+- `tipo` (`fixo`/`variavel`) passa a ser exclusivo de despesas — receitas têm
+  `tipo = null`, garantido por check constraint.
+- A receita do mês vem da view `receita_mensal`, que soma lançamentos de
+  categorias com `natureza = 'receita'`.
+- `meta_tipo = 'percentual_renda'` é resolvido cruzando `meta_mensal` (o
+  percentual) com a receita daquele mês.
+
+**Ajuste em 10.9:** `candidato_corte` **não** virou campo-resumo por trigger.
+Depende de quais são os 2 meses anteriores, que muda na virada do mês sem
+nenhuma escrita acontecer — a mesma dependência temporal já reconhecida no
+momentum de projetos. Virou a função Postgres `candidatos_corte()`, calculada na
+leitura. O único campo-resumo do Financeiro é `categorias.total_gasto_mes`.
+
+### 10.13 Ordenação do fluxograma (consequência de 10.6) — descoberta na Fase 0
+Com FKs reais, `fluxograma_semanal` depende de `materias` e `treinos` e não pode
+ser criada na Fase 0. É criada na migration da Fase 2 (com `materia_id`) e
+estendida na Fase 3 (adicionando `treino_id` e o check constraint final).
+
+Consequência nas seções 3.4 e 4.4: a query dos checks diários deixa de filtrar
+por `pilar = 'estudos'` e passa a filtrar por `materia_id is not null` /
+`treino_id is not null`.
+
+### 10.14 Data das avaliações (corrige 3.1) — descoberta na Fase 2
+`dias_para_proxima_avaliacao` (3.2) e as provas no Calendário (6.1) dependem da
+data da avaliação, mas `avaliacoes` não tinha essa coluna. Adicionada:
+```sql
+avaliacoes (
+  ..., data date null  -- null = data ainda não marcada
+)
+```
+Avaliações sem data são ignoradas na contagem regressiva — não há como
+projetá-las no calendário.
+
+### 10.15 Persistência do check derivado (completa 3.4 / 4.4) — descoberta na Fase 2
+As seções 3.4 e 4.4 pedem check diário "derivado do fluxograma, com toggle de
+concluído". A derivação resolve **quais** itens aparecem no dia, mas o estado de
+conclusão precisa ser gravado — e `checks_diarios` só tem os campos do
+Financeiro.
+
+Nova tabela, modelada como presença:
+```sql
+conclusoes_fluxograma (
+  id, fluxograma_id references fluxograma_semanal on delete cascade,
+  data date, unique (fluxograma_id, data)
+)
+```
+Existir a linha significa "concluído"; desmarcar **apaga** a linha em vez de
+gravar `false`. Assim a tabela só registra o que de fato aconteceu e não
+pré-gera linhas para todo dia do calendário — coerente com a decisão de não
+materializar a recorrência (10.5).
+
+### 10.17 Fonte única do planejamento de treino (corrige 4.1) — descoberta na Fase 3
+O plano definia `treinos.dias_semana int[]` (4.1) **e** usava o fluxograma para
+o card "treino de hoje" (4.3) — duas fontes de verdade para o mesmo fato, que
+sairiam de sincronia na primeira vez que uma fosse editada sem a outra.
+
+`dias_semana` foi **descartada**. O fluxograma é a fonte única:
+- "Treino de hoje" expande as ocorrências do fluxograma para a data atual
+- `frequencia_semana` compara execuções reais com as ocorrências previstas no
+  fluxograma na semana
+
+**Convenção adicional:** cada linha de `execucoes_exercicio` representa **uma
+série**. É o que permite `volume_grupo_muscular` ser `Σ(reps × carga)` somando
+linha a linha, sem depender do número de séries planejado — o plano escrevia
+"séries × reps × carga", que dá o mesmo resultado sob essa convenção.
+
+### 10.16 Referência pendente no plano (3.3)
+A seção 3.3 menciona "Registro de listas de exercícios (Opção C, começando pela
+Opção A)", mas essas opções não estão definidas em nenhum ponto do documento.
+Implementado o que a própria seção descreve: formulário pós-lista com total de
+questões, quais errou e tópico. Se as opções A/C tinham outro escopo, isso
+precisa ser revisitado.
+### 10.18 Biblioteca de exercícios e de tipos de treino (corrige 4.1 / 4.3) — descoberta depois da Fase 7
+`exercicios_treino` guardava `nome` e `grupo_muscular` como texto em cada linha,
+e `treinos.tipo` era texto livre. Consequências reais no banco do usuário:
+
+- 27 linhas de exercício para **21 movimentos distintos** — "Supino Inclinado"
+  no Push e no Upper eram dois registros sem relação
+- erros de digitação virando entidades separadas (`ombos`, `costas` no lugar de
+  `bíceps`), impossíveis de agregar
+- `personal_records` referenciava `exercicio_id` (a linha por treino), então o
+  gatilho comparava o 1RM **só dentro do mesmo treino**: bater 120kg no Push
+  depois de 130kg no Upper registrava um "recorde" que não era recorde
+- a paleta de comando devolvia um resultado por treino ao buscar "Supino"
+
+Duas tabelas passam a ser a fonte única:
+
+```sql
+biblioteca_exercicios (id, nome, grupo_muscular, observacoes)
+tipos_treino          (id, nome, descricao)
+```
+
+Ambas com **índice único case-insensitive** em `lower(trim(nome))` — é o que
+impede a duplicata voltar pela porta da frente. `exercicios_treino` guarda
+`exercicio_base_id` (`on delete restrict`: não se apaga um movimento com
+histórico) e `treinos.tipo_id` (`on delete set null`: o tipo é rótulo, não
+dependência). As colunas de texto foram **removidas**, não mantidas em paralelo
+— duas fontes de verdade era exatamente o problema (mesma razão de 10.17).
+
+`personal_records.exercicio_id` virou `exercicio_base_id`, e o gatilho
+`trg_registrar_pr()` resolve o exercício base a partir de `exercicios_treino`
+antes de comparar com `max(um_rm_estimado)` **de todos os treinos**. O recorde
+agora é do movimento, como sempre deveria ter sido.
+
+**Consequência na UI:** `/treino/:exercicioId` recebe o id do exercício **base**
+e agrega o histórico de todos os treinos que o usam. Editar nome ou grupo é
+função da Biblioteca; editar séries, reps e carga alvo continua no card do
+treino, porque esses valores variam legitimamente entre treinos.
+
+### 10.19 Exceção pontual do fluxograma (completa 3.4 / 4.3) — descoberta em uso
+O fluxograma guarda **padrão**, não datas: uma linha diz "treino B, terça, 18h" e
+vale para toda terça. A recorrência não é materializada (10.5), o que é certo —
+mas faltava o meio entre "segue o padrão" e "não existe mais". Quando a realidade
+fugia do padrão (viagem, aula cancelada pelo professor, treino feito noutro dia)
+as duas saídas eram ruins: deixar o check em aberto, e a frequência da semana
+acusar falha; ou apagar a linha do fluxograma, e perder o padrão de todas as
+semanas seguintes para consertar uma terça.
+
+`excecoes_fluxograma` já existia desde a Fase 2 com `status in ('cancelado',
+'remarcado')`, e `expandirRecorrencia` já lia a tabela. Faltavam três coisas.
+
+**1. `remarcado` não tinha destino.** A tabela tinha a data de origem e o status,
+nada mais. Ganhou `nova_data`, `novo_horario_inicio` e `novo_horario_fim`, com
+CHECKs que barram os estados incoerentes — remarcado sem destino, cancelado com
+destino, horário pela metade, fim antes do início. A regra fica no banco e não só
+no formulário: um `remarcado` sem destino gravado por fora seria descartado em
+silêncio pela expansão.
+
+**2. Ninguém escrevia.** Não havia botão; o hook `useExcecoes` existia e não era
+usado em lugar nenhum. Agora há um menu por ocorrência ("Não vai acontecer",
+"Remarcar…", "Voltar ao padrão") no check do dia e no card do treino de hoje.
+
+**3. Quatro telas discordavam.** Das cinco chamadas de `expandirRecorrencia`, só
+o calendário passava as exceções. Home, Estudos e Treino caíam no `[]` padrão, e
+uma ocorrência cancelada continuaria pedindo check na Home e contando como
+prevista na frequência do Treino. Corrigido, e a invalidação de qualquer exceção
+atinge as quatro raízes de cache.
+
+**Semântica da expansão mudou.** `remarcado` agora **move** a ocorrência para
+`nova_data` em vez de mantê-la na origem sinalizada. Isso exige um segundo
+caminho na função: o destino pode cair num dia da semana que a regra não cobre —
+é justamente o caso de "treinei quinta em vez de terça" — e o laço por dia da
+semana jamais o geraria. Pela mesma razão, a busca filtra por `data` **ou**
+`nova_data`: uma ocorrência empurrada de 31/07 para 02/08 tem origem fora de
+agosto e precisa aparecer ao olhar agosto.
+
+**Onde o código mora.** Num módulo próprio, `features/fluxograma`, e não em
+`estudos` ou `treino`: a tabela é dos dois (`fluxograma_semanal` tem `materia_id`
+OU `treino_id`) e deixar a escrita em `estudos` obrigaria a página de Treino a
+importar de lá. Na mesma passada, as duas leituras duplicadas da tabela viraram
+uma — a de `estudos` estava morta, e a do calendário ignorava as colunas novas.
+
+**Cancelada continua listada, riscada.** Omitir sem deixar rastro tirava o
+caminho de volta: cancelar por engano deixaria o dia sem a linha e sem como
+restaurá-la. Aparecer riscada também é mais honesto sobre o que houve no dia.
+
+**Horário nulo é intencional.** Quando a remarcação só muda o dia, os horários
+ficam nulos e a ocorrência herda o do padrão — assim, mudar o padrão depois
+continua valendo para ela. Só grava horário próprio quem de fato mexeu no campo.
+
+### 10.20 Calendário: agenda no lugar da grade (reestrutura 6.1 / 6.2) — descoberta em uso
+A grade de mês respondia a pergunta errada. Grade serve para **agendar**, isto é,
+achar espaço livre — e aqui nada é agendado em espaço livre: a rotina está fixa no
+fluxograma e prova, conta e marco chegam com data colada. A pergunta real é "o que
+vem, e onde a semana aperta".
+
+Quatro problemas concretos da grade:
+
+1. **Peso visual igual para rotina e prazo.** Cerca de 20 ocorrências de aula e
+   treino por semana contra 1 ou 2 prazos, todas como bloco sólido colorido. É o
+   mesmo defeito que a Home tinha (a prova afogada na rotina), mas estrutural.
+2. **`dayMaxEvents` cortava por ordem de inserção**, então a prova tinha a mesma
+   chance de cair no "+2" que o terceiro treino.
+3. **Sono como `display: background`** tingia a célula inteira na vista de mês;
+   só funcionava na semana.
+4. **Chips de camada eram filtro, não informação** — não diziam nada até o
+   clique. E "Aulas e provas" numa camada só impedia separar rotina de prazo,
+   distinção que `TipoEvento` já carregava no dado.
+
+**Regra de apresentação nova: cor marca a camada, peso marca a natureza.** Rotina
+é filete na cor do pilar, sem preenchimento; prazo é preenchimento sólido; sono é
+tinta ao fundo. Derivada de `ehImportante()`, que já existia. Vale na agenda e
+também na grade de mês.
+
+**Estrutura.** A vista padrão é a semana: uma faixa de carga por cima e uma agenda
+com uma linha por dia abaixo. A faixa separa em dois eixos o que a grade misturava
+— **altura** da barra é tempo já comprometido pela rotina, segmentado por pilar;
+**marca acima** é o que vence no dia. Clicar num dia da faixa leva a agenda até
+ele. A grade de mês continua disponível, atrás de um botão.
+
+**Dois sinais a mais na faixa**, ambos só para dias passados, porque marcar o
+futuro como falha seria mentira: um traço quando o sono ficou abaixo da meta, e um
+anel quando havia rotina prevista e o check não saiu. São formas e não cores — no
+tema claro `--sono` e `--status-atencao` são o mesmo hex, então cor ali não
+distinguiria nada.
+
+**`origemId` em `EventoCalendario`.** O id do evento é composto
+(`fluxograma:regra:data`); a faixa precisa do id da regra, que é o que
+`conclusoes_fluxograma` referencia. O campo existe para ninguém precisar fatiar o
+id composto de volta.
+
+**Ganho de bundle.** O FullCalendar saiu para um módulo próprio carregado por
+`React.lazy`: a página caiu de 67,8 kB para 4,3 kB gzip, e os 66,5 kB só descem
+para quem abre a vista de mês.
+
+**`PainelImportantes` foi removido.** A agenda mostra prazo antes da rotina em cada
+dia, então o painel repetia a mesma resposta na mesma página. A Home segue com
+`eventosComPrazo` para a versão de relance.
+
+**Consulta condicional.** `useFontesCalendario` ganhou `comCarga`, desligado por
+padrão: a Home usa o mesmo hook e as duas consultas da faixa seriam requisições
+por nada. Ficam fora da lista de `carregando` quando desligadas — query
+desabilitada permanece `pending` no React Query, e contá-la deixaria a página
+carregando para sempre.
+
+### 10.21 Sessão de treino: gravação série a série e histórico (completa 4.3) — descoberta em uso
+Dois problemas relatados no uso real, com a mesma raiz.
+
+**1. O progresso se perdia.** A sessão inteira ficava em estado do React até um
+botão final. Anotar duas séries e sair do app — o que acontece com o celular na
+mão, na academia — perdia tudo. Pior: ao voltar, o app abre na Home e não havia
+sinal nenhum de que ficara algo pela metade.
+
+**2. Não havia como ver os treinos da semana.** A frequência dizia "3 de 4" e
+mais nada: nem qual treino foi feito, nem com que carga. As séries estavam no
+banco desde a Fase 3, mas `listarSeries` não devolvia `execucao_treino_id`, então
+agrupá-las por sessão era literalmente impossível — chegavam soltas com a data, e
+como não há unique em `(treino_id, data)`, dois treinos no mesmo dia viravam uma
+massa indistinguível.
+
+**A gravação virou série a série.** Cada série vai para o banco quando você
+confirma. A sessão nasce na **primeira** série gravada, não ao abrir o diálogo:
+criação preguiçosa evita lixo no banco quando alguém abre e fecha, e faz "em
+andamento" significar "tem pelo menos uma série" — o único estado em que retomar
+faz sentido.
+
+**`finalizado_em` era obrigatório.** Com a linha nascendo no começo, ela passa a
+significar "comecei" e não "terminei". Sem a coluna, um treino abandonado no meio
+contaria como treino feito na frequência da semana. Nulo = em andamento, e só as
+finalizadas contam. As execuções que já existiam foram preenchidas com
+`created_at` no backfill — sem isso apareceriam todas como em andamento e sairiam
+da contagem.
+
+**Índice único garante uma sessão aberta por vez:**
+`create unique index on execucoes_treino ((finalizado_em is null)) where
+finalizado_em is null` — índice sobre uma expressão que é sempre `true` nas linhas
+do predicado é o idioma para "no máximo uma linha assim". Duas sessões abertas não
+significam nada: você treina uma coisa de cada vez, e duas tornariam ambíguo qual
+o aviso de "continuar" deve retomar.
+
+**Ganhos de brinde.** O gatilho de PR dispara a cada série inserida, então o
+recorde fica gravado no instante em que aconteceu. E `created_at` até
+`finalizado_em` dá a **duração do treino**, que antes não existia. A duração
+subestima de propósito: conta da primeira série, não do aquecimento — é o único
+instante que o banco conhece, e inventar um início seria pior que informar menos.
+
+**Aviso em vez de restaurar rota.** A Home mostra "Treino B em andamento · N
+séries salvas · Continuar" quando há sessão aberta, e nada quando não há.
+Restaurar a última rota desorienta — você abre o app e está numa tela que não
+pediu; o aviso diz o que ficou pendente e deixa a decisão com o usuário.
+
+**Bug que a mudança quase introduziu.** O efeito que monta as linhas do diálogo
+dependia da sessão carregada, e cada série gravada invalida a query — o efeito
+rodaria de novo e reconstruiria todas as linhas, apagando o que estivesse sendo
+digitado na série seguinte. O estado do banco passou a ser carregado **uma vez por
+abertura**, e depois só `gravar` e `desfazer` mexem nas linhas, que já sabem qual
+mudou.
+
+**Código morto removido.** `useRegistrarSessao` e `api.registrarSeries`
+implementavam o fluxo de submeter tudo de uma vez, que deixou de existir.
+
+### 10.22 Pular exercício e sair da sessão (corrige 10.21) — descoberta em uso
+Três problemas, os dois últimos introduzidos pela própria 10.21.
+
+**1. Não havia como pular um exercício.** Acontece: a máquina está ocupada, o
+ombro doeu, o tempo acabou. Sem registro, as linhas do exercício ficavam em branco
+parecendo pendência, e o contador mentia — "9 de 12" ao fim de um treino em que
+você pulou de propósito lê como trabalho deixado pela metade.
+
+Resolvido com `execucoes_pulados (execucao_treino_id, exercicio_id)`. Tabela em vez
+de estado local porque a sessão foi feita para ser abandonada e retomada: um pulo
+que evapora ao fechar o app contradiz isso. Presença = pulado, como em
+`conclusoes_fluxograma` (10.15); desfazer apaga a linha em vez de gravar `false`.
+
+Como fato registrado, o pulo é informação: aparece no histórico e abre caminho para
+"pulei este exercício nas últimas três sessões", que é sinal de que ele não está
+funcionando no treino.
+
+**Regra no banco, não só no formulário.** Um gatilho recusa a marca quando já
+existe série gravada para aquele exercício na sessão: fez 2 de 4 não é "pulado", é
+"fez 2 de 4", e as duas coisas juntas apareceriam no histórico como feito e pulado
+ao mesmo tempo. A leitura em `sessoesRealizadas` também prefere a série à marca, de
+forma que um dado incoerente nunca chegue à tela.
+
+**2. `useSalvarSerie` não tinha rollback.** O `useRegistrarSessao` removido na
+10.21 desfazia a execução quando as séries falhavam; a versão nova não levou isso.
+Se o insert da série falhasse depois da sessão criada, sobrava sessão aberta e
+vazia — e, como o banco só admite uma aberta, ela travava o início de qualquer
+outro treino. `usePularExercicio` nasceu com o mesmo cuidado.
+
+**3. Não havia saída para a sessão sem séries.** "Finalizar" exige ao menos uma
+série gravada, então desfazer a última série deixava a sessão presa: nem finalizava
+nem desaparecia, e bloqueava todos os outros treinos. Agora há "Descartar" no
+diálogo e no aviso da Home.
+
+### 10.23 Horário da sessão, lista de lançamentos e forma de pagamento — descobertas em uso
+
+**Horário real do treino.** O fluxograma dizia 18h; o treino aconteceu às 11h. São
+dois fatos e o segundo não tinha onde morar: `data` guarda só o dia, e `created_at`
+é quando a primeira série foi gravada — não é editável, e nas sessões registradas
+antes da 10.21 era o instante do envio do formulário, não do treino. Coluna
+`hora_inicio time`, editável no diálogo e no histórico, anulável porque a maioria
+dos registros não vai informar e inventar um horário seria pior que não ter.
+
+Não confundir com remarcar a ocorrência (10.19): aquilo muda o **plano** daquela
+data; isto registra a **realidade** da sessão. As duas coisas são úteis e
+independentes.
+
+**Lista de lançamentos.** O Financeiro tinha a mesma assimetria que o Treino tinha:
+o total do mês e o anel por categoria existiam, mas ver os lançamentos exigia entrar
+numa categoria por vez. Faltava responder "o que gastei esta semana", "quanto gastei
+com X em Y período" e "onde está aquele lançamento" — a pergunta "onde foi o dinheiro
+este mês" já era respondida pela grade de categorias, então a lista não a repete.
+
+Página própria (`/financeiro/lancamentos`) e não card no painel: o Financeiro já é a
+tela mais densa do app, e cinco filtros somados a ela ficariam impraticáveis no
+celular. No painel ficou um resumo com os cinco últimos apontando para lá — e ele não
+custa consulta nenhuma, porque os lançamentos do mês **já eram buscados** para
+calcular o gasto de hoje e descartados em seguida.
+
+Agrupada por dia, com saldo por dia. Filtros de período (com presets), categoria,
+entrada/saída, forma de pagamento e busca na descrição — todos no Postgres e não no
+cliente, porque a tabela cresce todo dia e filtrar no cliente obrigaria a baixar o
+ano inteiro para exibir uma semana.
+
+**Truncamento silencioso corrigido.** `listarLancamentosDaCategoria` tinha
+`limite = 50` fixo. Com 8 lançamentos ninguém nota; com um ano de uso a página da
+categoria mostraria os últimos 50 e sumiria com o resto **sem avisar** — histórico
+truncado que parece completo.
+
+**Forma de pagamento fechada.** Era texto livre digitado a cada lançamento, o mesmo
+problema que a biblioteca de exercícios resolveu (10.18): "Débito", "debito" e
+"Débito " viram três formas distintas e nenhum filtro agrupa. Virou conjunto fechado
+— débito, crédito, dinheiro, pix — com CHECK no banco e Select na tela.
+
+CHECK em vez de tabela de referência: são quatro valores que não mudam, sem atributo
+nenhum além do nome, e ninguém precisa cadastrar uma quinta forma. Tabela aqui seria
+cerimônia sem ganho — o oposto de `biblioteca_exercicios`, onde o cadastro é do
+usuário e cresce. Os valores gravados são slugs sem acento; o rótulo existe só para
+a tela. O dado existente (`Débito`) foi normalizado no migration.
+
+### 10.24 Editor da sessão e duração informada (corrige 10.21 / 10.23) — descoberta em uso
+
+**A duração estava errada nas duas sessões reais.** Ela era derivada de
+`finalizado_em - created_at`, e esses timestamps medem quanto tempo se passou
+**registrando**, não treinando. Só coincidem quando a sessão é anotada série a
+série, ao vivo, do começo ao fim. No banco: a sessão de Push marcava **0 min** (é
+registro em lote pré-10.21, onde o backfill fez `finalizado_em = created_at`) e a
+de Pull marcava **18 min** para um treino feito horas antes. Número errado é pior
+que nenhum.
+
+Virou coluna `duracao_minutos int`, informada pelo usuário, com CHECK `> 0`. Nulo =
+não informada, e a tela mostra **"—"**. O intervalo de registro continua calculado
+e exibido, mas rotulado como o que é: *"registrado em 18 min"*, nunca como duração
+do treino. `SessaoRealizada` carrega os dois campos separados de propósito —
+`duracaoMinutos` e `spanRegistroMinutos` — para que nenhum código futuro confunda
+os dois de novo.
+
+**Um editor, não dois.** O `DialogExecucao` ganhou `execucaoIdEdicao`: com esse id
+ele carrega uma sessão já finalizada em vez da aberta, e passa a editar data,
+horário, duração e as séries — corrigir carga, apagar série, marcar pulado. As duas
+telas precisam exatamente das mesmas ações, e um segundo editor divergiria do
+primeiro na primeira mudança.
+
+Consequências de virar editor:
+
+- **A data destrava em modo edição.** Durante a sessão em andamento ela fica travada
+  (mudá-la moveria séries que estão sendo gravadas para outro dia); editando o
+  histórico, mover a sessão de dia é justamente o conserto de quem lançou errado.
+- **"Finalizar treino" vira "Fechar".** Não há o que finalizar numa sessão
+  finalizada.
+- **"Descartar" vira "Excluir sessão".** Mesma ação, mas apagar um rascunho e apagar
+  um treino do histórico não merecem o mesmo rótulo.
+- **`outroTreinoAberto` não bloqueia edição.** Editar uma sessão do passado não
+  conflita com a sessão aberta de outro treino.
+- `atualizarHoraSessao` virou `atualizarSessao`, com data, horário e duração num
+  update só.
+
+### 10.25 Lançamento rápido sem saída no mobile (corrige 2.5 / Bloco D) — descoberta em uso
+
+O lançamento rápido de despesa foi desenhado em duas interações: digitar o valor e
+apertar Enter. **No celular ele não salvava nunca**, e o celular é onde o
+lançamento mais acontece.
+
+Duas causas somadas, ambas no mesmo componente:
+
+- `inputMode="decimal"` abre o **teclado numérico**, que tem dígitos, separador e
+  backspace — e **não tem tecla de retorno**. O `onKeyDown` que escutava `Enter`
+  estava correto; nunca era acionado porque não existia tecla para emitir o evento.
+- O input estava solto dentro de uma `<div>`, **sem `<form>`**. Sem formulário o
+  navegador não pode oferecer a tecla de ação ("Ir"/"Enviar"), porque esse
+  mecanismo *é* a submissão implícita de formulário. `enterKeyHint` sozinho também
+  não teria efeito: ele rotula uma ação que precisa existir.
+
+E não havia botão de salvar nenhum no card — a única affordance era o rótulo
+"Enter para lançar hoje", uma instrução impossível de cumprir no aparelho. No
+desktop funcionava, o que é o que fez isso passar despercebido.
+
+A correção não é "fazer o Enter funcionar": no teclado numérico ele não existe.
+
+- O conteúdo virou `<form onSubmit>`, o que restaura a submissão implícita onde há
+  tecla, e o `onKeyDown` manual saiu — o formulário já faz esse trabalho.
+- **Botão "Lançar hoje" visível no mobile** (`sm:hidden`), alvo de 44px, que é a
+  affordance real de toque. A dica de teclado passou a `hidden sm:flex`: "Enter"
+  só é verdade onde existe um Enter.
+- `enterKeyHint="go"` rotula a tecla de ação nos teclados que têm uma.
+- O botão desabilita quando o valor não dá número positivo ou não há categoria — a
+  mesma guarda que `salvar()` já aplicava, agora visível antes do toque em vez de
+  falhar em silêncio depois dele.
+
+### 10.26 A vírgula do teclado brasileiro (corrige 2.5 / 3.3 / 4.3) — descoberta em uso
+
+Todo campo decimal era `<input type="number">`, lido com `Number(...)` ou
+`valueAsNumber`. **Para um `type="number"` a vírgula é caractere inválido**: o
+navegador descarta a entrada, `.value` vira `''` e `valueAsNumber` vira `NaN`.
+
+O teclado numérico do celular em português oferece **vírgula** como separador
+decimal. Então digitar 87,5 resultava em campo vazio para o código — e o
+formulário reprovava com "Informe um valor" tendo o número na tela. Pior caso
+possível de bug: **funciona na máquina de quem programa e falha no aparelho de
+quem usa**, porque o Chrome localiza a entrada de campos numéricos e o Safari
+não. Não é um bug de uma tela; é do tipo do campo.
+
+Dez campos afetados, todos com separador decimal:
+
+| Campo | Onde |
+| --- | --- |
+| Valor do lançamento | `DialogLancamento` |
+| Meta da categoria | `DialogCategoria` |
+| Valor do investimento | `DialogInvestimento` |
+| Planejamento semanal | `GradePlanejamentoSemanal` |
+| Peso corporal | `SecaoCorporal` |
+| Nota, nota manual e peso da avaliação | `AbaAvaliacoes` |
+| Carga planejada | `DialogExercicio` |
+| **Carga da série** | `DialogExecucao` |
+
+O último é o mais grave: é o campo digitado de pé na academia, e a série
+simplesmente não gravava.
+
+**A correção, em fonte única.** `lib/numeros.ts` com `parseDecimal` e
+`formatarDecimal`, com teste (15 casos), e os campos passaram a `type="text"` com
+`inputMode="decimal"` — que mantém o teclado numérico e deixa a vírgula chegar até
+o parse. Perde-se o spinner do desktop, e ele não faz falta: ninguém ajusta uma
+despesa de centavo em centavo pela setinha.
+
+Regras de `parseDecimal`, na ordem, porque separador em português é ambíguo:
+
+1. **Tem vírgula** → vírgula é decimal, pontos são milhar: `1.234,56` → `1234.56`.
+2. **Só pontos em grupos de três** → é milhar: `1.500` → `1500`. Sem esta regra,
+   mil e quinhentos digitado do jeito brasileiro lançaria **R$ 1,50** — erro de
+   mil vezes, em silêncio, num app de finanças.
+3. **Qualquer outro ponto** → decimal: `87.5` → `87.5`.
+
+Vazio devolve `NaN`, não `0` como faria `Number('')`: zero é valor legítimo em
+vários desses campos, e confundir "não informado" com "zero" esconderia dado — a
+mesma regra da resolução 10.24.
+
+`CampoDecimal` guarda o **texto** digitado, não o número. Sem isso "12," passaria
+por número e voltaria como "12", apagando a vírgula debaixo do dedo a cada tecla.
+A sincronização com o valor de fora compara pelo número justamente para não
+reescrever o campo no meio da digitação.
+
+**Os campos inteiros ficaram como estavam** (séries, reps, RPE, descanso, duração,
+faltas, total de exercícios da lista): inteiro não tem separador, então não tem o
+problema, e mantêm o spinner do desktop.
+
+### 10.27 A lista de lançamentos era invisível no mobile (corrige 10.23) — descoberta em uso
+
+A lista de lançamentos foi pedida de novo, como se não existisse. Ela existia desde
+a 10.23, e completa: lista agrupada por dia com saldo do dia, período por preset ou
+intervalo livre, filtros de categoria, natureza, forma de pagamento e busca, e
+totais do que está filtrado. O problema não era o que faltava construir — era que
+**ela não era alcançável nem legível no celular**.
+
+**Um único caminho no app inteiro.** Varredura do `src`: `/financeiro/lancamentos`
+aparecia em dois lugares, a rota em `App.tsx` e um link em
+`SecaoUltimosLancamentos`. Esse link era o "Ver todos" `size="sm" text-xs` na quina
+do cabeçalho de um card do painel. A barra inferior do mobile tem os seis pilares e
+nenhum caminho para lá; a paleta de comando navegava só sobre `ITENS_NAVEGACAO`,
+os mesmos seis. No celular, chegar na página exigia entrar no Financeiro, rolar até
+o card certo e acertar um alvo de texto pequeno no canto.
+
+**A página abria mostrando o formulário, não a lista.** O card de filtros é
+`grid gap-3 sm:grid-cols-2 lg:grid-cols-4` — no mobile, coluna única com **sete
+campos**: Período, De, Até, Categoria, Tipo, Forma de pagamento e Busca. Somando
+~54px por campo com label mais os gaps dá ~450px, e com o `PageHeader` (~130px, com
+as ações quebrando para a própria linha), o card de totais (~80px) e a barra
+superior (48px), são **~700px antes do primeiro lançamento** numa tela útil de ~660
+a 750px. A tela cujo propósito é a lista abria mostrando uma busca. De novo o padrão
+das resoluções 10.25 e 10.26: correto no desktop, onde `lg:grid-cols-4` resolve em
+duas linhas, e quebrado na tela pequena.
+
+**Nada foi reconstruído.** A lista e a lógica de filtro estavam boas.
+
+- **Filtros recolhidos no mobile**, com o Período sempre à vista porque é o que mais
+  muda. Botão "Filtros" com **contador dos escondidos que estão valendo** — sem o
+  contador, uma lista curta pareceria "não gastei nada" quando há um filtro de
+  categoria ligado que não aparece em lugar nenhum. Período livre conta, porque De e
+  Até também moram no bloco. Escolher "livre" abre o bloco: pedir intervalo próprio
+  e não ter onde digitar a data seria um beco.
+- De `sm:` para cima **nada muda** — os campos estão todos à vista e o botão de
+  abrir não existe. A implementação esconde cada campo com `hidden sm:block` em vez
+  de agrupá-los num container, justamente para a grade do desktop ficar idêntica.
+- **Três caminhos até a página**, no lugar de um: entrada na paleta de comando, o
+  cabeçalho do card "Últimos lançamentos" inteiro clicável (alvo grande no lugar
+  onde o olho já está, em vez do texto na quina) e um botão no `PageHeader` do
+  painel.
+- `SUBPAGINAS` em `lib/pilares.ts` guarda as páginas que não são pilares. Ficam
+  **fora** de `ITENS_NAVEGACAO` de propósito: aquela lista alimenta a barra inferior,
+  que já tem seis alvos numa faixa — um sétimo apertaria todos.
+
+### 10.28 Exclusão sem confirmação e alvo de toque (corrige 10.1 em diante) — descoberta em uso
+
+`DialogConfirmarExclusao` existia e era usado nas entidades "pai" com cascata —
+categoria, matéria, treino, projeto, sessão. A doc dele dizia, textualmente, que
+"para exclusões simples (uma linha sem filhos) o botão direto sem confirmação
+continua sendo usado". **A regra estava errada.**
+
+O que distingue os casos não é o tamanho da cascata — é ser irreversível, e todos
+são: o sistema não tem desfazer nem lixeira. Um lançamento, uma falta ou uma série
+apagados por engano não voltam. E no celular o argumento é mais forte: esses botões
+vivem em linhas apertadas, colados no de editar, tocados com o polegar enquanto a
+lista rola.
+
+**Quatorze exclusões disparavam `mutate` direto**, sem confirmação:
+
+| O que apagava | Onde |
+| --- | --- |
+| Lançamento | `CategoriaDetalhePage` |
+| Investimento | `SecaoInvestimentos` |
+| Avaliação, falta, lista, sessão de estudo, **documento** | `AbaAvaliacoes`, `AbaFaltas`, `AbaListas`, `AbaSessoes`, `AbaDocumentos` |
+| Registro de lesão, registro corporal, exercício do treino | `SecaoLesoes`, `SecaoCorporal`, `TreinoPage` |
+| Marco, registro do diário | `ProjetoDetalhePage` (dois) |
+| Horário de aula e fluxograma de treino | `GradeFluxograma`, pelos dois chamadores |
+
+Dois casos pediam atenção além da confirmação:
+
+- **O documento apaga arquivo, não linha.** O objeto sai do Storage e não há como
+  reenviá-lo pelo app. Era o único da lista que destruía dado fora do Postgres, e
+  era um toque sem pergunta.
+- **O do `GradeFluxograma` era invisível no celular.** `size-5` (20px) com
+  `opacity-0 group-hover:opacity-100`: desenhado para mouse e quebrado no toque das
+  duas pontas — no celular não existe hover, então o alvo ficava invisível mas
+  clicável, com metade da régua do dedo. Apagar por acidente um horário que não se
+  vê é o pior arranjo possível. Agora aparece sempre no mobile com 44px e volta ao
+  hover de `sm:` para cima, onde o mouse existe e o ícone permanente poluiria a
+  grade. Ganhou `group-focus-within` junto: quem navega por teclado também precisa
+  vê-lo.
+
+**Alvo de toque.** O trigger padrão passou de `size-9` (36px) para **`size-11`
+(44px)** no mobile, a régua do HIG, voltando a 28px de `sm:` para cima. Os botões de
+editar que dividem a linha com um de excluir subiram junto — um alvo de 44px ao lado
+de um de 36px fica torto, e o de editar é tocado pelo mesmo dedo. `SecaoCorporal`
+tinha `size-6` (24px), alvo de mouse posto numa lista de toque.
+
+**Consequência aceita:** na tabela de lançamentos da categoria, o alvo maior faz a
+coluna de ações ocupar 84px de um card de ~296px, apertando a descrição. É mais um
+argumento para essa tabela virar lista de cards — alvo de dedo não cabe em coluna de
+tabela.
+
+### 10.29 Diálogo vira folha ancorada embaixo no mobile (corrige 10.21) — descoberta em uso
+
+Todo formulário do app é o mesmo `DialogContent`: centralizado, `max-w-sm`, com a
+rolagem no próprio container. No celular isso produzia três sintomas que pareciam
+separados e tinham **uma causa só** — o conteúdo estava preso ao meio da tela:
+
+1. **O X rolava junto com o conteúdo** e desaparecia em formulário longo (era uma
+   limitação registrada). A rolagem estava no mesmo elemento em que o botão de
+   fechar era `absolute`.
+2. **Abrir o teclado fazia o diálogo saltar.** `-translate-y-1/2` recalcula a
+   posição a partir do centro, e o viewport cai para ~400px com o teclado aberto.
+3. **Os botões ficavam no meio da tela**, que é onde a mão que segura o aparelho não
+   alcança.
+
+De `sm:` para cima nada muda — lá o diálogo centralizado está certo, há mouse e a
+tela é grande. No mobile ele virou **folha ancorada na borda de baixo**, largura
+cheia, cantos arredondados só em cima, `max-h-[90dvh]`, entrando de baixo para cima.
+
+O que isso resolve, na ordem dos sintomas:
+
+- A rolagem desceu para um `div` interno (`data-slot="dialog-body"`), então o
+  container ficou fixo e **o X não rola mais** — medido com Playwright: depois de
+  rolar 500px o botão continuou em `y=169`. O `p-4` desceu junto com a rolagem, o
+  que mantém o `-mx-4 -mb-4` do `DialogFooter` funcionando, porque ele continua
+  cancelando o padding do pai direto.
+- Ancorada embaixo, a folha **cresce para cima**: o teclado empurra em vez de
+  reposicionar, e a borda inferior é a borda da tela.
+- O rodapé passou a encostar embaixo, onde o polegar já está, e os botões dele
+  ganharam 44px de altura no toque — o botão padrão tem 32px, que é alvo de mouse.
+  **É isto que fecha o item da ação primária longe do polegar**: a ação repetida do
+  app mora em diálogo, não em `PageHeader`.
+- O X foi para 44px, com `pr` no `DialogHeader` para o título não passar por baixo.
+- `pb` com `env(safe-area-inset-bottom)` no container: a folha encosta na borda, e
+  sem isso a última linha ficava atrás da barra de gesto do sistema.
+
+**Sem gesto de arrastar para fechar.** Fecha por Esc, clique fora e pelo X de 44px.
+Arrastar exigiria dependência de gesto (`vaul`), e não vou acrescentar dependência
+sem combinar. Por isso também **não tem alcinha** no topo da folha: alcinha promete
+um gesto, e prometer um gesto que não existe é pior que não ter o desenho.
+
+**Verificado no navegador**, não por leitura: viewport de iPhone 13 (390×664), folha
+em `y=161` com 390×503, encostando embaixo, largura cheia; e no desktop de 1280 o
+diálogo continua centralizado (`x=448`, largura 384, centro em 640). Foi essa
+verificação que revelou o crash da paleta de comando, corrigido em commit próprio.
+
+### 10.30 Tabela vira lista no mobile (corrige 10.23 / 3.3) — descoberta em uso
+
+Sobraram duas tabelas no app, e as duas mostravam **menos** no celular do que no
+desktop. O mecanismo era o mesmo: `TableCell` tem `whitespace-nowrap` global, então
+para caber em ~296px cada página escondia coluna e truncava texto.
+
+**Lançamentos da categoria — a tabela foi apagada e a lista reaproveitada.**
+
+A `ListaLancamentos` da página de lançamentos já resolvia tudo isso: agrupa por dia
+com saldo, filete na cor da categoria, descrição com a largura toda. Manter uma
+tabela própria aqui era uma segunda lista do mesmo dado — e duas divergem na primeira
+mudança. Ganhos concretos:
+
+- a descrição saiu de ~80px truncados para a largura da linha, **quebrando em mais de
+  uma linha em vez de cortar** — o `truncate` foi trocado por `break-words`. Medido no
+  navegador: "Almoço foi mais caro do que o esperado pois a promoção do restaurante
+  terminou" aparece inteiro, onde antes se lia "Almoço f…";
+- a **forma de pagamento voltou no mobile** (era `hidden sm:inline`);
+- ganhou agrupamento por dia com saldo, que a tabela não tinha.
+
+`ListaLancamentos` ganhou exclusão — que a tabela tinha e ela não — mais
+`ocultarCategoria`, porque repetir o nome da categoria em toda linha dentro da
+própria categoria só gasta a largura que a descrição precisa. A consulta da categoria
+devolve `Lancamento` sem os campos da categoria; eles são preenchidos a partir da
+`categoria` que a página já tem em mãos, em vez de outra consulta ao banco.
+
+**Avaliações — uma lista só, não tabela no desktop e lista no mobile.**
+
+A tabela tinha cinco colunas; a **data** era escondida com `hidden sm:table-cell` e o
+nome truncava em `max-w-0`. Esconder a data era pior do que parecia: é ela que diz se
+a prova já aconteceu, o que **muda o sentido de um campo de nota vazio**. Sem ela, "P2
+sem nota" (prova em setembro, normal) e "Trabalho sem nota" (entregue em julho,
+pendência) apareciam idênticos.
+
+A linha agora empilha nome-e-peso em cima, data embaixo, com o campo de nota e o
+excluir à direita — e é **a mesma marcação nas duas larguras**, não duas versões que
+divergiriam. Nota vazia em avaliação cuja data já passou ganhou um **"sem nota"** em
+cor de atenção; em avaliação futura, nada, porque ali é o estado normal.
+
+**Verificado no navegador** com dado temporário inserido e apagado em seguida
+(asserção de limpeza: 0 linhas restantes). Nas duas páginas: nenhuma `<table>` no DOM
+e **zero** de rolagem horizontal no documento.
+
+**Consequência:** `components/ui/table.tsx` ficou sem nenhum uso. Não apaguei — é
+primitivo do design system, e removê-lo é decisão de quem mantém o sistema, não efeito
+colateral desta mudança.
+
+### 10.31 A agenda mostrava o plano e nunca o fato (corrige 6.1 / 10.20) — descoberta em uso
+
+Ele registrou um treino, desmarcou o previsto, e a agenda ficou sem nenhuma linha de
+treino no dia: **parecia que ele não tinha treinado.** O dado estava íntegro; o
+calendário é que não tinha como contá-lo.
+
+`construirEventos` tinha cinco fontes — avaliações, fluxograma, contas, sono e
+marcos. **Nenhuma lia `execucoes_treino`.** A agenda era uma projeção do fluxograma,
+então:
+
+- cancelar a ocorrência prevista removia a **única** linha de treino da quarta, e
+  cancelar estava certo (ele não fez Legs);
+- o Pull que ele fez, com 14 exercícios gravados, **não tinha por onde entrar**.
+
+No banco, em 05/08: previsto Legs 18:00–19:00, exceção `cancelado` para Legs, e
+execução de Pull finalizada com `hora_inicio` 11:00. A agenda mostrava zero.
+
+Não é bug de dado, e dois números continuavam certos: a **frequência da semana**
+conta execuções finalizadas (10.21), então o pilar Treino sabia do treino; e
+`conclusoes_fluxograma` está vazia e só é escrita pelo Estudos, então "treinei" tem
+**uma** fonte só — não havia armadilha de fonte dupla a desfazer, só uma fonte de
+evento a acrescentar.
+
+**Três fontes novas**, mais uma regra de reconciliação:
+
+- `eventosExecucoesTreino` — só sessões **finalizadas**, porque treino abandonado no
+  meio não é treino feito (mesma regra da frequência). A hora vem de `hora_inicio`,
+  **informada pelo usuário**; quando é nula o evento é de dia inteiro. Derivar hora de
+  `finalizado_em` seria repetir o erro da 10.24: no banco real, o Push de 04/08 teria
+  ganhado um falso "08:09" que é quando o *registro* terminou.
+- `eventosSessoesEstudo` — sempre dia inteiro, porque `sessoes_estudo` não guarda
+  hora nenhuma. A duração vai no título ("Cálculo II · 90 min").
+- `eventosCancelados` — o que foi desmarcado, **só em dias que já chegaram**. No
+  futuro, desmarcado é fora do plano, e riscar o que não vai acontecer é ruído.
+  Não reaproveita `expandirRecorrencia`: aquela função **omite** a cancelada de
+  propósito, e é disso que a frequência (10.17) e a faixa de carga dependem. As
+  exceções são lidas direto aqui.
+- **Reconciliação:** previsto e realizado do mesmo treino no mesmo dia dão **uma**
+  linha, a realizada — ela é o fato e carrega a hora informada. Sem isso, todo dia
+  normal mostraria o treino duplicado.
+
+`EventoCalendario` ganhou `estado?: 'feito' | 'cancelado'`. Ausente segue sendo o
+padrão: rotina prevista, sem informação de desfecho.
+
+Na agenda: feito ganha **✓** antes do filete; cancelado fica riscado, com o filete a
+40% e o rótulo **"cancelado"** em texto — o risco sozinho não serve para leitor de
+tela, e nada é transmitido só por cor.
+
+**Regressão que eu mesmo criei e só apareceu na tela.** `cargaPorDia` calcula a barra
+a partir da lista de eventos, então os novos entraram nela e produziram dois erros:
+
+- o `cancelado` carrega o horário do padrão, e passou a somar **1h de "tempo
+  comprometido"** num dia em que nada foi comprometido;
+- o `feito` ligava `temRotina` e, como o `origemId` dele é o `treino_id` e não o id da
+  regra, nunca casava com `conclusoes` — a terça, dia em que o treino **aconteceu**,
+  ganhou o anel de "rotina sem check".
+
+A barra mede tempo que a **rotina** compromete, uma projeção; desfecho não entra.
+Evento com `estado` é ignorado em `cargaPorDia`, com teste para os dois casos.
+
+**Consequência aceita:** a barra de carga não mostra o tempo do treino realizado (são
+45 min informados na quarta). Misturar plano e fato na mesma barra é outra decisão, e
+não foi pedida — a barra continua respondendo "quanto a rotina compromete".
+
+**Verificado no navegador** contra o dado real: a quarta passou a ler
+`✓ 11:00 Pull` + `18:00 Legs (cancelado)`, a terça mostra `Push` sem hora em vez de
+uma hora inventada, o anel saiu da terça e a quarta deixou de somar 1h.
+
+### 10.32 Metas — meta unificada entre pilares (spec própria) — feature nova
+
+Hoje "meta" existia fragmentada e sem lugar único: `categorias.meta_mensal`
+(Financeiro), `marcos_projeto` (Projetos), `personal_records` (Treino) — nada em
+Estudos ou Sono, e nenhuma tela mostrava tudo que o usuário está perseguindo
+independente do pilar.
+
+Nova tabela `metas` (um dado, 4 formas via `tipo`: `numerica`, `marco`, `habito`,
+`livre`) + `metas_checkins` (check-in diário de hábito, presença = feito, no mesmo
+espírito de `conclusoes_fluxograma`/`execucoes_pulados`). No máximo uma FK de pilar
+(`categoria_id`/`materia_id`/`tipo_treino_id`/`projeto_id`) por linha, checado na
+aplicação — `metas.valor_alvo` é **independente** de `categorias.meta_mensal`, o
+vínculo só serve para buscar o progresso real, nunca para herdar o alvo.
+
+Progresso de meta numérica linkada vem da função `progresso_meta()` (RPC), que
+espelha `progresso_categoria`/`calcular_media_materia`: soma `lancamentos` da
+categoria, `sessoes_estudo.duracao_minutos` da matéria, contagem de
+`execucoes_treino` do tipo, ou % de `marcos_projeto` concluídos — sempre entre
+`data_inicio` (coluna própria, não `criada_em::date`, que resolveria no timezone do
+servidor) e `data_alvo` (ou hoje, se `data_alvo` for nulo). Meta numérica sem link
+usa `valor_atual_manual`, editado direto no card. Meta de hábito calcula streak e
+progresso da semana client-side, puro e testado (`features/metas/calculos.ts`).
+
+Sem rota nova, sem item em `BottomNav`/`Sidebar` — vive inteira como seção na Home
+(`SecaoMetas`), com destaque das ~4 metas mais próximas do prazo e "Ver todas"
+abrindo lista em tela cheia (`DialogListaMetas`).
+
+**Pendência de processo encontrada depois do merge:** a migração
+(`20260805000007_metas.sql` + ajustes em `20260805000008_metas_ajustes.sql`) tinha
+sido aplicada direto no banco, sem passar por `apply_migration` — o schema estava
+certo, mas o histórico de migração do Supabase não sabia disso. A próxima
+`db push` teria tentado reaplicar `000008`, que não é idempotente (`add column`
+sem `if not exists`), e quebraria em "column already exists". Reparado inserindo as
+duas linhas correspondentes em `supabase_migrations.schema_migrations` — nenhum
+dado ou schema mudou, só o rastro.
+
+### 10.33 Metas reproduzia a vírgula do teclado brasileiro (corrige 10.26) — descoberta em uso
+
+O campo "Alvo" de `DialogMeta` e a edição rápida de `valor_atual_manual` em
+`CardMeta` usavam `<input type="number">` + `valueAsNumber` — exatamente o bug da
+10.26: no teclado numérico em português o separador é vírgula, `type="number"`
+rejeita, e o campo chega vazio ao formulário. A ironia é que `CampoDecimal`
+(`components/CampoDecimal.tsx`) e `lib/numeros.ts` foram criados **na mesma leva de
+mudanças** que trouxe Metas, e já estavam em uso em `DialogLancamento`,
+`DialogCategoria`, `DialogInvestimento` — só não chegaram aos dois campos de Metas.
+
+Trocado nos dois lugares por `CampoDecimal`. Na edição rápida do card, o commit
+continua só no blur (como antes) — `CampoDecimal` chama `onValorChange` a cada
+tecla, e mutar a cada tecla faria uma requisição por caractere digitado; o valor
+digitado fica num ref até o campo perder o foco.
+
+**Verificado no navegador:** digitar `87,5` no campo Alvo mantém a vírgula na tela
+(antes ficaria vazio) e grava `87.5` no banco; digitar `45,2` na edição rápida do
+card grava `45.2` só ao sair do campo. `frequencia_alvo` (vezes por semana)
+continua `type="number"` — é inteiro, sem separador, fora da regra da 10.26.
+
+### 10.34 Meta numérica ganha vínculo com peso corporal — feature nova
+
+Ele criou uma meta "Perder 12kg" e vinculou a um **tipo de treino** — a única
+opção disponível que parecia próxima de Treino. O vínculo com tipo de treino
+calcula **contagem de sessões concluídas**, não peso: a meta ia mostrar
+"2 / 12 Kg" onde 2 é número de treinos, sem relação nenhuma com quilos perdidos.
+Não existia vínculo com `registro_corporal` porque essa tabela não é uma entidade
+escolhível como categoria/matéria/tipo de treino/projeto — é peso ao longo do
+tempo, uma linha por dia, sem FK para nada.
+
+Vínculo novo: `metas.usa_peso_corporal boolean`, não mais um `uuid references` —
+não há "qual" registro escolher, só "usar o histórico de peso ou não". Mesma
+regra dos outros quatro vínculos: no máximo um por meta, checado na aplicação.
+
+Semântica de `valor_alvo` confirmada com o usuário: **quilos a perder desde o
+início da meta** (delta), não peso final absoluto — bate com a meta já criada
+(alvo=12 para "Perder 12kg"). `progresso_meta()` calcula
+`peso_inicial - peso_atual`, onde:
+- `peso_inicial` = peso mais recente **estritamente antes** de `data_inicio`;
+- `peso_atual` = peso mais recente até `data_alvo` (ou hoje, sem prazo).
+
+**Bug pego testando com dado real, antes de ir para produção:** a primeira versão
+usava `data <= data_inicio` para `peso_inicial`. Registrar um peso no mesmo dia em
+que a meta foi criada fazia `peso_inicial` e `peso_atual` caírem no mesmo
+registro — delta sempre 0, mesmo tendo perdido peso de verdade desde uma pesagem
+anterior. Corrigido para `data < data_inicio` (estritamente antes): a linha de
+base fica fixa no que já era conhecido quando a meta nasceu, e qualquer pesagem
+a partir daquele dia (inclusive) conta como progresso.
+
+Sem cor nova no design system — `registro_corporal` vive dentro do pilar Treino
+(`SecaoCorporal.tsx`), então o vínculo reaproveita `text-treino`.
+
+**Verificado no navegador contra o banco real:** com um só registro de peso
+(97kg, antes da meta), progresso = 0. Inserido um segundo peso (94.5kg) no dia da
+meta — progresso passou a 2.5, e o card mostrou "Perder 12kg — 2.5 / 12 Kg". Meta
+de teste e peso de teste removidos depois de confirmado.
+
+### 10.35 Tendência do Financeiro ganha receita e saldo (só mostrava gasto)
+
+Diagnóstico: o Financeiro inteiro tinha **um gráfico só** (`GraficoTendencia`,
+reaproveitado na Home do pilar e no detalhe de categoria) — o resto é anel/barra/
+número. E esse gráfico só somava despesa: não havia como ver se a receita estava
+subindo ou caindo, nem se a diferença entre as duas estava melhorando ou piorando
+mês a mês — a mesma classe de lacuna que motivou a 10.31 no Calendário (mostrar só
+uma face do dado).
+
+Extraída a agregação, que vivia solta dentro do `useMemo` do componente, para uma
+função pura testada: `tendenciaMensal()` em `calculos.ts`, recebendo os ids de
+categoria a somar como gasto e como receita e devolvendo `{ mes, gasto, receita,
+saldo }` por mês — a receita soma sempre todas as categorias de receita,
+independente do filtro de despesa selecionado.
+
+**Receita só aparece na visão "todas as despesas".** Comparar o gasto de uma
+categoria única com a renda inteira no mesmo traçado confundiria mais do que
+ajudaria; a visão de categoria única continua exatamente como antes (só gasto x
+meta). Sem série nova de "saldo" no gráfico — o espaço entre as duas áreas
+(despesa em `--chart-1`, receita em `--chart-2`, mesmas cores já usadas em outros
+gráficos do app) já mostra isso visualmente. O saldo exato mora no tooltip
+customizado, junto com gasto e receita, calculado a partir do próprio ponto de
+dado — não recalculado no componente.
+
+Faxina de bônus: os eixos passaram a usar a constante `EIXO` de
+`components/grafico.tsx`, que existia desde o Bloco E e nenhum gráfico do app usava
+(cada um repetia o mesmo `tick`/`stroke` na mão).
+
+**Verificado no navegador:** com "todas as despesas", o card mostra "Tendência de
+gasto e receita", duas áreas com legenda, e o tooltip lista Gasto total, Receita e
+Saldo (ex.: `R$ 162,46` / `R$ 275,00` / `R$ 112,54`). Trocando para uma categoria
+específica, o título volta a "Tendência de gasto", a legenda e a área de receita
+desaparecem — só a série de despesa contra a meta, como antes.
+
+**Ainda em aberto, não decidido:** a linha de meta usa a receita do mês *corrente*
+para os 6 meses inteiros (comentário no código já registra isso) — imprecisa para
+meses passados se a meta é percentual e a receita variou. E falta uma visão de
+**composição** (quanto cada categoria pesa no total de despesa) — nenhum gráfico
+do pilar responde isso hoje.
+
+### 10.36 Build da Vercel quebrado nos dois últimos commits — `tsc --noEmit` não checava nada
+
+Ele reportou erro de build na Vercel nos commits `c2370cd` e `9ee7057`. Rodei
+`npx tsc -b` (o comando real do `npm run build`, `tsc -b && vite build`) e apareceram
+**dois erros de verdade** que eu tinha dado como "typecheck limpo" nas duas sessões
+anteriores — porque validei com `npx tsc --noEmit` solto, que lê o `tsconfig.json`
+da raiz. Esse arquivo tem `"files": []` e só referencia os sub-projetos
+(`tsconfig.app.json`/`tsconfig.node.json`) — **não checava nenhum arquivo**, sempre
+saía limpo porque não havia nada para checar. `npm run build` (e portanto a Vercel)
+usa `tsc -b`, que constrói os sub-projetos de verdade. Erro meu de processo: devia
+ter usado `tsc -b` ou `npm run build` desde a primeira vez, não `tsc --noEmit`.
+
+**Os dois erros:**
+
+1. `database.ts` — a última cláusula do helper `CompositeTypes<>` (regenerado via
+   MCP `generate_typescript_types` na sessão do vínculo de peso corporal) indexava
+   por `CompositeTypeName` em vez de `PublicCompositeTypeNameOrOptions`, igual ao
+   padrão do helper `Enums<>` uma linha acima. Como o schema não tem nenhum tipo
+   composto (`CompositeTypes: { [_ in never]: never }`), o TS simplifica isso para
+   `{}` e indexar por um parâmetro genérico solto quebra ("Type 'CompositeTypeName'
+   cannot be used to index type '{}'"). O texto que saiu do MCP já vinha assim — não
+   bati contra o arquivo committado antes de escrever por cima.
+2. `GraficoTendencia.tsx` — passar `content={<ConteudoTooltip .../>}` para o
+   `Tooltip` do recharts (sessão dos gráficos do Financeiro) não tipa: JSX exige
+   todas as props obrigatórias na criação do elemento, mas o recharts injeta
+   `active`/`payload`/`label` depois, via `cloneElement` em runtime — o TS não sabe
+   disso. Corrigido usando a forma de função que o `content` também aceita
+   (`content={(props) => <ConteudoTooltip {...props} ... />}`), e soltando o
+   generic de `ConteudoTooltipProps` (era `TooltipContentProps<number, string>`,
+   virou `TooltipContentProps` sem argumento) — `<Tooltip>` não é genérico na
+   assinatura JSX, então o `props` que a função recebe já vem nos defaults
+   `ValueType`/`NameType` do recharts, não em `<number, string>`.
+
+**Mudança de processo, não só de código:** doravante, verificar tipos deste
+projeto significa `npx tsc -b` (ou `npm run build`) — nunca `tsc --noEmit` solto,
+que só funcionaria se apontado direto para `tsconfig.app.json`.
+
+### 10.37 Composição de gasto por categoria — "pra onde vai o dinheiro"
+
+Segunda parte da melhoria de gráficos do Financeiro (10.35 foi a primeira). O
+grid de `CardCategoria` mostra cada categoria contra a própria meta, mas nenhuma
+tela deixava comparar categorias entre si — não dava para ver de cara que uma
+categoria é 40% do gasto do mês só olhando os anéis, um por um.
+
+Achado antes de escrever qualquer UI: a função de cálculo pra isso **já existia
+e já tinha teste** — `rankingGastos()`, top N categorias por valor gasto — só
+que nunca tinha sido usada em nenhum componente. Código morto, escrito e
+testado, sem UI.
+
+Discutido a forma antes de construir (ele escolheu): lista ranqueada com barra
+proporcional ao gasto, em vez de barra única empilhada ou anel/donut — reaproveita
+a pastilha colorida por categoria que `ListaLancamentos` já usa (`categoria.cor`),
+só com o comprimento passando a significar algo, e é a opção que menos foge do
+estilo "lista densa" do resto do pilar. Donut foi descartado por nunca ter sido
+usado no app nem uma vez (`PieChart` do recharts, zero ocorrências) e ficar mais
+colorido/decorativo que o resto do Financeiro.
+
+`rankingGastos<T>` virou genérico (antes fixo em `EntradaRanking`) para que
+`composicaoGastos()` — a função nova — consiga carregar `cor` e devolver
+`percentual` sem perder tipo no meio do caminho. `percentual` reaproveita
+`progressoCategoria()`: a mesma razão usada pra "quanto da meta já foi gasto"
+serve aqui como "quanto do total de despesas essa categoria representa", com o
+total de despesas no lugar da meta — zero cálculo novo além da soma do total.
+
+`BarraProgresso` ganhou a prop `cor` (cor CSS livre, precedência sobre
+`classeCor`) — faltava nela o que `AnelProgresso` já tinha, pelo mesmo motivo:
+`categorias.cor` é texto livre no banco, não pode virar classe Tailwind estática.
+
+**Bug pego no navegador antes de commitar:** a primeira versão passava
+`listaCategorias` (receita + despesa) pro componente sem filtrar, e uma
+categoria de receita ("Almoço - Receita", `total_gasto_mes` = 75 porque a coluna
+existe pra qualquer natureza) apareceu na composição de despesa. Corrigido
+filtrando por `natureza === 'despesa'` **dentro** de `composicaoGastos` — mesma
+defesa que `metaTotalDespesas` já faz, em vez de confiar que todo chamador vai
+filtrar antes de passar. Teste novo cobre esse caso específico.
+
+**Verificado no navegador com o dado real:** card "Pra onde vai o dinheiro" com
+Alimentação (78%), Assinaturas (7%), Lanche (7%), Bebidas - Refrigerante (6%),
+Doces (2%) — barras proporcionais, cor de cada categoria, sem a categoria de
+receita.
+
+### 10.38 Estudos: início/fim das aulas por matéria, e editar avaliação
+
+Ele pediu para registrar "que dia as aulas são" com data de início e fim. A
+primeira metade **já existia**: `DialogFluxograma` (botão "Horário" na página
+de Estudos) já deixa marcar dia da semana + horário por matéria, alimentando
+"Aulas de hoje", a grade semanal e a agenda do Calendário. Não foi construído
+de novo — só apontado onde já está.
+
+O que faltava de verdade: `materias.semestre` era texto livre ("2026.2"), sem
+data nenhuma por trás. Consequência real, discutida antes de construir: o
+fluxograma de uma matéria segue gerando "aula hoje" pra sempre, mesmo depois do
+semestre acabar, até alguém apagar o horário à mão.
+
+**Duas decisões confirmadas antes de codar:**
+1. A data mora na **matéria** (`data_inicio`/`data_fim`, ambas opcionais), não em
+   cada linha de `fluxograma_semanal` — uma matéria pode ter Segunda e Quarta na
+   grade, e duplicar a mesma data em cada linha violaria a fonte única de
+   verdade. `expandirRecorrencia`/`fluxograma_semanal` continuam sem saber de
+   período nenhum; quem cruza é a leitura da ocorrência.
+2. O efeito é **funcional**, não só informativo: fora do intervalo, a aula some
+   de "Aulas de hoje" (`EstudosPage`) e da agenda do Calendário
+   (`eventosFluxograma`) — como se o semestre tivesse mesmo acabado. A **grade
+   semanal** (tela de gerenciar horários) continua mostrando tudo, período
+   incluído ou não: ela responde "o que está cadastrado", não "o que tenho
+   hoje", e esconder o horário de quem quer revisá-lo/reativá-lo seria pior.
+
+Nova função pura `dentroDoPeriodoMateria()` em `estudos/calculos.ts`, testada.
+Em `eventos.ts` (Calendário), o mesmo cheque entrou como um parâmetro opcional
+a mais de `eventosFluxograma()` (`periodoPorMateria`, default `Map` vazio) — não
+importa `dentroDoPeriodoMateria` de Estudos porque `eventos.ts` é
+propositalmente pillar-agnostic (só trabalha com formas `Fonte*`, nunca com
+tipos de domínio de outro pilar); a checagem de 2 linhas foi duplicada em vez
+de criar essa dependência cruzada. Todos os parâmetros novos são opcionais com
+default, então nenhum teste existente de `eventosFluxograma`/`FontesCalendario`
+precisou mudar.
+
+**Editar avaliação (pedido no meio da sessão).** `AbaAvaliacoes` só deixava
+editar a nota — nome, peso e data só existiam no momento da criação; mudar
+qualquer um deles exigia apagar e recriar, perdendo a nota. Resolvido do jeito
+já estabelecido no projeto ("um editor, não dois"): o mesmo card "Nova
+avaliação" passa a servir de editor — um lápis por linha carrega os campos no
+formulário, o botão vira "Salvar", e "Cancelar" volta ao modo de criação. Sem
+diálogo novo.
+
+**Verificado no navegador, com dado real, tudo limpo depois:**
+- Horário criado para "Física IV" numa quinta (sem período) → apareceu em
+  "Aulas de hoje".
+- `data_fim` = ontem → sumiu de "Aulas de hoje" ("Nenhuma aula prevista para
+  hoje"), mas a grade semanal continuou mostrando o horário normalmente.
+- Avaliação de teste criada, editada (nome, peso 2→3, data) e conferida direto
+  no banco: os três campos gravaram certo.
+
+### 10.39 Entrada orquestrada faltava em 7 páginas (correção da 10.31)
+
+Ele reparou que algumas páginas não animavam ao abrir — citou a página
+individual da matéria como exemplo. Não era um bug de lógica: `surgir-grupo`
+(a animação de entrada do Bloco A, ver README) tinha sido aplicada só nas
+**4 páginas-hub** (Home, Financeiro, Estudos, Projetos), na grade principal de
+cada uma. As páginas de detalhe/sub-página, e o próprio Treino (que por ter
+layout de lista vertical em vez de grid nunca ganhou a classe), ficaram de
+fora — inconsistência de aplicação do brief, não uma decisão.
+
+`surgir-grupo` não depende de `grid`: anima os filhos diretos de qualquer
+container (`& > *`), então funciona igual num `space-y-6` de Cards
+empilhados. Acrescentada no wrapper de conteúdo principal de:
+`MateriaDetalhePage`, `CategoriaDetalhePage`, `ProjetoDetalhePage`,
+`ExercicioDetalhePage`, `LancamentosPage`, `CalendarioPage` (vista agenda) e
+`TreinoPage`.
+
+Nenhum CSS novo, nenhuma lógica nova — só estender o que já existia para onde
+faltava. Verificado no navegador (não só visualmente — `getComputedStyle`
+confirmando `animationName: "surgir"` no primeiro filho de cada página).
+
+### 10.40 Vista de mês: clicar no dia abre um card de detalhe
+
+Ele pediu uma vista mensal — que **já existia** (botão "Mês" ao lado de
+"Semana" no Calendário, grade do FullCalendar carregada sob demanda) — só que
+ele não sabia. Uma vez mostrada, o pedido virou outro: a grade de mês só
+mostra 2–3 eventos por célula (`dayMaxEvents`) sem horário; clicar no **dia**
+(não num evento) deveria abrir um card com o detalhe completo daquele dia.
+
+Instalado `@fullcalendar/interaction` (só ele tinha `dateClick`; os plugins
+já presentes — `dayGrid`/`timeGrid` — não expõem esse evento). `GradeMes`
+ganhou `onClicarDia`, distinto de `onClicarEvento`: clicar num evento
+continua navegando direto pra rota (não abre o card); clicar no número do
+dia ou área vazia da célula é que abre o card.
+
+O card **reaproveita `Agenda`** passando um array de um dia só, em vez de um
+componente novo — a mesma leitura de rotina-em-filete/prazo-em-bloco/feito/
+cancelado que a vista semanal já usa, sem risco de divergir dela na próxima
+mudança. `dias`/`eventosPorData` já eram computados em `CalendarioPage` para
+o intervalo inteiro do mês visível — nenhuma consulta nova, só reaproveitar o
+que a página já buscava.
+
+Verificado no navegador: clique no dia 05/08 abriu o card
+"Quarta-feira, 5 de agosto" com os dois marcos, Pull às 11:00, Legs
+cancelado e Sono — idêntico ao que a agenda semanal mostra para o mesmo dia.
+Clique num evento na grade navega direto (sem abrir o card por engano);
+clique num evento dentro do card também navega.
+
+### 10.41 PWA de verdade — instalável e com base pra notificação
+
+Ele tinha "instalado" o app pelo Chrome e achava que já era um PWA. Não era:
+o Chrome oferece "Adicionar à tela inicial" pra **qualquer** site responsivo,
+o que cria um atalho, mas sem `manifest.json` nem service worker não é um app
+instalado de verdade — não abre em modo standalone garantido, não tem shell
+cacheado, e principalmente **não tem como notificar**: push no Android exige
+service worker.
+
+Instalado `vite-plugin-pwa`, com `strategies: 'injectManifest'` em vez do
+`generateSW` padrão — de propósito: o service worker vai ganhar um listener
+de `push` na próxima etapa, e o modo automático não deixa escrever handler
+nenhum ali. `src/sw.ts` é o código-fonte; hoje só pré-cacheia o shell
+(`precacheAndRoute(self.__WB_MANIFEST)`) e assume controle imediato
+(`skipWaiting`/`clients.claim`).
+
+Ícones gerados a partir do próprio favicon (os quatro círculos por pilar,
+fundo `#37352f`) em três tamanhos — `icon-192`, `icon-512` e uma versão
+**maskable** com o conteúdo reduzido a 75% dentro de um fundo full-bleed sem
+cantos arredondados, porque o Android aplica a própria máscara e cantos
+arredondados nossos por cima da máscara do sistema cortariam errado.
+Rasterizados com o Chromium do Playwright (screenshot de uma página com o
+SVG), sem adicionar dependência de imagem ao projeto.
+
+`self.__WB_MANIFEST` tem `lib: webworker`, incompatível com o `DOM` do resto
+do app (`self` é `ServiceWorkerGlobalScope` ali, `Window` aqui) — por isso
+`src/sw.ts` ganhou um `tsconfig.sw.json` próprio, excluído de
+`tsconfig.app.json` e referenciado na raiz, mesmo padrão de
+`tsconfig.node.json`.
+
+`registerType: 'autoUpdate'`: atualiza sozinho, sem perguntar — é um app de
+um usuário só, não um app de terceiros onde uma atualização inesperada no
+meio de uma tarefa incomodaria vários usuários diferentes. `vercel.json`
+ganhou `no-cache` em `/sw.js` e `/manifest.webmanifest`, mesmo motivo do
+`/index.html`: sem isso, o CDN poderia servir um service worker desatualizado
+e a atualização nunca chegaria.
+
+**Verificado servindo o build de produção** (`npm run preview`, não o dev
+server): manifest responde 200 com `lang: pt-BR` certo, os quatro ícones
+respondem 200, e `navigator.serviceWorker.getRegistration()` devolve o
+registro com `estado: "activated"`.
+
+**Próxima etapa, não iniciada:** o handler de `push` em si, e o que deve
+disparar uma notificação (aula, treino, conta a vencer, prazo de meta) — fica
+pra uma conversa própria antes de implementar.
+
+### 10.42 Notificações push — os três gatilhos discutidos na 10.41
+
+Ele confirmou os três gatilhos (aula/treino, conta a vencer, prazo de prova ou
+meta) e a antecedência de cada um: 15 min antes pra aula/treino, no dia pra
+conta, 1 dia antes pra prova/meta.
+
+**Schema novo**, sem tocar nas tabelas de pilar: `push_subscriptions`
+(endpoint + chaves do protocolo Web Push, uma por navegador que autorizou) e
+`notificacoes_enviadas` (dedup — chave única `tipo`+`origem_id`+
+`data_referencia`, sem ela o cron reenviaria o mesmo aviso a cada execução).
+
+**Edge Function `notificar`** (`supabase/functions/notificar/index.ts`),
+Deno, chamada pelo `pg_cron` a cada 5 minutos via `pg_net`:
+- Aula/treino: lê `fluxograma_semanal` do dia da semana atual, cruza com
+  `excecoes_fluxograma` (cancelado sai, remarcado-pra-hoje entra por um
+  caminho à parte) e com o período da matéria (mesma regra da 10.38), numa
+  janela de 15-20 min à frente alinhada ao próprio intervalo do cron.
+  **Simplificação assumida:** não cobre remarcação em cadeia (remarcar de
+  novo o que já foi remarcado) — caso raro demais pra pagar a complexidade.
+- Conta/prova/meta: só rodam quando o relógio cai na janela das 8h — o mesmo
+  cron de 5 em 5 min serve os quatro gatilhos, sem precisar de um segundo
+  agendamento.
+- Envia via `web-push` (`npm:web-push` — Edge Functions do Supabase suportam
+  `npm:` no Deno), removendo a inscrição do banco se o navegador devolver
+  404/410 (desinstalou o app, limpou dados).
+
+**Autenticação da chamada do cron:** não usa a service role key — um segredo
+próprio (`CRON_SECRET`), gerado uma vez e guardado no **Vault** do Postgres,
+comparado contra o header `x-cron-secret`. A migration do agendamento
+(`20260806000005_cron_notificacoes.sql`) é git-safe: não tem valor nenhum de
+segredo dentro, só a referência `vault.decrypted_secrets where name =
+'cron_secret'` — o valor em si foi inserido via `execute_sql`, fora de
+qualquer arquivo versionado.
+
+**Cliente:** `features/notificacoes/` (api + hooks, sem pilar próprio, mesmo
+espírito de Metas) — pede permissão, inscreve via `PushManager`, salva
+endpoint+chaves no banco. Card na Home (`CardNotificacoes`) com os três
+estados possíveis (ativar / ativado / bloqueado nas configs do navegador).
+`sw.ts` ganhou os handlers de `push` (mostra a notificação) e
+`notificationclick` (foca uma aba já aberta e navega pra rota certa via
+`postMessage`, em vez de sempre abrir janela nova).
+
+**Verificado o que deu pra verificar nesta sessão:** a Edge Function
+implantada responde 500 (não 401) ao ser chamada com o `x-cron-secret`
+certo — confirma que a autenticação está funcionando; o 500 é esperado até as
+chaves VAPID serem configuradas. O clique real de "Ativar notificações" não
+foi testado em navegador automatizado porque o sandbox deste ambiente nega
+`Notification.permission` incondicionalmente (confirmado testando até em
+`about:blank`) — precisa ser testado num navegador de verdade.
+
+**Pendente, fora do meu alcance por aqui:** 4 segredos precisam ser
+configurados manualmente (Dashboard do Supabase ou `supabase secrets set`) —
+`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `CRON_SECRET` — e a
+`VITE_VAPID_PUBLIC_KEY` (pública, sem risco) nas variáveis de ambiente da
+Vercel. Sem tool de "definir secret de Edge Function" disponível nesta
+sessão; os valores foram passados ao usuário diretamente na conversa.
+
+### 10.43 Planejamento financeiro de longo prazo — a terceira camada do dinheiro (spec própria) — feature nova
+
+Até aqui o Financeiro conhecia duas camadas de dinheiro: o **fato**
+(`lancamentos`, o que já aconteceu) e o **teto** (`categorias.meta_mensal`,
+aspiração de gasto do mês corrente). Falta a camada do meio — o
+**compromisso previsto**: aquilo que ainda não aconteceu, mas que se sabe
+que vai acontecer, com valor e data razoavelmente certos. Sem ela, nenhuma
+pergunta sobre o futuro tem resposta: a receita de setembro não existe em
+lugar nenhum do schema, então projetar setembro é impossível.
+
+É essa lacuna que trava a pergunta que originou a feature — *"se eu comprar
+R$ 300 em 3x, o quanto isso afeta minha vida financeira?"*. A resposta exige
+saber quanto entra e quanto já está comprometido nos três meses seguintes, e
+hoje o sistema só sabe olhar para trás.
+
+**Schema novo:**
+
+```sql
+compromissos_recorrentes (
+  id            uuid primary key,
+  descricao     text not null,
+  categoria_id  uuid not null references categorias,
+  valor         numeric not null,
+  dia_mes       int not null check (dia_mes between 1 and 31),
+  data_inicio   date not null,
+  data_fim      date null   -- null = sem previsão de término
+)
+```
+
+A natureza (receita ou despesa) **não é repetida aqui** — vem herdada de
+`categorias.natureza` (resolução 10.12). Um mesmo registro cobre "salário"
+(categoria de receita) e "aluguel" (categoria de despesa), sem campo
+redundante que possa divergir da categoria.
+
+**Não materializa por mês.** Mesmo princípio da 10.5: o registro guarda o
+padrão e a expansão acontece na leitura, para o intervalo pedido. A lógica é
+a de `lib/recorrencia.ts`, trocando "dia da semana" por "dia do mês" — com
+uma diferença que precisa ser tratada explicitamente: `dia_mes = 31` não
+existe em fevereiro. Regra adotada: **quando o dia não existe no mês, a
+ocorrência cai no último dia daquele mês**, nunca transborda para o mês
+seguinte (transbordar mudaria o mês de competência do compromisso, que é
+justamente o que a projeção está tentando medir).
+
+**Corte passado/futuro — a regra que impede duplicidade.** É o ponto mais
+delicado da feature, porque compromisso previsto e lançamento real descrevem
+o mesmo dinheiro em momentos diferentes do tempo. A regra é temporal, não
+por tabela:
+
+- **Até hoje** (meses fechados e a parte já decorrida do mês corrente): a
+  projeção lê `lancamentos`. O que aconteceu, aconteceu — não se estima o
+  passado.
+- **Depois de hoje**: a projeção lê `compromissos_recorrentes` +
+  `compras_parceladas` (10.44) + média histórica das categorias variáveis.
+
+Consequência prática: um compromisso recorrente **nunca vira lançamento
+automaticamente**. Quando o salário cai, é você quem registra o lançamento —
+e a partir daquele instante o mês corrente passa a contar o valor real, não
+o previsto. Materializar automaticamente traria o problema clássico de
+conciliação (o previsto era R$ 3.000, entrou R$ 2.870, e agora existem duas
+linhas concorrentes descrevendo o mesmo evento).
+
+**Motor de projeção** — `features/financeiro/projecao.ts`, funções puras no
+mesmo espírito de `calculos.ts` (data sempre entra por parâmetro, nada de
+rede nem de `new Date()` dentro):
+
+```ts
+export interface ProjecaoMensal {
+  mes: string              // 'YYYY-MM'
+  receitaPrevista: number
+  comprometido: number     // fixos recorrentes + parcelas do mês
+  variavelEstimado: number // média histórica das categorias variáveis
+  saldoDoMes: number       // receita − (comprometido + variável)
+  saldoAcumulado: number   // soma dos saldos até este mês
+  fonte: 'real' | 'projetado'   // transparência sobre a origem do número
+}
+
+export function projetarFluxoCaixa(params: {
+  hoje: string
+  meses: number
+  compromissos: CompromissoRecorrente[]
+  parcelas: CompraParcelada[]
+  lancamentosRealizados: Lancamento[]
+  mediaVariavelPorCategoria: Record<string, number>
+  receitaSobrescrita?: Record<string, number>  // 'YYYY-MM' → valor
+  compraHipotetica?: CompraParcelada           // usado pelo simulador (10.44)
+}): ProjecaoMensal[]
+```
+
+O campo `fonte` existe para que a UI **nunca apresente estimativa como
+fato** — mês projetado precisa ser visualmente distinto de mês realizado
+(tracejado no gráfico, texto de rodapé na tabela).
+
+**`receitaSobrescrita` resolve a renda variável.** Média automática não dá
+conta de 13º, férias, bônus ou de um mês em que o trabalho renda diferente —
+o campo permite fixar manualmente a receita de meses específicos sem
+inventar um compromisso recorrente falso.
+
+**Estimativa do variável.** Média dos últimos 3 meses por categoria (janela
+declarada como constante única, mesmo tratamento dado a
+`NOTA_MINIMA_APROVACAO` na 10.3). Com menos de 3 meses de histórico, usa o
+que houver e a UI sinaliza baixa confiança — projetar com 2 semanas de dado
+e apresentar com a mesma firmeza de 6 meses seria desonesto com quem lê.
+
+**UI — aba "Planejamento" dentro do Financeiro** (ao lado de Categorias e
+Lançamentos, sem rota de pilar nova):
+
+- Formulário de compromisso recorrente: descrição, categoria, valor, dia do
+  mês, início e fim opcional. Reaproveita `CampoDecimal` (10.26 — a vírgula
+  do teclado brasileiro) e o padrão de exclusão com confirmação da 10.28.
+- Tabela dos próximos N meses (padrão 6): receita prevista, comprometido,
+  variável estimado, saldo do mês, saldo acumulado. Meses projetados em tom
+  mais claro que o mês real corrente.
+- Gráfico de linha do saldo acumulado (Recharts, componente `grafico.tsx` já
+  existente), com o trecho futuro tracejado.
+- **Alerta de saldo negativo**: se algum mês projetado fecha com saldo
+  acumulado abaixo de zero, destaque em vermelho apontando o mês — é o
+  output mais valioso da feature inteira e não pode ficar escondido dentro
+  de uma coluna de tabela.
+
+**Efeitos colaterais positivos, já previstos:**
+
+- O card "Receita vs. Despesa" (2.3) ganha camada de **previsto vs.
+  realizado** no mês corrente; divergência grande entre os dois é sinal de
+  entrada ou saída surpresa.
+- A sugestão de valor inicial no planejamento semanal (2.3) deixa de ser
+  "meta mensal ÷ 7" e passa a considerar o dia em que cada compromisso
+  vence.
+- A regra de investimento (10.45) passa a poder olhar a sobra **projetada**,
+  não só a do mês corrente.
+
+---
+
+### 10.44 Compras parceladas e o simulador "e se" (depende de 10.43) — feature nova
+
+Parcelamento é o caso que o schema atual descreve mal: uma compra em 3x não
+é um gasto de R$ 300 hoje, são três compromissos de R$ 100 em três meses de
+competência diferentes — dois dos quais ainda não existem em lugar nenhum.
+
+**Schema novo:**
+
+```sql
+compras_parceladas (
+  id                    uuid primary key,
+  descricao             text not null,
+  categoria_id          uuid not null references categorias,
+  valor_total           numeric not null,
+  numero_parcelas       int not null check (numero_parcelas >= 1),
+  data_primeira_parcela date not null,
+  juros_mensal          numeric not null default 0
+)
+```
+
+Como na 10.43, **não materializa parcela por parcela** — 36x viraria 36
+linhas para gerenciar. A expansão é na leitura.
+
+**Cálculo da parcela** (`expandirParcelas`, função pura):
+
+- `juros_mensal = 0` (padrão brasileiro, cartão sem juros): divisão simples,
+  com o **resto de centavo absorvido integralmente na última parcela**. R$
+  100,00 em 3x é 33,33 + 33,33 + 33,34 — nunca três parcelas de 33,33 que
+  somam R$ 99,99, nem arredondamento silencioso distribuído.
+- `juros_mensal > 0` (financiamento de loja): fórmula PMT padrão,
+  `PMT = PV × i / (1 − (1+i)^-n)`. O campo existe para não obrigar uma
+  refatoração quando aparecer o primeiro parcelamento com juros de verdade.
+
+Cada ocorrência de parcela entra na projeção da 10.43 no mês em que cai,
+somando ao `comprometido` daquele mês.
+
+**O simulador — três execuções, não uma.** Responder "o quanto isso me
+afeta" exige isolar o efeito da compra do ruído do resto do orçamento. Por
+isso o simulador roda `projetarFluxoCaixa` **duas vezes** e compara:
+
+1. **Linha base**: projeção sem a compra hipotética.
+2. **Cenário**: mesma projeção com `compraHipotetica` preenchida.
+3. **Diferença**: subtração mês a mês entre as duas, que é o que a UI
+   apresenta em primeiro plano.
+
+**Nada é gravado.** O simulador vive inteiramente em estado local
+(`useState`), sem `useMutation`, sem tocar no Supabase. É o que garante que
+uma simulação nunca vaze para o dado real por engano — risco principal desse
+tipo de feature. Só existe uma escrita possível a partir dele: um botão
+explícito "registrar essa compra de verdade", que aí sim insere em
+`compras_parceladas`.
+
+**UI** — `Sheet` aberto por um botão "Simular" na page Financeiro (folha
+ancorada embaixo no mobile, conforme 10.29):
+
+- Campos da compra hipotética: valor total, número de parcelas, categoria,
+  mês da primeira parcela.
+- Sliders opcionais de corte por categoria variável ("e se eu reduzir
+  delivery em 30%?"), com debounce de ~150 ms — recalcular a cada pixel
+  arrastado desperdiça trabalho sem mudar o que se lê na tela.
+- Saída em três números, antes → depois: saldo projetado ao fim do
+  horizonte, disponível por dia no mês corrente, e sobra estimada para
+  investimento (gancho direto com a 10.45).
+- Gráfico com as duas linhas sobrepostas (base sólida, cenário tracejado).
+- Frase-resumo em linguagem direta, do tipo *"reduz seu saldo em ~R$ 100/mês
+  até novembro; em outubro o saldo acumulado ficaria negativo"* — o número
+  isolado exige interpretação, a frase entrega a conclusão.
+
+**Regra de honestidade:** se a projeção depende de histórico curto demais ou
+de receita não informada para os meses do horizonte, o simulador diz isso em
+vez de exibir um número com falsa precisão.
+
+---
+
+### 10.45 Regra de investimento — sugestão, nunca execução (depende de 10.43) — feature nova
+
+O aporte hoje é 100% manual (10.4: uma linha por evento, `tipo = 'aporte'`).
+A feature adiciona uma regra que **sugere** quanto aportar, mantendo a
+decisão e o registro nas mãos do usuário — o sistema não tem, nem deve ter,
+integração bancária.
+
+**Schema novo:**
+
+```sql
+regra_investimento (
+  id                   uuid primary key,
+  ativa                boolean not null default true,
+  gatilho_tipo         text not null check (gatilho_tipo in ('sobra_meta','percentual_receita')),
+  percentual           numeric not null,   -- % da sobra, ou % da receita
+  dia_sugestao         int not null check (dia_sugestao between 1 and 31)
+)
+
+sugestoes_investimento (
+  id               uuid primary key,
+  mes_referencia   date not null,
+  valor_sugerido   numeric not null,
+  status           text not null check (status in ('pendente','aceita','recusada')),
+  investimento_id  uuid null references investimentos,
+  unique (mes_referencia)
+)
+```
+
+O `unique (mes_referencia)` é o mesmo raciocínio de dedup da 10.42
+(`notificacoes_enviadas`): sem ele, cada carregamento da página geraria uma
+sugestão nova para o mesmo mês.
+
+**Gatilhos:**
+
+- `sobra_meta` — no `dia_sugestao`, calcula
+  `sobra = meta_mensal_total − gasto_realizado_mes` e sugere
+  `sobra × percentual / 100`. Sugere apenas se `sobra > 0`.
+- `percentual_receita` — sugere `receita_do_mes × percentual / 100`,
+  independente de ter sobrado; é a disciplina de "investir antes de gastar".
+
+Com a 10.43 disponível, ambos podem olhar a **sobra projetada** dos meses
+seguintes antes de sugerir — evita sugerir um aporte gordo em um mês que já
+tem três parcelas e o IPVA caindo no mês seguinte.
+
+**Fluxo de aceite:** o card mostra a sugestão com dois botões. **Aceitar**
+abre o formulário de aporte já pré-preenchido (o usuário confirma ou ajusta
+o valor); ao salvar, grava o `investimentos.id` de volta em
+`sugestoes_investimento.investimento_id` e marca `aceita`. **Recusar** marca
+`recusada` e o mês não volta a ser sugerido. Sugestões recusadas ficam só
+como registro histórico, fora da UI principal.
+
+**Notificação:** quarto gatilho da Edge Function `notificar` (10.42), no
+mesmo cron de 5 em 5 minutos e na mesma janela das 8h usada por
+conta/prova/meta. Dedup pela chave já existente
+(`tipo` + `origem_id` + `data_referencia`).
+
+---
+
+### 10.46 Projeção de carga no Treino (contraparte do simulador financeiro) — feature nova
+
+O mesmo raciocínio de projeção aplicado ao Treino, respondendo *"nesse
+ritmo, quando eu chego em X kg?"*.
+
+Entra no histórico de progressão do exercício, ao lado do que
+`progressaoCarga` já mostra. Ajusta uma reta de mínimos quadrados sobre os
+últimos N valores de `umRmEstimado` (poucos pontos, não precisa de
+biblioteca) e extrapola até a carga alvo informada.
+
+**Regra de honestidade, herdada da 10.44:** quando a inclinação da reta é
+zero ou negativa — situação que `sinalEstagnacao` já detecta —, o simulador
+**não** exibe uma data. Exibe "sem progressão suficiente para projetar;
+considere ajustar o treino", reaproveitando o sinal existente em vez de
+produzir um número inventado. Mesmo com inclinação positiva, o resultado é
+apresentado como faixa aproximada ("~8 a 10 semanas"), nunca como data
+exata.
+
+### 10.47 Simulador financeiro — correções e ampliação (revisa 10.44) — feature nova
+
+O simulador entregue em 10.44 responde à pergunta que o originou, mas a
+revisão do código em uso expôs duas imprecisões e três perguntas que ele
+ainda não sabe responder. Esta resolução trata as duas coisas, em ordem de
+prioridade: primeiro o que hoje devolve número errado, depois o que amplia o
+alcance.
+
+---
+
+#### 10.47.1 Horizonte adaptativo (corrige `HORIZONTE_SIMULACAO`)
+
+`SheetSimulador` fixa `HORIZONTE_SIMULACAO = 6` e passa esse valor a
+`projetarFluxoCaixa`. Uma compra em 12x tem, portanto, metade das parcelas
+fora da janela: a diferença entre base e cenário é calculada só sobre 6
+meses, subestimando o impacto, e um saldo acumulado que só ficaria negativo
+no mês 9 **nunca é sinalizado** — justamente o output mais valioso da
+feature.
+
+O horizonte passa a ser derivado, não constante:
+
+```ts
+const horizonte = Math.max(HORIZONTE_MINIMO, numeroParcelas + 1)
+// HORIZONTE_MINIMO = 6
+```
+
+O `+ 1` é intencional: mostrar ao menos um mês **depois** da última parcela
+deixa visível o alívio no fluxo quando ela sai — informação que muda a
+leitura de "isso me aperta" para "isso me aperta até março".
+
+A linha de base precisa ser recalculada com o mesmo horizonte do cenário —
+comparar 6 meses de base com 13 de cenário produziria uma diferença sem
+sentido. Ambas as chamadas de `projetarFluxoCaixa` usam `horizonte`.
+
+#### 10.47.2 Frase-resumo com o impacto mensal real (corrige 10.44)
+
+A frase atual divide a diferença total por `HORIZONTE_SIMULACAO`. Para R$
+300 em 3x isso produz *"reduz ~R$ 50/mês"*, quando o efeito real é R$ 100
+por três meses e R$ 0 depois — o número apresentado não descreve nenhum mês
+que vai de fato existir.
+
+O valor mensal deve vir de `calcularParcelas(compraHipotetica)`, não de uma
+média: as parcelas podem divergir entre si pelo centavo absorvido na última
+(10.44), então a frase usa a parcela típica e nomeia a duração:
+
+> "R$ 100,00/mês pelos próximos 3 meses (última parcela em out/2026)."
+
+Quando o cenário leva o acumulado a negativo, a segunda oração continua
+apontando o mês, como já faz hoje.
+
+---
+
+#### 10.47.3 Comparação de cenários lado a lado
+
+É a decisão real diante de uma compra: à vista, 3x sem juros ou 6x com
+juros. O motor já aceita `compraHipotetica`, então comparar é rodar
+`projetarFluxoCaixa` uma vez por cenário — nenhuma mudança em
+`projecao.ts` além do horizonte:
+
+```ts
+export interface Cenario {
+  rotulo: string          // 'À vista' | '3x sem juros' | '6x a 2,5% a.m.'
+  compra: ParceladaDetalhada | null   // null = linha de base
+}
+
+export interface ResumoCenario {
+  rotulo: string
+  totalPago: number       // valor_total, ou soma das parcelas quando há juros
+  piorSaldoAcumulado: number
+  mesDoPiorSaldo: string
+  ficaNegativo: boolean
+}
+```
+
+À vista entra como uma "compra" de `numero_parcelas = 1` — não precisa de
+caminho especial no código.
+
+A tabela comparativa mostra, por cenário: total pago, pior saldo acumulado e
+em que mês ele ocorre. É o que torna a troca visível — à vista drena um mês
+só e custa menos; parcelado alivia o mês da compra e custa mais quando há
+juros. Hoje o simulador força ver um cenário de cada vez, o que esconde
+exatamente essa comparação.
+
+#### 10.47.4 Compromisso hipotético (assinatura e renda extra)
+
+Duas perguntas frequentes ficam fora hoje porque só compra parcelada é
+simulável:
+
+- *"E se eu assinar algo de R$ 120/mês?"* — despesa recorrente sem fim
+  definido
+- *"E se eu pegar um freela de R$ 800/mês por 4 meses?"* — receita
+  recorrente com `data_fim`
+
+`projetarFluxoCaixa` já expande compromissos; falta só aceitar um
+hipotético, simétrico ao que já existe para compras:
+
+```ts
+compromissoHipotetico?: CompromissoDetalhado
+```
+
+Ele entra na expansão junto com os reais, sem mutar o array recebido — mesma
+garantia que o teste de `compraHipotetica` já cobre. A natureza
+(receita/despesa) vem da categoria escolhida, como em 10.43, então uma
+"simulação de renda extra" não precisa de campo novo nenhum.
+
+Para compromisso hipotético **sem** `data_fim`, o horizonte volta a ser
+`HORIZONTE_MINIMO` — não existe "última parcela" para ancorar a janela.
+
+#### 10.47.5 Sliders de corte por categoria variável
+
+Parte prevista em 10.44 e não implementada. Aplica um percentual de redução
+sobre `mediaVariavelPorCategoria` **antes** de projetar — ou seja, é
+transformação de entrada, não mudança no motor:
+
+```ts
+function aplicarCortes(
+  media: Record<string, number>,
+  cortes: Record<string, number>,  // categoria_id → % de redução
+): Record<string, number>
+```
+
+Vale porque muda a resposta de binária para acionável: em vez de "não cabe",
+o simulador passa a poder dizer *"cabe se você reduzir 20% em delivery"*.
+Debounce de ~150 ms no slider, como já previsto — recalcular a cada pixel
+arrastado não muda o que se lê na tela.
+
+Só categorias devolvidas por `categoriasElegiveisParaMediaVariavel` aparecem
+como slider: as que já têm compromisso recorrente vinculado não entram na
+média (10.44, correção da dupla contagem), então um corte ali não teria
+efeito e confundiria.
+
+#### 10.47.6 Banda de incerteza no variável
+
+O variável estimado é uma média histórica apresentada como linha sólida, o
+que dá à projeção uma precisão que ela não tem. A pergunta que importa não é
+"cabe na média?", é "cabe se o mês for ruim?".
+
+`mediaVariavelPorCategoria` ganha uma contraparte que devolve também o pior
+mês observado na janela, e a projeção passa a poder rodar em dois modos —
+`'media'` e `'pessimista'`. O gráfico mostra a faixa entre as duas linhas
+(`Area` do Recharts, sobre o `grafico.tsx` existente), e o alerta de saldo
+negativo distingue os casos:
+
+- negativo já na média → alerta vermelho, como hoje
+- negativo só no pessimista → alerta amarelo, texto de "depende do mês"
+
+Com menos meses de histórico do que a janela, a banda é mais larga por
+construção — o que é honesto, e dispensa texto extra explicando a
+imprecisão.
+
+#### 10.47.7 Veredicto em vez de número solto
+
+Uma regra de comprometimento converte a saída numérica em semáforo, no mesmo
+padrão `Status` (`ok` | `atencao` | `risco`) que os outros pilares já usam:
+
+```
+comprometimento = (parcelas do mês + compromissos de despesa do mês)
+                  ÷ receita prevista do mês
+```
+
+Limite configurável, declarado como **constante única** (mesmo tratamento de
+`NOTA_MINIMA_APROVACAO` na 10.3), com padrão de 30%. O veredicto combina
+comprometimento e saldo:
+
+- 🟢 **cabe** — comprometimento sob o limite e acumulado nunca negativo
+- 🟡 **aperta** — passa do limite, mas o acumulado se mantém positivo
+- 🔴 **não cabe** — o acumulado fica negativo em algum mês do horizonte
+
+O veredicto vai no topo do resultado; a tabela e o gráfico continuam abaixo,
+para quem quiser abrir o detalhe. Número exige interpretação, o veredicto
+entrega a conclusão.
+
+#### 10.47.8 Gancho com a reserva de emergência (dependência futura)
+
+Quando a reserva existir (`investimentos.finalidade = 'reserva'` e o tipo
+`'resgate'` ainda a adicionar no CHECK de 10.4), o simulador ganha a leitura
+mais forte que pode ter: *"essa compra derruba sua reserva de 3,2 para 2,8
+meses"*. Fica registrado aqui como ponto de integração, sem bloquear nada
+desta resolução.
+
+---
+
+#### Ordem de execução
+
+1. **10.47.1 e 10.47.2** — corrigem número errado, mudança pequena e contida
+   em `SheetSimulador`. Não dependem de nada.
+2. **10.47.3** — maior ganho de utilidade por esforço; só orquestra chamadas
+   que já existem.
+3. **10.47.4** — exige tocar `ParametrosProjecao`, mas a expansão de
+   compromisso já está pronta.
+4. **10.47.5** e **10.47.7** — independentes entre si, ambos sobre o que
+   10.47.3 já tiver montado.
+5. **10.47.6** — último; é o único que muda a forma do dado devolvido pelo
+   motor.
+
+#### Testes a acrescentar em `projecao.test.ts`
+
+- horizonte adaptativo cobre a última parcela de uma compra em 12x (e um mês
+  além dela)
+- linha de base e cenário são projetados com o mesmo número de meses
+- `compromissoHipotetico` de receita aumenta `receitaPrevista` dos meses no
+  intervalo, e não afeta os meses fora dele
+- `compromissoHipotetico` não muta o array `compromissos` recebido
+- `aplicarCortes` reduz só as categorias informadas e nunca produz valor
+  negativo
+- veredicto devolve `risco` quando qualquer mês fecha com acumulado negativo,
+  mesmo com comprometimento abaixo do limite
+
+### 10.48 Calendário — de espelho a planejador (spec própria) — feature nova
+
+O calendário entregue até aqui é um **espelho**: sete fontes agregadas sem
+tabela nova, `estado` separando plano de fato, `cargaPorDia` medindo
+ocupação. Ele responde bem "o que está marcado", e não responde nenhuma das
+perguntas que motivam abrir um calendário antes de decidir algo — "quando eu
+tenho tempo?", "isso cabe?", "onde encaixo?".
+
+Esta resolução muda o papel dele em três degraus. O primeiro dá ao
+calendário a noção de **folga**; o segundo transforma folga em
+**recomendação**; o terceiro usa o acúmulo como **memória**. Os degraus são
+sequenciais por dependência real: nada do degrau 2 existe sem
+`minutosLivres`, que é o degrau 1.
+
+---
+
+#### 10.48.0 Trabalho como camada, não como pilar (pré-requisito)
+
+Hoje o dia parece mais vazio do que é. A maior ocupação real do dia —
+trabalho — não existe em lugar nenhum do sistema, então qualquer cálculo de
+tempo livre nasceria errado por larga margem. Isso precisa ser resolvido
+antes do degrau 1, e **não** justifica um pilar: trabalho aqui não tem
+métrica, meta nem sub-página, só ocupa tempo.
+
+**Decisão: trabalho é uma camada do calendário, alimentada pelo
+`fluxograma_semanal` que já existe.** A tabela já sustentou dois donos
+(`materia_id` na 3, `treino_id` na 5, com o check de exclusividade mútua) —
+o terceiro caso é o de bloco sem entidade nenhuma por trás:
+
+```sql
+alter table public.fluxograma_semanal
+  add column rotulo text;
+
+-- Substitui `fluxograma_um_pilar`: agora "no máximo um dono; quando não há
+-- dono, precisa de rótulo".
+alter table public.fluxograma_semanal
+  drop constraint fluxograma_um_pilar;
+
+alter table public.fluxograma_semanal
+  add constraint fluxograma_dono_ou_rotulo check (
+    (materia_id is not null and treino_id is null and rotulo is null)
+    or (materia_id is null and treino_id is not null and rotulo is null)
+    or (materia_id is null and treino_id is null and rotulo is not null)
+  );
+```
+
+Nenhuma tabela nova, nenhuma página nova, e o `DialogFluxograma` ganha um
+terceiro modo ("Trabalho / outro"), onde se digita o rótulo em vez de
+escolher matéria ou treino. `excecoes_fluxograma` passa a valer para
+trabalho de graça — cancelar um dia de trabalho já funciona.
+
+No modelo de eventos:
+
+- `CamadaCalendario` ganha `'trabalho'`, seguindo o precedente de `'sono'`:
+  é camada sem ser `PilarId`, portanto sem entrada na sidebar
+- `TipoEvento` ganha `'trabalho'`, fora de `TIPOS_IMPORTANTES` (é rotina, não
+  prazo — listá-lo junto das provas afogaria as provas, mesma razão já
+  registrada para aula e treino)
+- Cor própria na paleta, no mesmo padrão dessaturado dos demais
+- `rota` ausente: não há para onde navegar, e o modelo já prevê isso
+
+Como não há entidade, também não há check de conclusão: trabalho não entra
+em `conclusoes_fluxograma`, e `cargaPorDia` deve ignorá-lo ao computar
+`checkPendente` — cobrar "marquei que trabalhei?" seria ruído puro.
+
+---
+
+#### 10.48.1 Tempo livre — o pivô (degrau 1)
+
+`DiaCarga` mede ocupação (`minutosRotina`) mas não mede folga, que é o dado
+que quase tudo daqui para frente consome.
+
+```ts
+export interface DiaCarga {
+  // … campos existentes
+  /** Minutos do dia não ocupados por sono planejado nem por rotina. */
+  minutosLivres: number
+}
+```
+
+Cálculo: `1440 − sono planejado do dia da semana − minutosRotina`, com
+trabalho agora incluído em `minutosRotina` por força da 10.48.0.
+
+Três decisões que evitam número enganoso:
+
+- **Sono planejado, não realizado.** A folga é uma pergunta sobre o futuro;
+  usar o sono realizado tornaria o número de amanhã indefinido e o de ontem
+  mutável. Sem planejamento de sono cadastrado para aquele dia da semana,
+  usa-se uma constante única (`SONO_PADRAO_MINUTOS`, 8h), não zero — assumir
+  24h disponíveis seria a pior estimativa possível.
+- **Piso em zero.** Rotina que estoure o dia produz `minutosLivres = 0` e
+  liga o sinal de sobrecarga da 10.48.7, nunca um negativo silencioso.
+- **Eventos datados não descontam.** Prova, conta e marco são prazos, não
+  blocos de tempo; só rotina com horário ocupa. Um dia com três contas
+  vencendo continua livre.
+
+Na UI, `FaixaCarga` passa a comunicar folga além de ocupação, e a `GradeMes`
+mostra os minutos livres do dia — "quinta tem 3h20" é a resposta que se
+procura ao olhar a semana.
+
+#### 10.48.2 Criar a partir do calendário (degrau 1)
+
+Hoje o fluxo é de mão única: tudo nasce no pilar e aparece no calendário.
+Clicar num vazio de quinta não faz nada, o que obriga a sair da tela onde a
+decisão está sendo tomada.
+
+Clique num dia (ou num vazio da agenda) abre um seletor curto — sessão de
+estudo, treino, bloco de trabalho, marco de projeto, avaliação — e daí o
+dialog do pilar correspondente, com a data pré-preenchida. Nenhuma escrita
+nova: cada opção roteia para o `useMutation` que já existe.
+
+Precondição: a data escolhida entra pré-preenchida e **editável**. Dialog
+que grava em data implícita é a origem clássica do lançamento no dia errado.
+
+#### 10.48.3 Ritual de domingo unificado (degrau 1)
+
+O planejamento semanal existe hoje só no Financeiro
+(`GradePlanejamentoSemanal`), enquanto a ideia original do sistema era um
+ritual único de domingo. O calendário é o lugar natural para reuni-lo,
+porque é a única tela que já enxerga todos os pilares.
+
+Uma rota `/calendario/semana` (ou um `Sheet` em tela cheia no mobile) com a
+semana seguinte em quatro passos:
+
+1. **Sono** — metas por dia da semana (`planejamento_sono`)
+2. **Rotina** — confirma o fluxograma da semana e registra exceções já
+   conhecidas (`excecoes_fluxograma`)
+3. **Estudo e treino** — encaixa blocos nos slots livres, com a alocação
+   sugerida da 10.48.5 quando ela existir
+4. **Financeiro** — a `GradePlanejamentoSemanal` atual, reaproveitada como
+   está
+
+O check semanal "Planejei a semana?" (2.4) passa a ser marcado pela
+conclusão desse fluxo, em vez de ser um booleano solto — o hábito passa a
+ter uma tela, não só uma caixinha.
+
+---
+
+#### 10.48.4 Pressão até o prazo (degrau 2)
+
+O cruzamento que nenhum app genérico faz, porque exige conhecer prazo,
+rotina e sono ao mesmo tempo — os três já estão no sistema, e nunca se
+falaram:
+
+> "Prova de Cálculo em 5 dias. Você tem 6h20 livres até lá. Sua meta de
+> estudo para ela era 10h."
+
+```ts
+export interface PressaoPrazo {
+  evento: EventoCalendario
+  diasRestantes: number
+  minutosLivresAte: number   // soma de minutosLivres até a véspera
+  minutosMetaRestante: number
+  status: Status             // 'ok' | 'atencao' | 'risco'
+}
+```
+
+`minutosLivresAte` soma até a **véspera**, não até o dia: contar as horas
+livres do próprio dia da prova para estudar para ela é otimismo sem base.
+
+A meta vem da meta semanal de estudo da matéria, descontado o que já foi
+registrado em `sessoes_estudo` no período. Sem meta cadastrada, o cartão
+mostra só a folga disponível e não inventa um alvo.
+
+`risco` quando a folga é menor que a meta restante — e o valor está em isso
+aparecer com dias de antecedência, na Home e no topo do calendário, e não na
+véspera.
+
+#### 10.48.5 Alocação sugerida (degrau 2)
+
+A partir de um prazo, propor **onde** encaixar as horas. Percorre os dias
+até a véspera, ordena por folga, distribui a meta em blocos, e devolve uma
+lista de sugestões.
+
+Regras que impedem uma sugestão inútil:
+
+- bloco mínimo (`BLOCO_MINIMO_MINUTOS`, 30) — quinze minutos picados entre
+  compromissos não é sessão de estudo
+- teto diário (`ESTUDO_MAXIMO_DIA_MINUTOS`, 4h) — concentrar dez horas na
+  véspera é aritmeticamente válido e humanamente falso
+- respeita a folga já comprometida por outras sugestões aceitas, para duas
+  provas próximas não disputarem o mesmo slot
+- nunca invade sono planejado, mesmo que sobrasse tempo ali
+
+**Propõe, não agenda.** Mesmo princípio da sugestão de investimento (10.45):
+a sugestão vive em memória até você aceitar; aceitar cria a sessão de
+estudo de verdade. Sem tabela de sugestões — o custo de recalcular é baixo e
+guardá-las criaria estado obsoleto assim que a rotina mudasse.
+
+#### 10.48.6 Realocação do que falhou (degrau 2)
+
+O sistema já sabe que um treino ficou `cancelado` ou que um check do
+fluxograma não saiu (`checkPendente`). Falta o passo seguinte: oferecer
+*"você perdeu o treino de terça — quinta tem 3h livres, quer remarcar?"*.
+
+Usa a mesma busca de slot da 10.48.5, com janela curta (padrão: até o fim da
+semana corrente). Vale só para rotina recorrente — prazo perdido não se
+remarca, se renegocia fora do app. Sempre com opção explícita de descartar,
+para o pendente não ficar cobrando indefinidamente.
+
+#### 10.48.7 Conflito e sobrecarga (degrau 2)
+
+Duas verificações, ambas sobre dado que já existe:
+
+- **Conflito**: dois eventos com horário sobreposto no mesmo dia. Detecção
+  trivial, ordenando por início e comparando com o fim anterior.
+- **Sobrecarga**: `minutosLivres = 0` (ou abaixo de um piso mínimo) em
+  algum dia da semana planejada.
+
+O valor está no **momento**: ambos precisam aparecer no ritual de domingo
+(10.48.3), quando ainda é planejamento. Descobrir na quarta que a semana não
+cabia não é informação, é constatação.
+
+---
+
+#### 10.48.8 Heatmap anual de consistência (degrau 3)
+
+Grade de um ano, um quadrado por dia, intensidade pela aderência —
+filtrável por camada. `checkPendente` e `sonoAbaixo` já produzem o dado; o
+que falta é a janela longa, hoje limitada ao intervalo visível.
+
+Sem Recharts: é CSS grid com 365 divs. Padrões sazonais (o mês de provas em
+que o treino sumiu, a virada de semestre) só aparecem nessa escala.
+
+#### 10.48.9 Sono sobreposto à aderência (degrau 3)
+
+O sono já está no calendário e a falha de check também. Colorir os dias por
+horas dormidas e sobrepor a aderência testa — ou desmente — a hipótese
+"quando durmo mal, o dia desanda".
+
+Cuidado explícito: apresentar como **observação**, nunca como causa. Uma
+correlação sobre alguns meses de dado de uma pessoa não sustenta afirmação
+causal, e o texto da UI precisa refletir isso ("nesses dias, X% dos checks
+ficaram pendentes"), sem prescrever nada.
+
+#### 10.48.10 Timeline retrospectiva (degrau 3)
+
+Percorrer o passado lendo o que aconteceu, em ordem cronológica, a partir
+dos eventos que já existem: *"dia 3 — bateu recorde no supino, gastou R$ 40
+acima do planejado, log de progresso no projeto X"*. Custo quase zero, já
+que a agregação está pronta; o que muda é a leitura — não é agenda, é
+memória.
+
+---
+
+#### Ordem de execução
+
+1. **10.48.0** — trabalho no fluxograma. Bloqueia o resto: sem ele,
+   `minutosLivres` nasce inflado e todas as recomendações do degrau 2 saem
+   erradas.
+2. **10.48.1** — tempo livre. Pivô do plano inteiro.
+3. **10.48.2** — criar a partir do calendário. Independente do resto, ganho
+   imediato de uso.
+4. **10.48.4** — pressão até o prazo. Primeiro output que justifica o degrau
+   1.
+5. **10.48.7** — conflito e sobrecarga. Barato, e é pré-requisito de
+   qualidade do ritual.
+6. **10.48.3** — ritual de domingo. Depois de 4 e 7, para já nascer com os
+   alertas dentro.
+7. **10.48.5** e **10.48.6** — alocação e realocação, nessa ordem (a segunda
+   reusa a busca de slot da primeira).
+8. **10.48.8**, **10.48.9**, **10.48.10** — degrau 3, sem dependência entre
+   si.
+
+#### Testes a acrescentar
+
+Em `carga.test.ts`:
+
+- `minutosLivres` desconta sono planejado, rotina e trabalho
+- dia sem planejamento de sono usa `SONO_PADRAO_MINUTOS`, não zero
+- rotina que estoura o dia produz `0`, nunca negativo
+- prazo (prova, conta, marco) não reduz `minutosLivres`
+- trabalho não liga `checkPendente`
+
+Em `eventos.test.ts`:
+
+- fluxograma com `rotulo` gera evento de camada `'trabalho'`, sem `rota`
+- exceção cancelando um bloco de trabalho remove a ocorrência daquele dia
+
+Em um novo `planejador.test.ts`:
+
+- `minutosLivresAte` soma até a véspera, excluindo o dia do prazo
+- alocação respeita bloco mínimo, teto diário e sono planejado
+- duas sugestões aceitas não disputam o mesmo slot
+- prazo sem meta cadastrada não gera sugestão nem status de risco
+- detecção de conflito acusa sobreposição parcial e ignora eventos adjacentes
+  (fim de um igual ao início do outro)
+
+### 10.49 Cancelar e remarcar não chegava ao calendário inteiro (corrige 10.31) — descoberta em uso
+
+Cancelar um item na Home escrevia certo em `excecoes_fluxograma`, e a invalidação
+já alcançava `['calendario']` — o dado propagava. O que não propagava era a
+**leitura**: o risquinho só existia numa das três vistas, e em dois casos não
+existia em nenhuma.
+
+**Três buracos, com a mesma origem — `estado` nasceu na 10.31 e só a agenda o lia:**
+
+- **Vistas "Mês" e "Horas" ignoravam `estado`.** `GradeMes` montava o evento do
+  FullCalendar com cor, borda e título, e nada mais. Uma aula cancelada na semana
+  passada saía idêntica a uma que aconteceu — a grade dizia que houve aula.
+- **Cancelamento no futuro não aparecia em vista nenhuma.** O recorte `<= hoje`
+  fazia sentido quando só a Home cancelava, e na Home é sempre hoje. Desde que o
+  Ritual Semanal (10.48.3) e a página de Treino ganharam o `MenuOcorrencia`, dá
+  para desmarcar a sexta na quarta — e o item **sumia** do calendário, sem rastro.
+  Indistinguível de "nunca teve nada na sexta", que é exatamente o defeito que a
+  10.31 tinha ido corrigir para o passado.
+- **Remarcado não deixava rastro na origem.** A ocorrência migrava em silêncio:
+  quem olhava a terça não via que aquela aula tinha ido para a quinta, e a quinta
+  cheia não tinha explicação.
+
+**O que mudou:**
+
+- `eventosCancelados` perdeu o parâmetro `hoje` e o recorte. Cancelado vale para
+  qualquer dia do intervalo. `construirEventos` perdeu o `hoje` junto — era o
+  único uso.
+- `eventosRemarcadosNaOrigem`, irmã de `eventosCancelados`: emite na data
+  **original** o rastro do que foi movido, com `estado: 'remarcado'` e
+  `remarcadoPara` apontando o destino. Remarcação que só troca o horário dentro
+  do mesmo dia não gera rastro — origem e destino são a mesma linha.
+- `EventoCalendario.estado` virou `'feito' | 'cancelado' | 'remarcado'`.
+  Remarcado é estado próprio, e não `cancelado`, porque cancelado sai do
+  denominador da frequência (10.17) e entra em "o que ficou pra trás"
+  (`detectarFalhas`); remarcado não faz nem um nem outro — a ocorrência continua
+  existindo, noutro dia.
+- Na agenda, cancelado e remarcado dividem o tratamento — riscado, filete a 40% —
+  e se separam no rótulo do fim da linha: `cancelado` ou `→ 14/08`. O destino é o
+  que transforma o risco em informação: a linha diz para onde a coisa foi.
+- Nas vistas de Mês e Horas, classe `evento-riscado`: `opacity: .5` no bloco e
+  `line-through` no título e na hora. A decoração vai nos filhos, não no
+  container — o FullCalendar monta título e hora como irmãos e a decoração no pai
+  não atravessa o `.fc-event-main` de todas as vistas.
+
+**Cuidado herdado da 10.31:** todo evento com `estado` continua fora de
+`cargaPorDia` (`estado !== undefined`), então nem o cancelado futuro nem o rastro
+do remarcado somam "tempo comprometido". `detectarConflitos` passou a pular os
+dois pelo mesmo motivo — o rastro carrega o horário do padrão e inventaria
+conflito com a rotina que ficou no slot. `detectarFalhas` já recortava em
+`data >= hoje` e não precisou mudar; remarcado não cai em nenhum dos seus dois
+ramos, que é o certo: não é falha, é mudança de dia.
+
+**Consequência aceita:** feito continua sem o **✓** nas vistas de Mês e Horas —
+lá o bloco é pequeno demais para ícone, e a agenda segue sendo a superfície que
+conta o desfecho por inteiro.
+
+### 10.50 Notas de estudo eram campo de cadastro, não caderno (corrige a feature de 12/08) — descoberta em uso
+
+A feature de 12/08 entregou as anotações como **colunas de `materias`**:
+`notas_estudo` e `notas_particularidades`. A aba Notas da matéria era só
+leitura e dizia, literalmente, *"Nada anotado ainda — edite a matéria para
+adicionar"*.
+
+**O defeito é de modelagem, não de tela.** Anotar durante o estudo exigia abrir
+o diálogo de **cadastro** da matéria, escrever num `textarea` de 3 linhas e
+salvar o registro da matéria. Consequências, todas do mesmo erro:
+
+- **uma** nota por matéria — o segundo assunto sobrescrevia o primeiro;
+- sem título, então nada distinguia "fórmulas da P2" de "dúvidas da aula 4";
+- escrever mexia na linha de `materias`, junto de carga horária e limite de
+  faltas — dado de identidade sendo reescrito por causa de um resumo;
+- nenhum histórico: `updated_at` não existia em tabela nenhuma do schema.
+
+Nota virou **entidade**: `notas_estudo` com FK para a matéria, mesmo padrão de
+`documentos` e `sessoes_estudo`, que o pilar já usava. Várias notas por
+matéria, cada uma com título, e escrever não toca `materias`.
+
+**Documento vivo, não entrada datada.** A nota é título + conteúdo editado ao
+longo do período ("Resumo da P2", "Fórmulas"), e a lista mostra `atualizada_em`
+— numa nota o que importa é quando ela mudou. `fixada` sobe a nota ao topo
+independente disso. A alternativa considerada era um diário (uma nota por
+data), descartada porque o caso real é revisitar o mesmo resumo, não empilhar
+registros do dia.
+
+**`notas_particularidades` continua coluna, de propósito.** Email do professor
+e política de faltas são referência estável, pertencem à ficha da matéria, e
+editar pelo cadastro é o comportamento certo para elas. A distinção que a
+migration de 12/08 descreveu estava certa; o erro foi tratar os dois lados como
+o mesmo tipo de dado. A aba Notas mostra particularidades num card à parte,
+visualmente mais fraco, com a dica de que se edita pela matéria.
+
+**`atualizada_em` por trigger** (`notas_estudo_atualizada_em`) — primeira tabela
+do schema com carimbo de atualização. Fica no banco pela mesma razão de todo
+campo-resumo aqui (10.9): quem escreve não pode escolher não carimbar. A API
+nunca manda esse campo.
+
+**Três pontos de entrada**, porque a ideia de nota não chega sempre no mesmo
+lugar:
+
+- aba Notas da matéria — o mínimo, onde a nota tem contexto;
+- ícone no card da matéria em `/estudos` — anotar sem navegar até o detalhe;
+- linha da sessão de estudo — anota o que foi estudado naquela sessão, e a nota
+  nasce com `sessao_id`. Com nota, o botão edita a que está lá; sem nota, cria.
+  Empilhar notas silenciosamente numa linha de lista seria fácil de acionar por
+  engano e difícil de perceber.
+
+`sessao_id` é `on delete set null`, não `cascade`: apagar a sessão não pode
+apagar o que foi anotado nela.
+
+**Migração sem perda:** cada matéria com `notas_estudo` preenchido virou uma
+nota "Notas de estudo" com o mesmo conteúdo, antes de a coluna cair. O bloco é
+condicional (`information_schema`) porque a migration foi aplicada à mão no
+editor SQL e não entrou no histórico da CLI — um `db push` futuro a reexecuta, e
+sem o guarda ela duplicaria as notas migradas.
+
+#### 10.50.1 Sessão de estudo ganha hora (completa 10.31)
+
+Saiu da mesma conversa. `sessoes_estudo` guardava data e duração, sem hora
+nenhuma, então `eventosSessoesEstudo` **sempre** emitia evento de dia inteiro: a
+sessão registrada ficava no topo do dia no calendário, sem lugar na linha do
+tempo — ao contrário do treino, que informa `hora_inicio` desde a 10.23.
+
+`hora_inicio time` opcional. Com hora, a sessão ocupa o horário e o fim sai de
+`início + duracao_minutos` — a duração é obrigatória, então o fim é sempre
+derivável, e guardar as duas coisas abriria espaço para discordarem. Sessão que
+atravessa a meia-noite termina no dia seguinte, mesmo tratamento que
+`eventosSono` já dava ao sono.
+
+Sem hora continua dia inteiro. Derivar hora de `created_at` mediria quando o
+**registro** foi feito, que é exatamente o erro que a 10.24 corrigiu no treino.
+
+A duração segue no título nos dois casos: no bloco com horário ela é redundante
+com a altura na grade de horas, mas a agenda e a vista de mês não têm escala, e
+ler "90 min" é mais rápido que comparar alturas.
+
+### 10.51 Barra de carga da semana ganha a cor da matéria (corrige 10.48.1 / 6.2) — descoberta em uso
+
+A faixa acima da agenda pintava cada segmento na cor do **pilar**: toda aula da
+semana era o mesmo azul de estudos. A barra respondia "quarta tem 4h de rotina"
+sem dizer **de quê** — e numa semana em que três matérias competem pelo mesmo
+tempo, é justamente essa a informação que decide o que cortar.
+
+O comentário anterior no código dava duas razões para não fazer isso, e as duas
+eram fracas quando examinadas:
+
+- *"os minutos vêm somados por camada"* — verdade, mas é uma escolha de
+  `cargaPorDia`, não uma restrição. Agrupar por camada **e cor** é a mesma soma
+  com uma chave a mais.
+- *"uma barra com uma fatia por matéria não caberia na largura de um dia"* —
+  errado sobre o eixo: a barra empilha na **vertical**, com 40px de altura. Três
+  matérias num dia são três fatias empilhadas, não três colunas.
+
+`SegmentoCarga` ganhou `cor` e `rotulo`, ambos opcionais. Ausentes = a fatia é a
+camada inteira, que segue sendo o caso de treino, trabalho e sono — nenhum tem
+cor por item. Só matéria tem (`materias.cor`, 12/08), e matéria que não escolheu
+cor cai na fatia da camada, exatamente como antes.
+
+A chave do agrupamento é a **cor**, não o nome nem o id: `EventoCalendario` não
+carrega o id da matéria (o `origemId` da aula é o id da regra do fluxograma), e a
+cor é o que a barra desenha. Consequência aceita: duas matérias que escolherem a
+mesma cor viram uma fatia só. É o mesmo limite que a paleta fixa já impõe em
+qualquer outra vista, e o rótulo cai na primeira delas.
+
+**Ordem estável em dois níveis:** camada por `ORDEM_CAMADAS`, e dentro da camada
+a fatia maior primeiro com o nome como desempate. Sem o desempate, duas matérias
+de duração igual podiam trocar de lugar entre renders — a barra mudaria de forma
+sem o dado ter mudado.
+
+**O rótulo acessível passou a listar a composição** ("Cálculo II 2h, Física IV
+1h"). A fatia por matéria é informação transmitida só por cor; sem o texto, quem
+usa leitor de tela ouviria "4h de rotina" e perderia de que ela é feita — a mesma
+regra que a 10.31 aplicou ao "cancelado" da agenda.
+
+O sufixo `(remarcado)` é removido do rótulo da fatia: ele descreve uma
+ocorrência, e a fatia soma a matéria inteira do dia.
+
+**Fora de escopo:** a legenda de camadas e o filtro por pilar continuam em
+`COR_CAMADA`. Ali a cor representa a categoria, não o item — o azul de "Aulas e
+provas" não deve virar o vermelho de uma matéria específica, mesmo raciocínio já
+registrado em `corDoEvento`.
+
+### 10.52 Treino concluído ficava "em andamento" para sempre (corrige 10.21) — descoberta em uso
+
+O Push de 12/08 tinha **15 séries gravadas e `duracao_minutos = 90`** — todos os
+sinais de treino concluído — e `finalizado_em` nulo. No dia seguinte a Home ainda
+dizia "Push em andamento".
+
+**Não era bug de dado nem vínculo errado.** O diálogo foi fechado em vez de tocar
+"Finalizar treino", e fechar não encerra de propósito: a sessão nasce na primeira
+série e sobrevive ao fechamento para se poder treinar com o celular no bolso
+(10.21). O rodapé do diálogo até convida — *"Pode fechar e voltar depois"*.
+
+O defeito é o que o estado custa quando ninguém volta:
+
+- a sessão **não conta na frequência da semana**, que só soma finalizadas
+  (10.21) — um treino que aconteceu fica invisível nas métricas;
+- e **trava o início de qualquer outro treino**: o índice
+  `execucoes_treino_uma_aberta` admite uma só, e `DialogExecucao` desabilita o
+  botão com "Há outro treino em andamento. Finalize-o primeiro". Um esquecimento
+  de terça bloqueia o treino de quarta.
+
+E o aviso da Home, que é onde o esquecimento é descoberto, oferecia exatamente as
+**duas saídas erradas**: Continuar e Descartar. Chegar ao botão certo exigia ir ao
+pilar, abrir o diálogo e achar "Finalizar treino" no rodapé.
+
+**Finalizar direto no aviso.** Um toque, e a decisão continua com o usuário —
+nada é gravado sem ele pedir. Zero série desabilita o botão, mesma regra do
+diálogo: sem nada gravado não há treino a registrar, e a saída é descartar.
+
+Quando a sessão é de um dia que já passou, o aviso diz de quando ela é ("de
+ontem", "de 12/08") e **Finalizar vira a ação primária**, com Continuar recuando
+para secundária: ali o provável é encerrar, não voltar a anotar séries.
+
+**Descartado: finalizar sozinho as sessões de dias passados.** Uma sessão
+abandonada no meio (2 de 12 séries) viraria "treino feito" na frequência, que é
+justamente o que a 10.21 evita ao criar `finalizado_em`. E o carimbo receberia um
+horário inventado — o erro que a 10.24 corrigiu. Distinguir "acabei e esqueci de
+fechar" de "desisti no meio" exige a informação que só o usuário tem.
+
+### 10.53 Editor de notas: Tab, menções e tópicos (corrige 10.50 e a noite de 16/08) — descoberta em uso
+
+Três problemas com a mesma forma: **a mesma verdade escrita em dois ou três
+lugares**, divergindo em silêncio.
+
+#### O Tab que parou de converter
+
+`alpha` + `Tab` no diálogo da fórmula deixou de virar α. O histórico mostra três
+commits na mesma noite tentando consertar — `004ec55`, `8903710`, `960bb54` — e o
+último foi o que ficou.
+
+Os atalhos nativos do MathLive convertem **sozinhos** enquanto se digita, sem
+Tab. Desligá-los foi certo: conversão automática tira a escolha de quem escreve,
+e escrever `beta` querendo as quatro letras vira briga com o editor. O que não
+funcionou foi a substituição — um `bufferRef` alimentado pelo `keydown`, que
+dessincronizava do campo por três caminhos, todos comuns:
+
+- só letras entravam nele e só espaço, Enter e setas o zeravam, então `x+alpha`
+  acumulava `xalpha` e não casava com nada. **Bastava ter digitado uma letra
+  antes na fórmula para o atalho nunca mais funcionar** — e como o Tab sem
+  casamento não fazia `preventDefault`, o foco ainda pulava para fora do campo;
+- clicar para reposicionar o cursor não zerava nada, e o `deleteBackward`
+  seguinte apagava no lugar errado — isso corrompia a fórmula, não só falhava;
+- `/` e `^`, os atalhos de ABNT2, inseriam sem tocar no buffer.
+
+**A palavra passa a ser lida do campo** (`mf.position` + `mf.getValue`), e não de
+um registro paralelo das teclas. Sem segundo estado, não há o que divergir do
+primeiro: `x+alpha` funciona sem tratamento especial. O casamento pega o maior
+sufixo do catálogo e é sensível à caixa, então `Delta` dá `\Delta` e `delta` dá
+`\delta`. A busca é função pura (`simboloPorPalavra`), testada sem DOM — é o que
+impede a quarta tentativa.
+
+Descartada a alternativa de consertar as regras de zerar o buffer: a lista de
+exceções a tratar não fecha, e três commits já tinham mostrado isso.
+
+#### Três catálogos de símbolos, três respostas
+
+`gamma` existia no Tab do MathLive e na barra de botões, e **não** no catálogo do
+`//`. Então `//gama` nunca funcionou enquanto `gamma`+Tab e o botão γ
+funcionavam. Não era um bug com três sintomas — eram três listas independentes:
+`latex.ts` (26 símbolos), `ATALHOS_INLINE_GREGOS` (41) e
+`SIMBOLOS_GREGOS`/`SIMBOLOS_OPERADORES` (20).
+
+Agora há **um**: `components/editor/catalogoSimbolos.ts`, ao lado de
+`catalogoEscrita.ts`, que é o análogo exato — o catálogo do `/`. Subiu para o
+kernel porque quem o consome é kernel (`DialogFormula` e `CampoMatematico` são
+`components/`), e componente do kernel não importa de feature;
+`features/notas/simbolos.ts` segue sendo a ponte para o `//`. O campo `rapido`
+marca o que aparece na barra de botões. Acrescentar um símbolo virou uma linha,
+num lugar, valendo nos três caminhos.
+
+A unificação expôs uma discordância que ninguém tinha visto: `delta` produzia
+`\Delta` no `//` e `\delta` no Tab. Ficou a minúscula, com `Delta` ganhando
+entrada própria — é a convenção do resto da lista.
+
+#### Menções e tópicos sumindo ao salvar
+
+Medido, e é o mesmo bug que a 10.50 documentou ter matado:
+
+    [[series-de-taylor]]   →  \[\[series-de-taylor]]
+    #regra-da-cadeia       →  \#regra-da-cadeia      (só no início do parágrafo)
+
+O `dialeto.ts` curou isso transformando wikilink e desenho em **nós**. Mas o menu
+de menções inseria `[[slug]]` como TEXTO (`insertText`), e texto que se parece
+com sintaxe não é sintaxe: nenhum parse dispara, e o serializer escapa o que vê
+como colchete solto. A menção sumia de `links_nota` a cada salvamento. Tópico
+nunca foi nó, e a cerquilha no início de linha é escapada para não ser relida
+como heading — então `extrairTopicos` perdia a marcação, mas só quando ela abria
+o parágrafo, que é o caso mais comum.
+
+Duas correções estruturais:
+
+- **O menu nunca insere sintaxe como texto.** `ResultadoEscolha` ganhou
+  `{ tipo: 'markdown' }`, que passa pelo `parserCtx` — o mesmo pipeline que lê a
+  nota salva. O que o menu insere é por construção idêntico ao que o arquivo
+  produz ao reabrir. `formula` continua com ramo próprio porque precisa
+  posicionar o cursor no buraco.
+- **Tópico virou nó do dialeto**, com handler de saída que escreve `#slug` sem
+  escape, como wikilink e destaque já faziam.
+
+Descartado tolerar `\#` na `RE_TOPICO`: resolveria o sintoma e deixaria `\#` no
+`.md` exportado, derrubando o argumento — Markdown legível como fonte de verdade
+— que escolheu o Milkdown, a exportação e a busca.
+
+#### A causa comum: duas cópias da gramática
+
+`RE_DIALETO` (em `dialeto.ts`) e `RE_LINK` (em `markdown.ts`) eram **byte a byte
+a mesma regex**, em arquivos com donos diferentes. Parecia coordenação e era
+coincidência. Quando o editor passou a emitir texto escapado, só um dos lados
+soube.
+
+As regexes moram agora em `components/editor/gramatica.ts` — sem import de
+Milkdown, para que `markdown.ts` continue puro —, e os dois lados leem de lá.
+
+#### Por que nada disso apareceu nos testes
+
+Os 546 testes passavam. Todos eram de função pura, e os três bugs vivem na
+**fronteira** entre editor e Markdown, que ninguém testava: `dialeto.test.ts`
+verificava o round-trip do texto, e `markdown.test.ts` verificava os extratores,
+cada um sozinho. Faltava a asserção do encontro.
+
+O teste de tópico que existia usava `#taylor` no MEIO da linha — justamente o
+caso que sempre funcionou.
+
+Entrou um bloco de contrato: round-trip do editor **e depois** `extrairLinks`,
+`extrairTopicos` e `extrairReferenciasDesenho` sobre o resultado. Se falhar, uma
+nota salva está perdendo aresta do grafo ou vocabulário sem erro na tela. Ele
+importa de `features/notas`, o que o kernel não pode fazer — é deliberado e vale
+só ali: teste de contrato precisa das duas pontas, e a regra vale para código de
+produção.
+
+#### Higiene do `/` e o `#` ganhando menu
+
+O `/` de bloco não recebia `apenasInicioDeLinha`, que `gatilhoMenu` documentava
+desde sempre: o menu completo abria depois de qualquer espaço, no meio de
+qualquer frase. E `/` e `//` casam no mesmo ponto — os dois menus só não
+apareciam juntos porque `filtrarEscrita('/alpha')` devolve lista vazia, correção
+por coincidência. Agora o gatilho mais longo vence, declarado (`excluir`).
+
+O `#` era o único vocabulário do sistema **sem autocomplete**. A marcação nasce
+do texto, que é o que a spec pede — mas sem ver o que já existe, cada nota
+reinventa a grafia, e `#regra-da-cadeia` e `#regra-cadeia` viram dois assuntos no
+grafo. O menu mostra os tópicos existentes e oferece criar o novo no topo quando
+o que se digitou ainda não existe: sem essa entrada, o menu inverteria a regra da
+spec e transformaria o vocabulário em cadastro prévio.
+
+### 10.54 Notas: a lista ganha ritmo, e a leitura do celular passa a ser o editor — descoberta em uso
+
+Duas coisas na mesma tela, e a segunda só apareceu porque a primeira foi
+investigada a fundo.
+
+#### O espaçamento das listas
+
+A queixa era que a lista "se distancia um pouco, e a lista dentro da lista
+distancia um pouco mais". Parecia acúmulo de margem. **Era o contrário: não
+havia espaçamento vertical nenhum.**
+
+Medido: `li + li`, `li > ul` e o retorno ao nível do pai valiam **todos zero**.
+O preflight do Tailwind zera margem de `ul`, `ol` e `li`, e a única regra de
+ritmo do editor (`> * + *`) alcança só filhos diretos — a lista inteira é um
+filho. A única declaração de lista que existia era `padding-left: 1.4em`.
+
+Então uma lista de três itens com uma sublista eram nove linhas grudadas com
+entrelinha uniforme, e **a hierarquia inteira dependia de um único sinal: o
+recuo**. Um sinal solitário sempre parece exagerado — foi por isso que 22,4px
+incomodaram, sendo um valor modesto. A correção não foi diminuir o recuo, foi
+dar agrupamento vertical à lista.
+
+O recuo também estava desalinhado. Com `list-style-position: outside`, o
+marcador do filho caía **15px à direita do texto do pai**, sem alinhar com o
+texto nem com o marcador de cima: cada nível abria uma coluna nova e arbitrária.
+O marcador virou `::before` absoluto numa coluna de largura exatamente igual ao
+recuo, o que o põe onde começa o texto do pai — a geometria do Notion.
+`.ProseMirror li` já era `position: relative`, então a âncora existia de graça.
+
+**O espaçamento agora vem do Markdown.** `data-spread` é escrito pelo Milkdown a
+partir da fonte: linha em branco entre itens quer dizer lista *loose*, sem quer
+dizer *tight*. O dado já estava no documento e o CSS o ignorava. Honrá-lo é o
+ritmo saindo da fonte de verdade, que é o princípio que sustenta a feature.
+
+Recuo passou a `rem` (o mesmo Markdown recuava 22,4px no documento e 19,6px nos
+diálogos), com **teto a partir do 4º nível**: em 328px úteis, o 4º nível comia
+27% da largura e sobravam ~27 caracteres por linha. Do 4º em diante o recuo para
+de crescer e a forma do marcador (`•` `◦` `▪`) passa a distinguir. Nada muda no
+`.md`.
+
+**Descartada a guia vertical** por nível: cairia exatamente na coluna onde o
+marcador agora vive, e linha atrás de bullet é ruído.
+
+#### Lista de tarefas não tinha uma linha de CSS
+
+O `gfm` está ativo e o Milkdown escreve `data-item-type="task"` e `data-checked`
+no `li` — e **não havia nenhuma regra para nenhum dos dois**. Um `- [x] revisar`
+renderizava como bullet comum: o estado feito/não feito era invisível. É a lista
+mais usada numa nota de estudo, quebrada em silêncio desde que o gfm entrou.
+Caixa por forma (`☐`/`☑`) mais texto riscado — nunca só cor.
+
+#### O hover do wikilink não funcionava
+
+`background: var(--accent)/80` — sintaxe do Tailwind escrita em CSS puro. O
+navegador descarta a declaração inteira, então o `:hover` **não fazia nada**.
+Virou `color-mix`. E o `.wikilink` era declarado **duas vezes no mesmo arquivo**,
+com o segundo bloco matando o `text-decoration` do primeiro; fundidos.
+`transition: all` num elemento inline animava `padding` e `border`, empurrando o
+texto da linha ao passar o mouse — restrita a cor e borda, e sob
+`prefers-reduced-motion: no-preference`.
+
+#### `h3` era idêntico ao parágrafo
+
+As medidas de título (1.35 / 1.15 / 1rem) foram calibradas para o editor dos
+diálogos, que é `0.875rem`. No documento, que é `1rem`, o contraste desaba: h1
+cai de 1,54× para 1,35× do corpo, e **`h3` empata exatamente com o parágrafo**,
+distinguido só pelo peso. Numa nota com subseção por `###`, é a estrutura do
+texto que desaparece. Escala própria no escopo do documento, e espaço explícito
+depois do título para ele colar no que titula em vez de flutuar entre as duas
+seções.
+
+#### A leitura no celular não era a nota
+
+Investigando o espaçamento, apareceu o defeito maior: **a leitura no mobile não
+renderizava Markdown**. Era `whitespace-pre-wrap` sobre o texto cru, então
+`- item`, `## Título` e `**forte**` apareciam literais. E `documento.css`
+declarava `1rem/1.65` para ela enquanto o componente filho aplicava `text-sm` por
+cima — a nota lida era 2px menor e 3,65px mais apertada por linha do que o
+arquivo dizia. Quatro blocos de `.documento-leitura .wikilink` nunca casavam com
+nada, porque a leitura emitia `data-wikilink` sem a classe.
+
+A decisão original (spec de 14/08) era não carregar o ProseMirror no celular.
+**Mas ela não era sobre peso** — o comentário registra o motivo real: a versão
+anterior caía para `textarea` e isso custava "dois caminhos de inserção, uma
+porta imperativa com dois donos e uma decisão de mobile em cada afordância
+nova".
+
+Escrever um renderizador de Markdown de verdade para a leitura custaria ~40kB gz
+e **uma segunda implementação de cada construção da nota** — fórmula, desenho,
+wikilink, tópico, cerca, tabela. É a mesma armadilha das duas cópias da gramática
+do dialeto (10.53), em escala maior: os quatro blocos de CSS morto e as duas
+escalas de fonte divergentes já eram sintoma dela.
+
+**A leitura passou a ser o mesmo editor, com `editable: () => false`.** Custa
+144 kB gz medidos, uma vez, pré-cacheados pelo service worker, e faz o que se lê
+ser *por construção* o que se edita. MathLive (212 kB gz) e Excalidraw (321 kB
+gz) seguem fora, em `lazy` próprios — e travado nem são alcançáveis. A decisão da
+spec segue de pé: travado não se edita, e o que ela rejeitava era manter dois
+caminhos de inserção, que continuam não existindo.
+
+Travado, os plugins de escrita não são registrados — não por economia, por
+correção: selecionar e passar o mouse continuam possíveis, e sem tirá-los a barra
+de formatação apareceria sobre texto que não se pode formatar, a alça pediria
+para reordenar o que não se move, e o duplo clique numa fórmula baixaria 212 kB
+para um editor que não pode salvar. `ConteudoNota` foi removido.
+
+**A validar no aparelho:** seleção de texto, scroll e toque no wikilink dentro de
+um `contenteditable` travado. É o risco que sobra, e só o uso resolve.
+
+---
+
+### 10.55 Atividades: entrega com prazo ganha lugar próprio — descoberta em uso
+
+Entre prova (nota que entra na média) e lista de exercícios (registro pós-fato)
+não havia onde morar "entregar o trabalho de Sinais sexta que vem". O parente
+mais próximo, `avaliacoes`, já carrega `data` (10.14), mas é evento de **nota**,
+não de entrega — e misturar os dois bagunçaria a média e o calendário de uma vez.
+
+Nova tabela `atividades`, e a regra que organiza tudo o mais: **a nota nunca mora
+na atividade.** `avaliacao_id` é ponteiro opcional; entregar pode criar ou
+vincular uma avaliação, mas a média continua território exclusivo de
+`avaliacoes`, com o trigger `trg_atualizar_media_materia` intocado. Apagar a
+avaliação faz a entrega perder o vínculo (`on delete set null`); apagar a entrega
+nunca apaga a avaliação.
+
+**Status é derivado na leitura**, não gravado. `concluida_em` nulo = pendente
+(presença, não flag — padrão de `conclusoes_fluxograma`; preencher conclui,
+apagar reabre). "Atrasada" é calculada porque depende da passagem do tempo:
+materializar exigiria uma escrita na virada de cada dia, que é exatamente o que a
+10.9 recusa. Nenhum trigger novo, nenhum campo-resumo — contar atrasadas é
+agregação leve.
+
+**O atraso conta por dia, não por horário.** `hora_entrega` posiciona o item na
+agenda e nada mais; a virada acontece no fim do dia da `data_entrega`. Um prazo
+de 8h da manhã que passou às 9h não deixa a linha vermelha no mesmo dia, e isso é
+deliberado: quem entrega às 10h entregou.
+
+**Concluída vence atrasada** na ordem das guardas de `statusAtividade`. Entregar
+com atraso ainda é entregar, e pintar a linha de vermelho depois do fato não
+ajuda ninguém.
+
+**Período da matéria não filtra entrega.** `data_inicio`/`data_fim` cortam a
+rotina recorrente do fluxograma (10.38); entrega é data colada, como prova —
+aparece no calendário mesmo fora do semestre.
+
+`origem ('manual' | 'email')` e `fonte_url` nascem no schema sem nada que os
+preencha. A frente de trazer emails para dentro do sistema fica para depois, e
+essas duas colunas existem para que ela não custe uma migração de retrabalho.
+
+Integrações, todas lendo Estudos sem que Estudos importe ninguém: prazo sólido no
+calendário (`tipo: 'atividade'`, dentro de `TIPOS_IMPORTANTES` porque é prazo e
+não rotina, `movimento: 'entidade'` para arrastar na grade), card "Entregas" no
+hub com horizonte de duas semanas para as próximas e nenhum corte para as
+atrasadas, aba "Entregas" na matéria agrupada por status, e push um dia antes.
+Entrega concluída **continua** na agenda, marcada como `estado: 'feito'` — apagar
+o que foi entregue faria a semana parecer mais vazia do que foi.
+
+**Duas divergências do design técnico, decididas contra o documento e a favor do
+código que já existe.** O doc especificava as funções puras recebendo campos em
+camelCase (`dataEntrega`, `concluidaEm`) e `hojeISO` em toda parte; a convenção
+do arquivo é receber o tipo de domínio com as colunas em snake_case, e `Date`
+quando a função devolve contagem de dias (`proximaAvaliacao`) contra string ISO
+quando é só comparação (`dentroDoPeriodoMateria`). Foi seguida a convenção — a
+assinatura do doc não compilaria contra o próprio tipo `Atividade` que ele define.
+O doc também mandava usar estado manual no `DialogAtividade`, alegando que os
+schemas de Estudos estariam mortos; não estão — `schemaMateria` e
+`schemaFluxograma` alimentam os diálogos irmãos, e RHF + Zod é o padrão de todo
+`Dialog*` do projeto. O formulário manual é padrão das abas inline, não dos
+diálogos.
+
+**O mini-card de Estudos na Home mostra o mais urgente, não tudo.** `MiniCard`
+tem uma linha de detalhe e é compartilhado pelos cinco pilares; em vez de mudar
+o contrato dele para caber duas sub-linhas, a linha prioriza entregas atrasadas,
+depois a próxima entrega quando ela vem antes da próxima prova, depois a prova.
+Atrasada também escala o status para `atencao`.
+
+**Encontrado de passagem, e não corrigido aqui:** o CHECK de
+`notificacoes_enviadas.tipo` nunca aceitou `'investimento'`, mas
+`candidatasInvestimento` emite esse tipo desde a 10.45 — e o `insert` de dedup em
+`enviarPush` não checa `error`. A violação é engolida em silêncio, então a
+sugestão de aporte envia o push e nunca grava a linha que impediria o reenvio. É
+anterior a esta feature e precisa de migração própria.
+
+---
+
+### 10.56 Horizonte de Saldos — o "disponível hoje" vira saldo real projetado dia a dia (substitui 2.3 / 10.43) — spec própria
+
+**Diagnóstico.** O Financeiro tem hoje dois modelos de "quanto posso gastar" que
+não se falam. `gastoDisponivelGeral` (2.3) reseta a meta todo mês e divide o que
+resta pelos dias restantes — um **ritmo médio**, não um saldo; ele não sabe que
+ontem sobrou dinheiro, e não avisa quando uma parcela de terça vai deixar a
+conta negativa na quinta. `projetarFluxoCaixa` (10.43) já sabe carregar saldo
+acumulado de mês em mês sem resetar — o princípio certo — mas na granularidade
+errada: um compromisso que cai dia 5 e um que cai dia 25 chegam misturados no
+mesmo balde mensal, quando a pergunta que importa é justamente a ordem entre
+eles dentro do mês.
+
+O vídeo do Breno Nogueira ("Horizonte de Saldos") resolve isso projetando o
+saldo **dia a dia**, ancorado no saldo real da conta, com um semáforo de 4 cores
+que substitui a pergunta "quanto gastei" pela pergunta certa: "em que dia,
+especificamente, vou ficar sem dinheiro — se é que vou". Esta resolução adapta
+essa metodologia à arquitetura já existente, reaproveitando a expansão de
+recorrência e o corte real/projetado que a 10.43 já validou, na granularidade
+de dia.
+
+**Decisão que substitui a 2.3.** `CardDisponivelHoje` e
+`GradePlanejamentoSemanal` saem do Financeiro. O "disponível hoje ÷ dias
+restantes" e o ritual de planejamento semanal manual eram a melhor resposta
+possível *sem* saber a data exata dos compromissos futuros — o Horizonte sabe,
+então a pergunta "quanto posso gastar hoje" passa a ser derivada do saldo
+projetado do próprio dia, não recalculada à parte. `planejamento_semanal_financeiro`
+fica **arquivada** (padrão de `app/arquivado`, mesmo tratamento dado a telas
+substituídas antes), não apagada — sem migração de dado teria que ser refeita
+do zero se o Horizonte não se sustentar em uso.
+
+#### Schema novo
+
+O que falta para ancorar a projeção num saldo *real*, não relativo, é um ponto
+de referência — o Financeiro nunca guardou "quanto tem na conta", só fluxo.
+
+```sql
+create table public.saldo_referencia_conta (
+  id            uuid primary key default gen_random_uuid(),
+  data          date not null,
+  valor         numeric not null,
+  observacao    text,
+  created_at    timestamptz not null default now()
+);
+
+create index saldo_referencia_data_idx
+  on public.saldo_referencia_conta (data desc);
+```
+
+**Uma linha por reconciliação, não uma linha só.** Tarifa bancária, juro de
+poupança, um Pix que não virou lançamento — a conta real diverge da soma dos
+lançamentos com o tempo, e não tem outro jeito de corrigir isso a não ser o
+usuário abrir o extrato de vez em quando e dizer "hoje está R$ X". A projeção
+usa **a reconciliação mais recente com `data <= hoje`** como âncora; tudo antes
+dela é irrelevante para o saldo atual. Sem reconciliação nenhuma cadastrada,
+a âncora é `0` na data do lançamento mais antigo — o Horizonte ainda funciona,
+só que como saldo *relativo* (mesmo comportamento que `projetarFluxoCaixa` tem
+hoje) até a primeira reconciliação ser feita.
+
+#### Motor de projeção — `features/financeiro/horizonte.ts`
+
+Arquivo novo, não extensão de `projecao.ts` — o corte real/futuro, a expansão
+de compromissos e o `fonte: 'real' | 'projetado'` são os mesmos princípios,
+mas a unidade de tempo (dia, não mês) e o formato do resultado (uma linha por
+dia, não por mês) divergem o bastante para não caber nas mesmas assinaturas.
+`projecao.ts` continua existindo e servindo o simulador de compra parcelada
+(10.44/10.47), que responde numa pergunta mensal ("essa compra cabe nos
+próximos 6 meses?") — o Horizonte responde numa pergunta diária ("em que dia
+especificamente"). Funções puras, mesmo espírito dos outros dois arquivos:
+
+```ts
+export interface DiaHorizonte {
+  data: string                 // ISO
+  saldoInicial: number         // saldo ao acordar naquele dia
+  entradas: number             // compromissos de receita + lançamentos reais do dia
+  saidas: number                // compromissos de despesa + parcelas + "diário" do variável
+  saldoFinal: number            // saldoInicial + entradas − saidas
+  fonte: 'real' | 'projetado'  // dia >= hoje sem lançamento ainda = projetado
+  status: StatusHorizonte
+}
+
+export type StatusHorizonte = 'critico' | 'atencao' | 'ok' | 'otimo'
+
+export interface ParametrosHorizonte {
+  hoje: string
+  dias: number                                    // tamanho da janela
+  saldoReferencia: { data: string; valor: number } // reconciliação mais recente
+  lancamentosReais: readonly LancamentoParaProjecao[] // do dia da referência até hoje
+  compromissos: readonly CompromissoDetalhado[]
+  parcelas: readonly ParceladaDetalhada[]
+  orcamentoDiarioVariavel: number                  // ver "o Diário", abaixo
+  retiradaHipotetica?: { data: string; valor: number } // simulação (ver adiante)
+}
+
+export function projetarHorizonteDiario(
+  params: ParametrosHorizonte,
+): DiaHorizonte[]
+```
+
+**O "Diário" — a peça que não existe em lugar nenhum do Nexus hoje.** O
+orçamento das categorias variáveis (mercado, lazer, transporte — sem boleto,
+sem data certa) deixa de ser uma estimativa aplicada em bloco no fim do mês
+(como em `variavelEstimado` da 10.43) e passa a ser **debitado todo dia**, em
+fatias iguais: `orcamentoDiarioVariavel = metaTotalDespesas(variáveis) /
+diasNoMes`. É a diferença central do vídeo — sem isso, o meio do mês parece
+sempre mais folgado do que é, porque o gasto sem boleto ainda não "aconteceu"
+na projeção. Dias reais (`fonte: 'real'`) usam o lançamento de fato, não a
+fatia — o Diário é só para dias ainda não vividos.
+
+**Corte real/projetado, agora por dia, não por mês.** Mesma regra da 10.43,
+granularidade menor: dias com `data <= hoje` leem `lancamentosReais`; dias
+futuros combinam `compromissos` (expandidos por `expandirRecorrenciaMensal`,
+que **já devolve a data exata dentro do mês** — só precisa ser consultada dia
+a dia em vez de somada por mês) + `parcelas` (idem, `calcularParcelas` já
+data cada parcela) + a fatia do Diário. Nenhuma duplicação: o dia em que o
+salário efetivamente cai passa a ler o lançamento real assim que ele é
+registrado, e some da lista de "compromissos futuros" — mesmo mecanismo que
+já existe na 10.43, só que a granularidade diária expõe a data exata em vez
+de escondê-la dentro do mês.
+
+**Semáforo de 4 níveis.** Os 3 status que já existem no design system
+(`--status-ok`, `--status-atencao`, `--status-risco`) não bastam — falta o
+"vai sobrar, dá para investir" que o vídeo chama de verde-escuro. Precisa de
+um 4º token, `--status-otimo`, no mesmo lugar que os outros três em
+`index.css` (e replicado em `design-system/gerar.py`, que copia os tokens à
+mão — ver nota do README). Limiares como constantes em `lib/constants.ts`,
+mesma convenção de `LIMITE_COMPROMETIMENTO_PADRAO` — este é um app de um
+usuário só, então "configurável por usuário" seria uma tabela de configuração
+inteira para resolver o que uma constante já resolve:
+
+```ts
+export function statusHorizonte(
+  saldoFinal: number,
+  colchaoMinimo: number,     // COLCHAO_MINIMO_HORIZONTE
+  colchaoConfortavel: number, // COLCHAO_CONFORTAVEL_HORIZONTE
+): StatusHorizonte {
+  if (saldoFinal < 0) return 'critico'
+  if (saldoFinal < colchaoMinimo) return 'atencao'
+  if (saldoFinal < colchaoConfortavel) return 'ok'
+  return 'otimo'
+}
+```
+
+**Menor saldo antes do próximo salário — o motor da decisão de poupar.**
+
+```ts
+export interface MenorSaldoAtePorximaReceita {
+  data: string
+  saldoFinal: number
+}
+
+export function menorSaldoAteProximaReceita(
+  dias: readonly DiaHorizonte[],
+  proximaDataReceita: string, // primeira ocorrência de compromisso de receita após hoje
+): MenorSaldoAtePorximaReceita | null
+```
+
+Percorre os dias entre hoje e a próxima ocorrência de receita (exclusive) e
+devolve o mínimo — é a resposta direta a "quanto dá pra guardar sem se
+sabotar": qualquer retirada no dia do salário que deixe esse mínimo abaixo de
+zero estourou a realidade da conta.
+
+**Simulação de retirada pontual.** Reaproveita o padrão hipotético que o
+simulador de compra parcelada já usa (`compraHipotetica`/`compromissoHipotetico`
+da 10.44/10.47) — nenhum dado real é mutado, o valor entra por parâmetro e sai
+do resultado assim que a simulação termina. `retiradaHipotetica` em
+`ParametrosHorizonte` desconta o valor do `saldoFinal` a partir da data
+informada (inclusive) até o fim da janela. A UI mostra o resultado da mesma
+forma que o vídeo ensina a usar a planilha: aplica a retirada no dia do
+pagamento e olha se os dias seguintes ficam em `atencao` (ideal) ou em
+`critico` (guardou mais do que devia).
+
+#### UI — Financeiro reestruturado
+
+- **Página principal do Financeiro** troca `CardDisponivelHoje` +
+  `GradePlanejamentoSemanal` por uma **timeline de dias**: uma faixa horizontal
+  (mobile: lista vertical, mesmo padrão de responsividade da 10.30) com um
+  segmento colorido por dia — as 4 cores do semáforo — navegável para frente e
+  para trás dentro da janela de `dias`.
+- **Tocar num dia** expande o detalhe: saldo inicial, entradas e saídas
+  daquele dia (com a origem de cada uma — compromisso, parcela, ou fatia do
+  Diário), saldo final. Mesmo padrão de "clicar abre um card de detalhe" da
+  10.40 (calendário).
+- **Cartão de destaque**: "menor saldo antes do próximo salário" sempre
+  visível no topo, com a data — é o número que orienta a decisão de guardar,
+  não pode ficar escondido dentro da timeline.
+- **Retirada simulada**: botão que abre uma folha (padrão `Sheet` da 10.29,
+  igual ao `SheetSimulador`) para informar valor e data; a timeline se
+  redesenha com a simulação aplicada, sem persistir nada até confirmação
+  explícita.
+- **Reconciliação de saldo**: formulário simples (data + valor + observação
+  opcional) para registrar `saldo_referencia_conta` — mesmo padrão de diálogo
+  dos outros cadastros do Financeiro.
+
+#### Efeitos colaterais e o que fica pendente de decisão
+
+- O card compacto do Financeiro na Home (10.35) hoje mostra Receita vs.
+  Despesa — passa a poder mostrar também o status do dia atual do Horizonte,
+  mas isso é decisão de UI para quando a timeline estiver validada, não parte
+  desta especificação.
+- `planejamento_semanal_financeiro` arquivada, não apagada (ver decisão acima).
+  Se em uso o Horizonte não substituir de fato a necessidade que o
+  planejamento semanal manual atendia, a tabela volta sem migração.
+- **Em aberto, não resolvido aqui:** o tamanho da janela (`dias`) padrão do
+  Horizonte. Fixo (ex.: 60 dias) é simples mas arbitrário; "até a próxima
+  receita + N dias de folga" é mais fiel ao vídeo mas exige achar a próxima
+  ocorrência de receita antes de saber o tamanho da janela. Fica para a
+  primeira rodada de implementação decidir com dado real na mão.
+- **Em aberto:** os valores de `COLCHAO_MINIMO_HORIZONTE` e
+  `COLCHAO_CONFORTAVEL_HORIZONTE` são pessoais e não têm como ser inferidos do
+  schema — precisam ser definidos em conversa, não adivinhados nesta spec.
+
+#### Testes a acrescentar em `horizonte.test.ts`
+
+- corte real/projetado no dia exato de hoje (dia de hoje sem lançamento ainda
+  cai em projetado; com lançamento, em real — igual ao teste equivalente de
+  `projecao.test.ts` para o mês corrente).
+- compromisso que cai em `dia_mes` inexistente no mês corrente da janela
+  (mesma regra de borda da 10.43, agora verificada na granularidade de dia).
+- `orcamentoDiarioVariavel` não é debitado em dias com `fonte: 'real'`.
+- `menorSaldoAteProximaReceita` com janela sem nenhuma ocorrência de receita
+  (retorna `null`, não lança).
+- `statusHorizonte` nos 4 limites exatos (saldo == 0, == colchão mínimo, ==
+  colchão confortável).
+- retirada hipotética não altera dias anteriores à data informada.

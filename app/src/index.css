@@ -43,6 +43,7 @@
     --color-status-ok: var(--status-ok);
     --color-status-atencao: var(--status-atencao);
     --color-status-risco: var(--status-risco);
+    --color-status-otimo: var(--status-otimo);
 
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
@@ -142,6 +143,7 @@
        ciano-verde: continua lendo como "tudo certo", mas não se confunde com
        o verde do pilar quando os dois aparecem juntos. */
     --status-ok: #2f8b6d;
+    --status-otimo: #1d6348;
     --status-atencao: #b8941f;
     --status-risco: #c4554d;
 
@@ -200,6 +202,7 @@
     --evento-soft: #2f232a;
 
     --status-ok: #6cc0a5;
+    --status-otimo: #94dab6;
     --status-atencao: #d9bc5c;
     --status-risco: #d97970;
 

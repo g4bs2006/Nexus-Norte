@@ -138,6 +138,30 @@ export type Database = {
         }
         Relationships: []
       }
+      cartoes: {
+        Row: {
+          created_at: string
+          dia_fechamento: number
+          dia_vencimento: number
+          id: string
+          nome: string
+        }
+        Insert: {
+          created_at?: string
+          dia_fechamento: number
+          dia_vencimento: number
+          id?: string
+          nome: string
+        }
+        Update: {
+          created_at?: string
+          dia_fechamento?: number
+          dia_vencimento?: number
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
       categorias: {
         Row: {
           cor: string | null
@@ -232,88 +256,6 @@ export type Database = {
           planejamento_semana_feito?: boolean
         }
         Relationships: []
-      }
-      compras_parceladas: {
-        Row: {
-          categoria_id: string
-          created_at: string
-          data_primeira_parcela: string
-          descricao: string
-          id: string
-          juros_mensal: number
-          numero_parcelas: number
-          valor_total: number
-        }
-        Insert: {
-          categoria_id: string
-          created_at?: string
-          data_primeira_parcela: string
-          descricao: string
-          id?: string
-          juros_mensal?: number
-          numero_parcelas: number
-          valor_total: number
-        }
-        Update: {
-          categoria_id?: string
-          created_at?: string
-          data_primeira_parcela?: string
-          descricao?: string
-          id?: string
-          juros_mensal?: number
-          numero_parcelas?: number
-          valor_total?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "compras_parceladas_categoria_id_fkey"
-            columns: ["categoria_id"]
-            isOneToOne: false
-            referencedRelation: "categorias"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      compromissos_recorrentes: {
-        Row: {
-          categoria_id: string
-          created_at: string
-          data_fim: string | null
-          data_inicio: string
-          descricao: string
-          dia_mes: number
-          id: string
-          valor: number
-        }
-        Insert: {
-          categoria_id: string
-          created_at?: string
-          data_fim?: string | null
-          data_inicio: string
-          descricao: string
-          dia_mes: number
-          id?: string
-          valor: number
-        }
-        Update: {
-          categoria_id?: string
-          created_at?: string
-          data_fim?: string | null
-          data_inicio?: string
-          descricao?: string
-          dia_mes?: number
-          id?: string
-          valor?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "compromissos_recorrentes_categoria_id_fkey"
-            columns: ["categoria_id"]
-            isOneToOne: false
-            referencedRelation: "categorias"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       conclusoes_fluxograma: {
         Row: {
@@ -475,6 +417,59 @@ export type Database = {
           titulo?: string
         }
         Relationships: []
+      }
+      eventos_financeiros_previstos: {
+        Row: {
+          categoria_id: string
+          created_at: string
+          data_fim: string | null
+          data_inicio: string
+          descricao: string
+          dia_mes: number
+          id: string
+          juros_mensal: number | null
+          numero_parcelas: number | null
+          termino_tipo: string
+          valor: number | null
+          valor_total: number | null
+        }
+        Insert: {
+          categoria_id: string
+          created_at?: string
+          data_fim?: string | null
+          data_inicio: string
+          descricao: string
+          dia_mes: number
+          id?: string
+          juros_mensal?: number | null
+          numero_parcelas?: number | null
+          termino_tipo: string
+          valor?: number | null
+          valor_total?: number | null
+        }
+        Update: {
+          categoria_id?: string
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          descricao?: string
+          dia_mes?: number
+          id?: string
+          juros_mensal?: number | null
+          numero_parcelas?: number | null
+          termino_tipo?: string
+          valor?: number | null
+          valor_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eventos_financeiros_previstos_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       excecoes_fluxograma: {
         Row: {
@@ -784,41 +779,67 @@ export type Database = {
       }
       lancamentos: {
         Row: {
+          cartao_id: string | null
           categoria_id: string
+          competencia_evento: string | null
           created_at: string
           data: string
+          data_caixa: string
           data_vencimento: string | null
           descricao: string | null
+          evento_id: string | null
           forma_pagamento: string | null
           id: string
           valor: number
         }
         Insert: {
+          cartao_id?: string | null
           categoria_id: string
+          competencia_evento?: string | null
           created_at?: string
           data: string
+          data_caixa?: string
           data_vencimento?: string | null
           descricao?: string | null
+          evento_id?: string | null
           forma_pagamento?: string | null
           id?: string
           valor: number
         }
         Update: {
+          cartao_id?: string | null
           categoria_id?: string
+          competencia_evento?: string | null
           created_at?: string
           data?: string
+          data_caixa?: string
           data_vencimento?: string | null
           descricao?: string | null
+          evento_id?: string | null
           forma_pagamento?: string | null
           id?: string
           valor?: number
         }
         Relationships: [
           {
+            foreignKeyName: "lancamentos_cartao_id_fkey"
+            columns: ["cartao_id"]
+            isOneToOne: false
+            referencedRelation: "cartoes"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "lancamentos_categoria_id_fkey"
             columns: ["categoria_id"]
             isOneToOne: false
             referencedRelation: "categorias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lancamentos_evento_id_fkey"
+            columns: ["evento_id"]
+            isOneToOne: false
+            referencedRelation: "eventos_financeiros_previstos"
             referencedColumns: ["id"]
           },
         ]
@@ -1463,6 +1484,30 @@ export type Database = {
         }
         Relationships: []
       }
+      saldo_referencia_conta: {
+        Row: {
+          created_at: string
+          data: string
+          id: string
+          observacao: string | null
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          id?: string
+          observacao?: string | null
+          valor: number
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          id?: string
+          observacao?: string | null
+          valor?: number
+        }
+        Relationships: []
+      }
       semestres: {
         Row: {
           atual: boolean
@@ -1742,6 +1787,14 @@ export type Database = {
           titulo: string
         }[]
       }
+      calcular_data_caixa_cartao: {
+        Args: {
+          p_data: string
+          p_dia_fechamento: number
+          p_dia_vencimento: number
+        }
+        Returns: string
+      }
       calcular_media_materia: {
         Args: { p_materia_id: string }
         Returns: number
@@ -1754,6 +1807,21 @@ export type Database = {
           meta_efetiva: number
           nome: string
         }[]
+      }
+      competencia_evento_valida: {
+        Args: {
+          p_competencia: string
+          p_data_fim: string
+          p_data_inicio: string
+          p_dia_mes: number
+          p_numero_parcelas: number
+          p_termino_tipo: string
+        }
+        Returns: boolean
+      }
+      data_com_dia_clamp: {
+        Args: { p_dia: number; p_mes: string }
+        Returns: string
       }
       recalcular_total_gasto_mes: {
         Args: { p_categoria_id: string }

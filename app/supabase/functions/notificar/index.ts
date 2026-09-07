@@ -11,6 +11,7 @@
 // conta precisa revisão.
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import webpush from 'npm:web-push@3.6.7'
+import { pendenciasEventos } from '../_shared/eventos-financeiros.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -197,28 +198,23 @@ function dentroDaJanelaDasOito(agora: Date): boolean {
 }
 
 async function candidatasContaAVencer(agora: Date): Promise<Candidata[]> {
-  const hojeISO = paraISO(agora)
-  const { data: lancamentos } = await supabase
-    .from('lancamentos')
-    .select('id, descricao, valor, data, data_vencimento, categoria_id, categorias!inner(nome, natureza, tipo)')
-    .eq('categorias.natureza', 'despesa')
-    .eq('categorias.tipo', 'fixo')
-
-  return (lancamentos ?? []).flatMap((lancamento) => {
-    const vencimento = lancamento.data_vencimento ?? lancamento.data
-    if (vencimento !== hojeISO) return []
-    const nomeCategoria = (lancamento.categorias as unknown as { nome: string }).nome
-    return [
-      {
-        tipo: 'conta' as const,
-        origemId: lancamento.id,
-        dataReferencia: hojeISO,
-        titulo: 'Conta vence hoje',
-        corpo: `${lancamento.descricao ?? nomeCategoria} — R$ ${lancamento.valor.toFixed(2)}`,
-        rota: '/financeiro/lancamentos',
-      },
-    ]
-  })
+  const hoje = paraISO(agora)
+  const [eventos, pagamentos, compras] = await Promise.all([
+    supabase.from('eventos_financeiros_previstos').select('*, categorias!inner(natureza)'),
+    supabase.from('lancamentos').select('evento_id, competencia_evento, valor').eq('competencia_evento', hoje),
+    supabase.from('lancamentos').select('cartao_id, valor, cartoes!inner(nome), categorias!inner(natureza)').eq('data_caixa', hoje).not('cartao_id', 'is', null).eq('categorias.natureza', 'despesa'),
+  ])
+  for (const q of [eventos, pagamentos, compras]) if (q.error) throw q.error
+  const previstos = (eventos.data ?? []).map(({ categorias, ...e }) => ({ ...e, categoria_natureza: (categorias as unknown as { natureza: 'receita' | 'despesa' }).natureza }))
+  const candidatas: Candidata[] = pendenciasEventos(previstos, pagamentos.data ?? [], hoje, hoje).filter(o => o.categoria_natureza === 'despesa').map(o => ({ tipo: 'conta', origemId: o.evento_id, dataReferencia: hoje, titulo: 'Conta vence hoje', corpo: `${o.descricao} — R$ ${o.valor.toFixed(2)}`, rota: '/financeiro' }))
+  const faturas = new Map<string, { nome: string; valor: number }>()
+  for (const l of compras.data ?? []) {
+    const atual = faturas.get(l.cartao_id) ?? { nome: (l.cartoes as unknown as { nome: string }).nome, valor: 0 }
+    atual.valor += l.valor
+    faturas.set(l.cartao_id, atual)
+  }
+  for (const [id, f] of faturas) candidatas.push({ tipo: 'conta', origemId: id, dataReferencia: hoje, titulo: 'Fatura vence hoje', corpo: `${f.nome} — R$ ${f.valor.toFixed(2)}`, rota: '/financeiro' })
+  return candidatas
 }
 
 async function candidatasProva(amanhaISO: string): Promise<Candidata[]> {

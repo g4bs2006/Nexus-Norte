@@ -1,6 +1,5 @@
 import { supabase } from '@/lib/supabase'
 import type { TablesInsert, TablesUpdate } from '@/types/database'
-import type { CompromissoDetalhado, ParceladaDetalhada } from './projecao'
 import type {
   CandidatoCorte,
   Categoria,
@@ -300,84 +299,6 @@ export async function salvarPlanejamentoSemana(
   const { error } = await supabase
     .from('planejamento_semanal_financeiro')
     .insert(preenchidas.map((e) => ({ ...e, semana_inicio: semanaInicio })))
-  if (error) throw new Error(error.message)
-}
-
-// --- Planejamento de longo prazo (resolução 10.43) ---------------------------
-
-/**
- * Compromissos recorrentes com a natureza da categoria resolvida — o motor de
- * projeção (`projecao.ts`) precisa saber se cada um é receita ou despesa e
- * não repete essa informação (vem de `categorias.natureza`, resolução 10.12).
- */
-export async function listarCompromissos(): Promise<CompromissoDetalhado[]> {
-  const { data, error } = await supabase
-    .from('compromissos_recorrentes')
-    .select('*, categorias!inner(natureza)')
-    .order('dia_mes')
-  if (error) throw new Error(error.message)
-
-  return (data ?? []).map(({ categorias, ...compromisso }) => ({
-    ...compromisso,
-    categoria_natureza: categorias.natureza as 'receita' | 'despesa',
-  }))
-}
-
-export async function criarCompromisso(
-  dados: TablesInsert<'compromissos_recorrentes'>,
-): Promise<void> {
-  const { error } = await supabase
-    .from('compromissos_recorrentes')
-    .insert(dados)
-  if (error) throw new Error(error.message)
-}
-
-export async function atualizarCompromisso(
-  id: string,
-  dados: TablesUpdate<'compromissos_recorrentes'>,
-): Promise<void> {
-  const { error } = await supabase
-    .from('compromissos_recorrentes')
-    .update(dados)
-    .eq('id', id)
-  if (error) throw new Error(error.message)
-}
-
-export async function excluirCompromisso(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('compromissos_recorrentes')
-    .delete()
-    .eq('id', id)
-  if (error) throw new Error(error.message)
-}
-
-// --- Compras parceladas (resolução 10.44) ------------------------------------
-
-export async function listarParceladas(): Promise<ParceladaDetalhada[]> {
-  const { data, error } = await supabase
-    .from('compras_parceladas')
-    .select('*, categorias!inner(natureza)')
-    .order('data_primeira_parcela', { ascending: false })
-  if (error) throw new Error(error.message)
-
-  return (data ?? []).map(({ categorias, ...compra }) => ({
-    ...compra,
-    categoria_natureza: categorias.natureza as 'receita' | 'despesa',
-  }))
-}
-
-export async function criarParcelada(
-  dados: TablesInsert<'compras_parceladas'>,
-): Promise<void> {
-  const { error } = await supabase.from('compras_parceladas').insert(dados)
-  if (error) throw new Error(error.message)
-}
-
-export async function excluirParcelada(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('compras_parceladas')
-    .delete()
-    .eq('id', id)
   if (error) throw new Error(error.message)
 }
 

@@ -1,4 +1,6 @@
 import { supabase } from '@/lib/supabase'
+import { listarEventosFinanceiros, listarLancamentosCaixa, listarCartoes } from '@/features/financeiro/caixa-api'
+import { pendenciasEventos } from '../../../supabase/functions/_shared/eventos-financeiros'
 import type {
   FonteAtividade,
   FonteAvaliacao,
@@ -93,25 +95,18 @@ export { listarEventosLivres as eventosLivresNoIntervalo } from '@/features/even
  * Lançamentos com o tipo e a natureza da categoria, para que o construtor
  * consiga isolar as despesas fixas (contas a pagar).
  */
-export async function lancamentosParaContas(): Promise<FonteConta[]> {
-  const { data, error } = await supabase
-    .from('lancamentos')
-    // categoria_id vem junto para o evento saber para onde navegar ao ser clicado
-    .select(
-      'id, descricao, valor, data, data_vencimento, categoria_id, categorias!inner(tipo, natureza)',
-    )
-  if (error) throw new Error(error.message)
-
-  return (data ?? []).map((linha) => ({
-    id: linha.id,
-    descricao: linha.descricao,
-    valor: linha.valor,
-    data: linha.data,
-    data_vencimento: linha.data_vencimento,
-    categoria_id: linha.categoria_id,
-    categoria_tipo: linha.categorias.tipo,
-    categoria_natureza: linha.categorias.natureza,
-  }))
+export async function lancamentosParaContas(de: string, ate: string): Promise<FonteConta[]> {
+  const [eventos, lancamentos, cartoes] = await Promise.all([listarEventosFinanceiros(), listarLancamentosCaixa(ate), listarCartoes()])
+  const pendentes: FonteConta[] = pendenciasEventos(eventos, lancamentos, de, ate).map(o => ({ id: `${o.evento_id}:${o.data}`, descricao: o.descricao, valor: o.valor, data: o.data, data_vencimento: o.data, categoria_id: o.categoria_id, categoria_tipo: 'fixo', categoria_natureza: o.categoria_natureza }))
+  const faturas = new Map<string, FonteConta>()
+  for (const l of lancamentos) {
+    if (!l.cartao_id || l.data_caixa < de || l.data_caixa > ate || l.categoria_natureza !== 'despesa') continue
+    const chave = `${l.cartao_id}:${l.data_caixa}`
+    const anterior = faturas.get(chave)
+    if (anterior) anterior.valor += l.valor
+    else faturas.set(chave, { id: `fatura:${chave}`, descricao: `Fatura · ${cartoes.find(c => c.id === l.cartao_id)?.nome ?? 'Cartão'}`, valor: l.valor, data: l.data_caixa, data_vencimento: l.data_caixa, categoria_id: l.categoria_id, categoria_tipo: 'fixo', categoria_natureza: 'despesa' })
+  }
+  return [...pendentes, ...faturas.values()]
 }
 
 export async function planejamentoSono(): Promise<FontePlanejamentoSono[]> {

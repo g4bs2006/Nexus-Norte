@@ -15,7 +15,7 @@ export const chaves = {
   fluxograma: () => ['calendario', 'fluxograma'] as const,
   excecoes: (de: string, ate: string) =>
     ['calendario', 'excecoes', de, ate] as const,
-  contas: () => ['calendario', 'contas'] as const,
+  contas: (de: string, ate: string) => ['calendario', 'contas', de, ate] as const,
   sono: () => ['calendario', 'sono'] as const,
   sonoRealizado: (de: string, ate: string) =>
     ['calendario', 'sono-realizado', de, ate] as const,
@@ -67,8 +67,8 @@ export function useFontesCalendario(
     queryFn: () => api.excecoesNoIntervalo(de, ate),
   })
   const contas = useQuery({
-    queryKey: chaves.contas(),
-    queryFn: api.lancamentosParaContas,
+    queryKey: chaves.contas(de, ate),
+    queryFn: () => api.lancamentosParaContas(de, ate),
   })
   const sono = useQuery({
     queryKey: chaves.sono(),

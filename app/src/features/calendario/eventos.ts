@@ -1054,7 +1054,7 @@ export function eventosContas(
         diaInteiro: true,
         camada: 'financeiro' as const,
         tipo: 'conta' as const,
-        rota: `/financeiro/categorias/${conta.categoria_id}`,
+        rota: conta.id.startsWith('fatura:') ? '/financeiro' : `/financeiro/categorias/${conta.categoria_id}`,
       },
     ]
   })
