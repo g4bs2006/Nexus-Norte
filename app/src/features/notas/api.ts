@@ -533,12 +533,15 @@ export async function salvarConteudo(
   id: string,
   conteudo: string,
 ): Promise<void> {
-  lancar(
+  lancarSeErro(
     await supabase
       .from('notas_estudo')
       // `atualizada_em` fica de fora: o trigger carimba (resolução 10.9).
       .update({ conteudo, conteudo_busca: removerMatematica(conteudo) })
-      .eq('id', id),
+      .eq('id', id)
+      // Só confirma salvamento se uma nota realmente foi atualizada.
+      .select('id')
+      .single(),
   )
 }
 

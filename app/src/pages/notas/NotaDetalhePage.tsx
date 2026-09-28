@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { DialogConfirmarExclusao } from '@/components/DialogConfirmarExclusao'
@@ -21,7 +21,6 @@ import {
   useExcluirNota,
   useNota,
   useNotas,
-  useSalvarNota,
 } from '@/features/notas/hooks'
 import { useUIStore } from '@/stores/ui'
 import { useAutosave } from '@/features/notas/useAutosave'
@@ -52,8 +51,7 @@ import './documento.css'
  * nota, divergindo em silêncio; o editor travado custa 143 kB gz uma vez, e faz
  * o que se lê ser por construção o que se edita.
  *
- * O botão de salvar é **provisório**: a fase 4 troca por autosave, e aí ele
- * some. Está aqui para esta fase não deixar o sistema sem como gravar.
+ * O rascunho é persistido a cada alteração; a fila de salvamento sobrevive à navegação.
  */
 export default function NotaDetalhePage() {
   const { slug } = useParams<{ slug: string }>()
@@ -66,47 +64,14 @@ export default function NotaDetalhePage() {
   const materias = useMaterias()
   const semestres = useSemestres()
   const sessoes = useSessoes()
-  const salvar = useSalvarNota()
   const excluir = useExcluirNota()
 
-  const [titulo, setTitulo] = useState('')
-  const [conteudo, setConteudo] = useState('')
-
   const atual = nota.data ?? null
+  const { titulo, conteudo, estado, setTitulo, setConteudo, flush, descartar } = useAutosave(atual)
 
-  /*
-   * O rascunho é semeado do servidor UMA VEZ por nota.
-   *
-   * A guarda por id é o ponto: o objeto muda de identidade a cada refetch do
-   * React Query, e semear de novo apagaria o que estivesse sendo escrito no
-   * exato momento em que outra aba invalidasse o cache.
-   */
-  const carregada = useRef<string | null>(null)
-  /*
-   * Semeado DURANTE o render, e não num efeito — e a diferença era um bug de
-   * nota em branco.
-   *
-   * Um efeito roda DEPOIS do commit. O editor é não controlado: ele lê `value`
-   * uma vez, ao montar (`EditorMarkdownRico`, `inicial = useRef(value)`), e
-   * nunca mais olha. Então, no render em que a nota trocava, o editor montava
-   * com o `conteudo` da nota ANTERIOR — vazio, no caso de vir de uma nota
-   * recém-criada — e o efeito corrigia o estado tarde demais: o React
-   * re-renderizava com o texto certo e o editor continuava mostrando o vazio,
-   * até recarregar a página.
-   *
-   * Era mais que um susto visual. O editor emite `onChange` do documento que
-   * TEM, então bastava digitar uma tecla naquela tela em branco para o
-   * autosave gravar vazio por cima da nota de verdade.
-   *
-   * Chamar `setState` durante o render do próprio componente é o padrão do
-   * React para derivar estado de prop que mudou: ele re-renderiza na hora,
-   * antes de pintar, então o editor já monta com o texto certo.
-   */
-  if (atual && carregada.current !== atual.id) {
-    carregada.current = atual.id
-    setTitulo(atual.titulo)
-    setConteudo(atual.conteudo)
-  }
+  useEffect(() => {
+    if (atual && atual.slug !== slug) navigate(`/notas/${atual.slug}`, { replace: true })
+  }, [atual, slug, navigate])
 
   /** Slugs que já existem, para o link a escrever se distinguir do resolvido. */
   const existentes = useMemo(
@@ -137,18 +102,6 @@ export default function NotaDetalhePage() {
         (sessao) => sessao.materia_id === atual?.materia_id,
       ),
     [sessoes.data, atual?.materia_id],
-  )
-
-  /*
-   * O autosave cuida do CONTEÚDO. O título fica de fora de propósito: renomear
-   * muda o slug e reescreve o texto de quem cita esta nota — caro demais para
-   * acontecer a cada tecla. Ele grava no blur, logo abaixo.
-   */
-  const estado = useAutosave(
-    atual?.id,
-    atual?.materia_id,
-    atual?.titulo,
-    conteudo,
   )
 
   if (nota.isPending) {
@@ -185,23 +138,6 @@ export default function NotaDetalhePage() {
 
 
 
-  /**
-   * Renomeia, e só quando o campo perde o foco.
-   *
-   * Passa por `salvarNota` inteiro porque renomear é o caso caro: muda o slug,
-   * reescreve os links de quem aponta para cá e religa arestas pendentes. Fazer
-   * isso a cada tecla escreveria em outras notas dezenas de vezes por frase.
-   */
-  async function renomear() {
-    if (!atual || titulo.trim() === '' || titulo === atual.titulo) return
-    await salvar.mutateAsync({
-      id: atual.id,
-      materiaId: atual.materia_id,
-      titulo,
-      conteudo,
-    })
-  }
-
   return (
     <div className="mx-auto w-full max-w-[1100px]">
       {/*
@@ -223,7 +159,9 @@ export default function NotaDetalhePage() {
             titulo="Excluir nota"
             mensagem={`"${atual.titulo}" será apagada. Quem aponta para ela fica com um link quebrado, e o texto do link continua lá.`}
             onConfirmar={async () => {
+              await flush()
               await excluir.mutateAsync(atual.id)
+              descartar()
               navigate('/notas')
             }}
             pendente={excluir.isPending}
@@ -262,7 +200,7 @@ export default function NotaDetalhePage() {
               <input
                 value={titulo}
                 onChange={(evento) => setTitulo(evento.target.value)}
-                onBlur={() => void renomear()}
+                onBlur={() => void flush()}
                 aria-label="Título da nota"
                 placeholder="Sem título"
                 className="documento-titulo"

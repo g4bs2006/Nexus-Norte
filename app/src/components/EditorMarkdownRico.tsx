@@ -11,7 +11,7 @@ import { commonmark } from '@milkdown/kit/preset/commonmark'
 import { gfm } from '@milkdown/kit/preset/gfm'
 import { block } from '@milkdown/kit/plugin/block'
 import { history } from '@milkdown/kit/plugin/history'
-import { listener, listenerCtx } from '@milkdown/kit/plugin/listener'
+import { criarPersistenciaImediata } from './editor/persistenciaImediata'
 import { insert } from '@milkdown/kit/utils'
 import { katexOptionsCtx, math } from '@milkdown/plugin-math'
 import {
@@ -187,6 +187,9 @@ function Interno({
   })
   const aoMudar = useRef(onChange)
   aoMudar.current = onChange
+  const persistencia = useRef(criarPersistenciaImediata((markdown) => {
+    if (!travado.current) aoMudar.current(markdown)
+  }))
 
   const inicial = useRef(value)
   const editorRef = useRef<ReturnType<typeof get> | null>(null)
@@ -339,9 +342,6 @@ function Interno({
             ...(travado.current ? { 'data-somente-leitura': 'sim' } : {}),
           },
         }))
-        ctx.get(listenerCtx).markdownUpdated((_, markdown, anterior) => {
-          if (markdown !== anterior) aoMudar.current(markdown)
-        })
         /*
          * `math_inline` ignora isto (view própria em `viewMatematica.ts`, com
          * `displayMode: false` fixo) — só o `math_block` (`$$...$$`) lê este
@@ -361,7 +361,7 @@ function Interno({
       .use(commonmark)
       .use(gfm)
       .use(math)
-      .use(listener)
+      .use(persistencia.current)
       // O dialeto vem depois dos presets: ele reescreve nós de texto que o
       // commonmark já produziu.
       .use(dialetoRemark)
